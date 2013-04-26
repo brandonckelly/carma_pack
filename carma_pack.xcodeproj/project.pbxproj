@@ -7,8 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		DFD8B813172B290C006D6BAB /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B812172B290C006D6BAB /* main.cpp */; };
 		DFD8B815172B290C006D6BAB /* carma_pack.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DFD8B814172B290C006D6BAB /* carma_pack.1 */; };
+		DFD8B81E172B2AB3006D6BAB /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81C172B2AB3006D6BAB /* carpack.cpp */; };
+		DFD8B81F172B2AB3006D6BAB /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */; };
+		DFD8B822172B2B71006D6BAB /* samplers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B821172B2B71006D6BAB /* samplers.cpp */; };
+		DFD8B829172B323B006D6BAB /* steps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B825172B323B006D6BAB /* steps.cpp */; };
+		DFD8B82A172B323B006D6BAB /* random.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B826172B323B006D6BAB /* random.cpp */; };
+		DFD8B82C172B3245006D6BAB /* proposals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B82B172B3245006D6BAB /* proposals.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,8 +31,19 @@
 
 /* Begin PBXFileReference section */
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
-		DFD8B812172B290C006D6BAB /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		DFD8B814172B290C006D6BAB /* carma_pack.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = carma_pack.1; sourceTree = "<group>"; };
+		DFD8B81B172B2AB3006D6BAB /* carpack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = carpack.hpp; path = src/carpack.hpp; sourceTree = SOURCE_ROOT; };
+		DFD8B81C172B2AB3006D6BAB /* carpack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carpack.cpp; path = src/carpack.cpp; sourceTree = SOURCE_ROOT; };
+		DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carmcmc.cpp; path = src/carmcmc.cpp; sourceTree = SOURCE_ROOT; };
+		DFD8B820172B2AF9006D6BAB /* samplers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = samplers.hpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/samplers.hpp"; sourceTree = "<absolute>"; };
+		DFD8B821172B2B71006D6BAB /* samplers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = samplers.cpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/samplers.cpp"; sourceTree = "<absolute>"; };
+		DFD8B823172B322D006D6BAB /* parameters.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = parameters.hpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/parameters.hpp"; sourceTree = "<absolute>"; };
+		DFD8B824172B322D006D6BAB /* steps.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = steps.hpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/steps.hpp"; sourceTree = "<absolute>"; };
+		DFD8B825172B323B006D6BAB /* steps.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = steps.cpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/steps.cpp"; sourceTree = "<absolute>"; };
+		DFD8B826172B323B006D6BAB /* random.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = random.cpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/random.cpp"; sourceTree = "<absolute>"; };
+		DFD8B827172B323B006D6BAB /* proposals.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = proposals.hpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/proposals.hpp"; sourceTree = "<absolute>"; };
+		DFD8B828172B323B006D6BAB /* random.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = random.hpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/random.hpp"; sourceTree = "<absolute>"; };
+		DFD8B82B172B3245006D6BAB /* proposals.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = proposals.cpp; path = "/Users/brandonkelly/Xcode_projects/yamcmc++/yamcmc++/proposals.cpp"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,7 +60,7 @@
 		DFD8B806172B290C006D6BAB = {
 			isa = PBXGroup;
 			children = (
-				DFD8B811172B290C006D6BAB /* carma_pack */,
+				DFD8B811172B290C006D6BAB /* src */,
 				DFD8B810172B290C006D6BAB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -57,13 +73,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		DFD8B811172B290C006D6BAB /* carma_pack */ = {
+		DFD8B811172B290C006D6BAB /* src */ = {
 			isa = PBXGroup;
 			children = (
-				DFD8B812172B290C006D6BAB /* main.cpp */,
+				DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */,
+				DFD8B81B172B2AB3006D6BAB /* carpack.hpp */,
+				DFD8B81C172B2AB3006D6BAB /* carpack.cpp */,
+				DFD8B820172B2AF9006D6BAB /* samplers.hpp */,
+				DFD8B821172B2B71006D6BAB /* samplers.cpp */,
+				DFD8B827172B323B006D6BAB /* proposals.hpp */,
+				DFD8B82B172B3245006D6BAB /* proposals.cpp */,
+				DFD8B824172B322D006D6BAB /* steps.hpp */,
+				DFD8B825172B323B006D6BAB /* steps.cpp */,
+				DFD8B828172B323B006D6BAB /* random.hpp */,
+				DFD8B826172B323B006D6BAB /* random.cpp */,
+				DFD8B823172B322D006D6BAB /* parameters.hpp */,
 				DFD8B814172B290C006D6BAB /* carma_pack.1 */,
 			);
-			path = carma_pack;
+			path = src;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -117,7 +144,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DFD8B813172B290C006D6BAB /* main.cpp in Sources */,
+				DFD8B81E172B2AB3006D6BAB /* carpack.cpp in Sources */,
+				DFD8B81F172B2AB3006D6BAB /* carmcmc.cpp in Sources */,
+				DFD8B822172B2B71006D6BAB /* samplers.cpp in Sources */,
+				DFD8B829172B323B006D6BAB /* steps.cpp in Sources */,
+				DFD8B82A172B323B006D6BAB /* random.cpp in Sources */,
+				DFD8B82C172B3245006D6BAB /* proposals.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -151,8 +183,15 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "/usr/local/include/**";
+				LIBRARY_SEARCH_PATHS = "/usr/local/include/**";
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = (
+					"-lboost_filesystem",
+					"-lboost_system",
+					"-larmadillo",
+				);
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -178,7 +217,15 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "/usr/local/include/**";
+				LIBRARY_SEARCH_PATHS = "/usr/local/include/**";
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = (
+					"-lboost_filesystem",
+					"-lboost_system",
+					"-larmadillo",
+				);
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -216,6 +263,7 @@
 				DFD8B81A172B290C006D6BAB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
