@@ -18,6 +18,15 @@ class CarSample(samplers.MCMCSample):
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         samplers.MCMCSample.__init__(filename=filename)
 
+        # now calculate the CAR(p) characteristic polynomial roots, coefficients, and amplitude of driving noise and
+        # add them to the MCMC samples
+        self._ar_roots()
+        self._ar_coefs()
+        self._sigma_noise()
+
+        # make the parameter names (i.e., the keys) public so the use knows how to get them
+        self.parameters = self._samples.keys()
+
     def generate_from_file(self, filename):
         """
         Build the dictionary of parameter samples from an ascii file of MCMC samples from carpack.
@@ -29,31 +38,76 @@ class CarSample(samplers.MCMCSample):
         trace = np.genfromtxt(filename, skip_header=1)
 
         # Figure out how many AR terms we have
-        p = trace.shape[1] - 3
+        self.p = trace.shape[1] - 3
         names = ['logpost', 'var', 'measerr_scale', 'log_centroid', 'log_width']
         if names != self._samples.keys():
             # Parameters are not already in the dictionary, add them.
             self._samples['logpost'] = trace[:, 0]  # log-posterior of the CAR(p) model
             self._samples['var'] = trace[:, 1]  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 2]  # Measurement errors are scaled by this much.
-            ar_index = np.arange(0, p, 2)
+            ar_index = np.arange(0, self.p, 2)
             # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
-            # the power spectrum. Note that these are equal to -1 / 4 * pi times the imaginary and real parts of the
+            # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
             # roots of the AR(p) characteristic polynomial, respectively.
             self._samples['log_centroid'] = trace[:, 3 + ar_index]
+            if self.p % 2 == 1:
+                # Odd number of roots, so add in low-frequency component
+                np.append(ar_index, ar_index.max() + 1)
             self._samples['log_width'] = trace[:, 4 + ar_index]
-    
-    def sigma_noise(self, var=None, qpo_centroid=None, qpo_width=None):
-        """
-        Return the standard deviation of the white noise driving process. If no inputs are supplied, then the output is
-        a numpy array containing the values calculated from all of the MCMC samples. Otherwise, the returned values are
-        calculated only for the input values. Note that if one input is provided, then all of them must be.
 
-        :param var: The variance of the CAR(p) process, a numpy array.
-        :param qpo_centroid: The centroid of the lorentzians defining the power spectrum.
-        :param qso_width: The widths of the lorentzians defining the power spectrum.
+    def _ar_roots(self):
         """
-        pass
+        Calculate the roots of the CAR(p) characteristic polynomial and add them to the MCMC samples.
+        """
+        var = self._samples['var']
+        qpo_centroid = np.exp(self._samples['log_centroid'])
+        qpo_width = np.exp(self._samples['log_width'])
+
+        ar_roots = np.empty(var.size, self.p)
+        ar_roots[:, 0:self.p/2] = -2.0 * np.pi * (qpo_width[:, 0:self.p/2] + 1j * qpo_centroid[:, 0:self.p/2])
+        ar_roots[:, self.p/2:self.p/2 + self.p/2] = ar_roots[:, 0:self.p/2].conjugate()
+        if self.p % 2 == 1:
+            # p is odd, so add in low-frequency component
+            ar_roots[:, qpo_width.shape(1)-1] = qpo_width[:, qpo_width.shape(1)-1]
+
+        # add it to the MCMC samples
+        self._samples['ar_roots'] = ar_roots
+
+    def _ar_coefs(self):
+        """
+        Calculate the CAR(p) autoregressive coefficients and add them to the MCMC samples.
+        """
+        roots = self._samples['ar_roots']
+        coefs = np.zeros(roots.shape[0], self.p + 1)
+        coefs[:,0] = 1.0
+        for i in xrange(self.p):
+            coefs[:,1:i+2] = coefs[:,1:i+2] - roots[:,i+2] * coefs[:,0:i+1]
+
+        self._samples['ar_coefs'] = coefs
+
+    def _sigma_noise(self):
+        """
+        Calculate the MCMC samples of the standard deviation of the white noise driving process and add them to the
+        MCMC samples.
+        """
+        # get the CAR(p) model variance of the time series
+        var = self._samples['var']
+
+        # get the roots of the AR(p) characteristic polynomial
+        ar_roots = self._samples['ar_roots']
+
+        # calculate the variance of a CAR(p) process, assuming sigma = 1.0
+        sigma1_variance = 0.0
+        for k in xrange(p):
+            denom_product = -2.0 * ar_roots[:, k].real
+            for l in xrange(p):
+                denom_product *= (ar_roots[:, l] - ar_roots[:, k]) * (ar_roots[:, l].congugate() + ar_roots[:, k])
+            sigma1_variance += 1.0 / denom_product
+
+        sigma = var / sigma1_variance
+
+        # add the sigmas to the MCMC samples
+        self._samples['sigma'] = sigma
 
     def kalman_filter(self, var, qpo_centroid, qpo_width):
         """
@@ -65,25 +119,76 @@ class CarSample(samplers.MCMCSample):
         """
         pass
 
-    def power_spectrum(self, freq, var, qpo_centroid, qpo_width):
+    def power_spectrum(self, freq, sigma, ar_coef):
         """
         Return the power spectrum for a CAR(p) process calculated at the input frequencies.
 
-        :rtype : A numpy array.
         :param freq: The frequencies at which to calculate the PSD.
-        :param var: The variance of the CAR(p) process.
-        :param qpo_centroid: The centroids of the CAR(p) lorentzians.
-        :param qpo_width: The widths of the CAR(p) lorentzians.
-        """
-        pass
+        :param sigma: The standard deviation driving white noise.
+        :param ar_coef: The CAR(p) model autoregressive coefficients.
 
-    def plot_power_spectrum(self, percentile=68.0):
+        :rtype : A numpy array.
         """
-        Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD.
+        ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the denominator
+        pspec = sigma ** 2 / np.abs(ar_poly) ** 2
+        return pspec
+
+    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True):
+        """
+        Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD. This
+        function returns a tuple containing the lower and upper PSD credibility intervals as a function of
+        frequency, the median PSD as a function of frequency, and the frequencies.
         
+        :rtype : A tuple of numpy arrays, (lower PSD, upper PSD, median PSD, frequencies).
         :param percentile: The percentile of the PSD credibility interval to plot.
+        :param nsamples: The number of MCMC samples to use to estimate the credibility interval. The default is all
+                         of them.
+        :param plot_log: A boolean. If true, then a logarithmic plot is made.
         """
-        pass
+        sigmas = self._samples['sigma']
+        ar_coefs = self._samples['ar_coefs']
+        if nsamples is None:
+            # Use all of the MCMC samples
+            nsamples = sigmas.shape[0]
+
+        nfreq = 100
+        dt_min = self.time[1:] - self.time[0:self.time.size-1]
+        dt_max = self.time.max() - self.time.min()
+
+        # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
+        # maximum time scales probed by the time series.
+        freq_max = 1.0 / (dt_min / 2.0)
+        freq_min = (1.0 / (2.0 * dt_max))
+
+        frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
+        frequencies = np.exp(frequencies)
+        psd_credint = np.empty(nfreq, 3)
+
+        lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
+        upper = 100.0 - lower
+
+        # Compute the PSDs from the MCMC samples
+        for i in xrange(nfreq):
+            omega = 2.0 * np.pi * 1j * frequencies[i]
+            ar_poly = np.zeros(nsamples)
+            for k in xrange(self.p-1):
+                # Here we compute:
+                #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
+                # Note that ar_coefs[0] = 1.0.
+                ar_poly += ar_coefs[:,k] * omega ** (self.p - k)
+            ar_poly += ar_coefs[:,self.p-1] * omega + ar_coefs[:,self.p]
+            psd_samples = sigmas ** 2 / np.abs(ar_poly) ** 2
+
+            # Now compute credibility interval for power spectrum
+            psd_credint[i,0] = np.percentile(psd_samples, lower)
+            psd_credint[i,2] = np.percentile(psd_samples, upper)
+            psd_credint[i,1] = np.median(psd_samples)
+
+        # Plot the power spectra
+        ##### stopped here #####
+
+
+        return (psd_credint[:,0], psd_credint[:,2], psd_credint[:,1], frequencies)
 
     def assess_fit(self, bestfit="MAP"):
         """
