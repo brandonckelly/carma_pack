@@ -3,10 +3,12 @@ __author__ = 'Brandon C. Kelly'
 import numpy as np
 import samplers
 
+
 class CarSample(samplers.MCMCSample):
     """
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
     """
+
     def __init__(self, time, y, ysig, filename=None):
         """
         Constructor for the class. Right same as its superclass.
@@ -64,11 +66,11 @@ class CarSample(samplers.MCMCSample):
         qpo_width = np.exp(self._samples['log_width'])
 
         ar_roots = np.empty(var.size, self.p)
-        ar_roots[:, 0:self.p/2] = -2.0 * np.pi * (qpo_width[:, 0:self.p/2] + 1j * qpo_centroid[:, 0:self.p/2])
-        ar_roots[:, self.p/2:self.p/2 + self.p/2] = ar_roots[:, 0:self.p/2].conjugate()
+        ar_roots[:, 0:self.p / 2] = -2.0 * np.pi * (qpo_width[:, 0:self.p / 2] + 1j * qpo_centroid[:, 0:self.p / 2])
+        ar_roots[:, self.p / 2:self.p / 2 + self.p / 2] = ar_roots[:, 0:self.p / 2].conjugate()
         if self.p % 2 == 1:
             # p is odd, so add in low-frequency component
-            ar_roots[:, qpo_width.shape(1)-1] = qpo_width[:, qpo_width.shape(1)-1]
+            ar_roots[:, qpo_width.shape(1) - 1] = qpo_width[:, qpo_width.shape(1) - 1]
 
         # add it to the MCMC samples
         self._samples['ar_roots'] = ar_roots
@@ -79,9 +81,9 @@ class CarSample(samplers.MCMCSample):
         """
         roots = self._samples['ar_roots']
         coefs = np.zeros(roots.shape[0], self.p + 1)
-        coefs[:,0] = 1.0
+        coefs[:, 0] = 1.0
         for i in xrange(self.p):
-            coefs[:,1:i+2] = coefs[:,1:i+2] - roots[:,i+2] * coefs[:,0:i+1]
+            coefs[:, 1:i + 2] = coefs[:, 1:i + 2] - roots[:, i + 2] * coefs[:, 0:i + 1]
 
         self._samples['ar_coefs'] = coefs
 
@@ -98,9 +100,9 @@ class CarSample(samplers.MCMCSample):
 
         # calculate the variance of a CAR(p) process, assuming sigma = 1.0
         sigma1_variance = 0.0
-        for k in xrange(p):
+        for k in xrange(self.p):
             denom_product = -2.0 * ar_roots[:, k].real
-            for l in xrange(p):
+            for l in xrange(self.p):
                 denom_product *= (ar_roots[:, l] - ar_roots[:, k]) * (ar_roots[:, l].congugate() + ar_roots[:, k])
             sigma1_variance += 1.0 / denom_product
 
@@ -108,30 +110,6 @@ class CarSample(samplers.MCMCSample):
 
         # add the sigmas to the MCMC samples
         self._samples['sigma'] = sigma
-
-    def kalman_filter(self, var, qpo_centroid, qpo_width):
-        """
-        Return the Kalman Filter for the input CAR(p) parameters.
-
-        :param var: The variance of the CAR(p) process, a scalar.
-        :param qpo_centroid: The centroid of the CAR(p) lorentzians.
-        :param qpo_width: The centroid of the CAR(p) lorentzians.
-        """
-        pass
-
-    def power_spectrum(self, freq, sigma, ar_coef):
-        """
-        Return the power spectrum for a CAR(p) process calculated at the input frequencies.
-
-        :param freq: The frequencies at which to calculate the PSD.
-        :param sigma: The standard deviation driving white noise.
-        :param ar_coef: The CAR(p) model autoregressive coefficients.
-
-        :rtype : A numpy array.
-        """
-        ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the denominator
-        pspec = sigma ** 2 / np.abs(ar_poly) ** 2
-        return pspec
 
     def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True):
         """
@@ -152,7 +130,7 @@ class CarSample(samplers.MCMCSample):
             nsamples = sigmas.shape[0]
 
         nfreq = 100
-        dt_min = self.time[1:] - self.time[0:self.time.size-1]
+        dt_min = self.time[1:] - self.time[0:self.time.size - 1]
         dt_max = self.time.max() - self.time.min()
 
         # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
@@ -171,24 +149,24 @@ class CarSample(samplers.MCMCSample):
         for i in xrange(nfreq):
             omega = 2.0 * np.pi * 1j * frequencies[i]
             ar_poly = np.zeros(nsamples)
-            for k in xrange(self.p-1):
+            for k in xrange(self.p - 1):
                 # Here we compute:
                 #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
                 # Note that ar_coefs[0] = 1.0.
-                ar_poly += ar_coefs[:,k] * omega ** (self.p - k)
-            ar_poly += ar_coefs[:,self.p-1] * omega + ar_coefs[:,self.p]
+                ar_poly += ar_coefs[:, k] * omega ** (self.p - k)
+            ar_poly += ar_coefs[:, self.p - 1] * omega + ar_coefs[:, self.p]
             psd_samples = sigmas ** 2 / np.abs(ar_poly) ** 2
 
             # Now compute credibility interval for power spectrum
-            psd_credint[i,0] = np.percentile(psd_samples, lower)
-            psd_credint[i,2] = np.percentile(psd_samples, upper)
-            psd_credint[i,1] = np.median(psd_samples)
+            psd_credint[i, 0] = np.percentile(psd_samples, lower)
+            psd_credint[i, 2] = np.percentile(psd_samples, upper)
+            psd_credint[i, 1] = np.median(psd_samples)
 
         # Plot the power spectra
         ##### stopped here #####
 
 
-        return (psd_credint[:,0], psd_credint[:,2], psd_credint[:,1], frequencies)
+        return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
 
     def assess_fit(self, bestfit="MAP"):
         """
@@ -198,3 +176,46 @@ class CarSample(samplers.MCMCSample):
             mean ("mean") or the posterior median ("median").
         """
         pass
+
+def kalman_filter(time, y, yvar, var, qpo_centroid, qpo_width):
+    """
+    Return the Kalman Filter assuming the input CAR(p) parameters.
+
+    :param time: The time values of the time series.
+    :param y: The time series.
+    :param yvar: The variance in the measurement errors on the time series.
+    :param var: The variance of the CAR(p) process, a scalar.
+    :param qpo_centroid: The centroid of the CAR(p) lorentzians.
+    :param qpo_width: The centroid of the CAR(p) lorentzians.
+    """
+    pass
+
+def ar_roots(qpo_width, qpo_centroid):
+    """
+    Return the roots of the characteristic polynomial of the CAR(p) process, given the lorentzian widths and centroids.
+     
+    :rtype : a numpy array
+    :param qpo_width: The widths of the lorentzian functions defining the PSD.
+    :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
+    """
+    p = qpo_centroid.size + qpo_width.size
+    ar_roots = np.empty(p)
+    ar_roots[:, 0:p / 2] = -2.0 * np.pi * (qpo_width[:, 0:p / 2] + 1j * qpo_centroid[:, 0:p / 2])
+    ar_roots[:, p / 2:p / 2 + p / 2] = ar_roots[:, 0:p / 2].conjugate()
+    if p % 2 == 1:
+        # p is odd, so add in low-frequency component
+        ar_roots[:, qpo_width.shape(1) - 1] = qpo_width[:, qpo_width.shape(1) - 1]
+
+def power_spectrum(freq, sigma, ar_coef):
+    """
+    Return the power spectrum for a CAR(p) process calculated at the input frequencies.
+
+    :param freq: The frequencies at which to calculate the PSD.
+    :param sigma: The standard deviation driving white noise.
+    :param ar_coef: The CAR(p) model autoregressive coefficients.
+
+    :rtype : A numpy array.
+    """
+    ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
+    pspec = sigma ** 2 / np.abs(ar_poly) ** 2
+    return pspec
