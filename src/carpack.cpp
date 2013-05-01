@@ -456,7 +456,8 @@ void CARp::KalmanFilter(arma::vec theta)
 		PredictionVar = (state_transition * state_transition.t()) % (PredictionVar - StateVar) 
         + StateVar;
         
-		// Now predict the observation and its variance
+		// Now predict the observation and its variance. Note that for a CARMA(p,q) model we need to include
+        // the rotated MA terms here, which we currently ignore because they are just a vector of ones.
         kalman_mean_(i) = std::real( arma::accu(state_vector) );
 
         kalman_var_(i) = std::real( arma::accu(PredictionVar) );

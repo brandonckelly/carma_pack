@@ -185,11 +185,84 @@ class CarSample(samplers.MCMCSample):
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
             mean ("mean") or the posterior median ("median").
         """
-        pass
+        bestfit = bestfit.lower()
+        try:
+            bestfit in ['map', 'median', 'mean']
+        except ValueError:
+            "bestfit must be one of 'MAP, 'median', or 'mean'"
+
+        if bestfit == 'map':
+            # use maximum a posteriori estimate
+            max_index = self._samples['logpost'].argmax()
+            sigsqr = self._samples['sigma'][max_index] ** 2
+            ar_roots = self._samples['ar_roots'][max_index]
+        elif bestfit == 'median':
+            # use posterior median estimate
+            sigsqr = np.median(self._samples['sigma']) ** 2
+            ar_roots = np.median(self._samples['ar_roots'], axis=0)
+        else:
+            # use posterior mean as the best-fit
+            sigsqr = np.mean(self._samples['sigma'] ** 2)
+            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+
+        # compute the kalman filter
+        kalman_mean, kalman_var = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+
+        standardized_residuals = (self.y - self.y.mean() - kalman_mean) / np.sqrt(kalman_var)
+
+        # plot the time series and kalman filter
+        plt.subplot(221)
+        plt.plot(self.time, self.y, '.', 'k', label='Data')
+        plt.plot(self.time, kalman_mean, '-', 'r', label='Kalman Filter')
+        plt.xlabel('Time')
+        plt.xlim(self.time.min(), self.time.max())
+        plt.legend()
+
+        # plot the standardized residuals and compare with the standard normal
+        plt.subplot(222)
+        plt.plot(self.time, standardized_residuals, '.', 'k')
+        plt.xlabel('Time')
+        plt.xlim(self.time.min(), self.time.max())
+
+        # Now add the histogram of values to the standardized residuals plot
+        pdf, bin_edges = np.histogram(standardized_residuals, bins=25)
+        bin_edges = bin_edges[0:pdf.size]
+        # Stretch the PDF so that it is readable on the residual plot when plotted horizontally
+        pdf = pdf / float(pdf.max()) * 0.34 * standardized_residuals.size
+        # Add the histogram to the plot
+        plt.barh(bin_edges, pdf, height=bin_edges[1] - bin_edges[0], alpha=0.75)
+        # now overplot the expected standard normal distribution
+        expected_pdf = np.exp(-0.5 * bin_edges ** 2)
+        expected_pdf = expected_pdf / expected_pdf.max() * 0.34 * standardized_residuals.size
+        plt.plot(expected_pdf, bin_edges, '-r')
+
+        # plot the autocorrelation function of the residuals and compare with the 95% confidence intervals for white
+        # noise
+        plt.subplot(223)
+        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=20, lw=2)
+        wnoise_upper = 1.96 / self.time.size
+        wnoise_lower = -1.96 / self.time.size
+        plt.fill_between([self.time.min(), self.time.max()], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+        plt.xlim(self.time.min(), self.time.max())
+        plt.xlabel('Time Lag')
+        plt.ylabel('ACF of Residuals')
+
+        # plot the autocorrelation function of the squared residuals and compare with the 95% confidence intervals for
+        # white noise
+        plt.subplot(224)
+        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals ** 2, maxlags=20, lw=2)
+        wnoise_upper = 1.96 / self.time.size
+        wnoise_lower = -1.96 / self.time.size
+        plt.fill_between([self.time.min(), self.time.max()], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+        plt.xlim(self.time.min(), self.time.max())
+        plt.xlabel('Time Lag')
+        plt.ylabel('ACF of Sqrd. Resid.')
+
 
 def kalman_filter(time, y, yvar, sigsqr, ar_roots):
     """
-    Return the Kalman Filter assuming the input CAR(p) parameters.
+    Return the Kalman Filter assuming the input CAR(p) parameters. Note that this assumes that the time series has zero
+    mean.
 
     :rtype : A tuple of 2 numpy arrays, containing the Kalman mean and variance.
     :param time: The time values of the time series.
@@ -256,8 +329,8 @@ def kalman_filter(time, y, yvar, sigsqr, ar_roots):
         # update the predicted state covariance matrix
         PredictionVar = np.multiply(StateTransition - StateTransition.T, PredictionVar - StateVar) + StateVar
         # now predict the observation and its variance
-        kalman_mean[i] = StateVector.sum().real
-        kalman_var[i] = PredictionVar.sum().real + yvar[i]
+        kalman_mean[i] = StateVector.sum().real  # for a CARMA(p,q) model we need to add the rotated MA terms
+        kalman_var[i] = PredictionVar.sum().real + yvar[i]  # for a CARMA(p,q) model we need to add the rotated MA terms
         # finally, update the innovation
         innovation = y[i] - kalman_mean[i]
 
@@ -310,5 +383,95 @@ def carp_variance(sigsqr, ar_roots):
 
     return sigsqr * sigma1_variance
 
-def carp_process(sigsqr, ar_roots)
-    pass
+def carp_process(time, sigsqr, ar_roots):
+    """
+    Generate a CAR(p) process.
+
+    :param time: The time values to generate the CAR(p) process at.
+    :param sigsqr: The variance in the driving white noise term.
+    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
+    :rtype : A numpy array containing the simulated CAR(p) process values at time.
+    """
+    p = ar_roots.size
+    time.sort()
+    # make sure process is stationary
+    try:
+        np.any(ar_roots.real < 0)
+    except ValueError:
+        "Process is not stationary, real part of roots must be negative."
+
+    # make sure the roots are unique
+    tol = 1e-8
+    roots_grid = np.meshgrid(ar_roots, ar_roots)
+    roots_grid1 = roots_grid[0].ravel()
+    roots_grid2 = roots_grid[1].ravel()
+    diff_roots = np.abs(roots_grid1 - roots_grid2) / np.abs(roots_grid1 + roots_grid2)
+    try:
+        np.any(diff_roots > tol)
+    except ValueError:
+        "Roots are not unique."
+
+    # Setup the matrix of Eigenvectors for the state space transition matrix. This allows us to transform quantities
+    # into the rotated state basis. We then proceed by simulating the rotated state vectors, which are Markovian, and
+    # then constructing the CAR(p) process from a linear combination of the rotated state vectors.
+    EigenMat = np.ones((p,p), dtype=complex)
+    EigenMat[:,1] = ar_roots
+    for k in xrange(2,p):
+        EigenMat[:,k] = ar_roots ** k
+
+    # Input vector under the original state space representation
+    Rvector = np.zeros(p)
+    Rvector[-1] = 1.0
+
+    # Input vector under rotated state space representation
+    Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
+
+    # Compute the vector of moving average coefficients in the rotated state.
+    rotated_MA_coefs = np.ones(p)  # just ones for a CAR(p) model
+
+    # Calculate the stationary covariance matrix of the state vector
+    StateVar = np.empty((p,p))
+    for j in xrange(p):
+        StateVar[:,j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
+
+    # Covariance matrix of real and imaginary components of the rotated state vector. The rotated state vector
+    # follows a complex multivariate normal distribution
+    ComplexCovar = np.array((2*p,2*p))
+    ComplexCovar[0:p,0:p] = 0.5 * StateVar.real
+    ComplexCovar[p:,p:] = ComplexCovar[0:p,0:p]
+    ComplexCovar[p:,0:p] = -0.5 * StateVar.imag
+    ComplexCovar[0:p,p:] = -ComplexCovar[p:,0:p]
+
+    # generate the state vector at time[0] by drawing from its stationary distribution
+    state_components = np.random.multivariate_normal(np.zeros(2*p), ComplexCovar)
+    state_vector = state_components[0:p] + 1j * state_components[p:]
+
+    car_process = np.empty(time.size)
+    # calculate first value of the CAR(p) process
+    car_process[0] = np.real(np.sum(rotated_MA_coefs * state_vector))
+
+    StateCvar = np.empty_like(StateVar)  # the state vector covariance matrix, conditional on the previous state vector
+
+    # now generate remaining CAR(p) values
+    for i in xrange(1,time.size):
+        # update the state vector mean, conditional on the earlier value
+        state_cmean = state_vector * np.exp(ar_roots * (time[i] - time[i-1]))  # the state vector conditional mean
+
+        # compute the state vector conditional covariance matrix
+        for j in xrange(p):
+            StateCvar[:,j] = StateVar[:,j] * (1.0 - np.exp((ar_roots + ar_roots[j].conj()) * (time[i] - time[i-1])))
+
+        # update the covariance matrix of the state vector components
+        ComplexCovar[0:p,0:p] = 0.5 * StateCvar.real
+        ComplexCovar[p:,p:] = ComplexCovar[0:p,0:p]
+        ComplexCovar[p:,0:p] = -0.5 * StateCvar.imag
+        ComplexCovar[0:p,p:] = -ComplexCovar[p:,0:p]
+
+        # now randomly generate a new value of the rotated state vector
+        state_components = np.random.multivariate_normal(np.zeros(2*p), ComplexCovar)
+        state_vector = state_cmean + state_components[0:p] + 1j * state_components[p:]
+
+        # next value of the CAR(p) process
+        car_process[i] = np.real(np.sum(rotated_MA_coefs * state_vector))
+
+    return car_process
