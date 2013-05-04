@@ -13,10 +13,7 @@
 #define __CARPACK_HDEF__
 
 #include <string>
-#include <armadillo>
-
-// Local includes
-#include "parameters.hpp"
+#include <yamcmc++>
 
 /*
  First-order continuous time autoregressive process (CAR(1)) class, for input into
@@ -35,7 +32,7 @@
  Gaussian, and that the uncertainties on y are normally distributed with mean zero. The member 
  functions of this class include methods to calculate the Kalman filter and the logarithms of the 
  posterior probability distribution. The parameters of the CAR(1) process are held in
- the theta_ private member, where theta = (mu, log(omega), sigma) and tau = 1 / omega.
+ the value_ private member, where value_ = (mu, log(omega), sigma) and tau = 1 / omega.
  
  The prior on theta is assumed to be uniform on theta, subject to the an upper bound
  on Var(Y(t)) and omega. The default value of the upper bound on Var(Y(t)) was chosen
@@ -102,7 +99,7 @@ public:
     CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
     CAR1(track, name, time, y, yerr, temperature), p_(p)
 	{ 
-		theta_.set_size(p_+2);
+		value_.set_size(p_+2);
 	}
     
     // Return the starting value and set log_posterior_
@@ -138,6 +135,9 @@ public:
 
 	// Return the starting value and set log_posterior_
 	arma::vec StartingValue();
+    
+    // Save the value
+    void Save(arma::vec new_value);
 	
 	// Calculate the kalman filter mean and variance
 	void KalmanFilter(double sigma, double measerr_scale, arma::cx_vec alpha_roots);

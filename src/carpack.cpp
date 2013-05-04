@@ -18,8 +18,6 @@
 
 // Local includes
 #include "carpack.hpp"
-#include "Rpoly.hpp"
-#include "roots_poly.hpp"
 
 // Global random number generator object, instantiated in random.cpp
 extern boost::random::mt19937 rng;
@@ -171,7 +169,7 @@ std::string CAR1::StringValue()
 // save the values of the log-posterior.
 void CAR1::Save(arma::vec new_car1)
 {
-	// new_car1 ---> theta_
+	// new_car1 ---> value_
 	value_ = new_car1;
 	
 	double measerr_scale = value_(1);
@@ -550,9 +548,9 @@ double CARp::Variance(arma::cx_vec alpha_roots, double sigma)
 void CARp::PrintInfo()
 {	
 	std::cout << "****************** PARAMETERS **************" << std::endl;
-	std::cout << "ysigma: " << theta_(0) << std::endl;
-	std::cout << "measerr scaling parameter: " << theta_(1) << std::endl;
-	arma::vec lorentz_params = theta_(arma::span(2,theta_.n_elem-1));
+	std::cout << "ysigma: " << value_(0) << std::endl;
+	std::cout << "measerr scaling parameter: " << value_(1) << std::endl;
+	arma::vec lorentz_params = value_(arma::span(2,value_.n_elem-1));
 	lorentz_params.print("log(lorentz_params):");
 	std::cout << "logpost: " << log_posterior_ << std::endl;
 	std::cout << "Prior upper bound on CAR(p) standard deviation: " << max_stdev_ << std::endl;
@@ -569,7 +567,7 @@ void CARp::PrintInfo()
 CARMA::CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature) :
 	CAR1(track, name, time, y, yerr, temperature), p_(p) 
 {
-	theta_.set_size(p_+2);
+	value_.set_size(p_+2);
 	phi_var_.set_size(p_);
 	// tol_ = 10.0 * arma::datum::eps;
 	tol_ = 1e-6;
@@ -706,7 +704,7 @@ arma::vec CARMA::StartingValue() {
 // log-posterior.
 void CARMA::Save(arma::vec new_car)
 {
-	// new_car ---> theta_
+	// new_car ---> value_
 	value_ = new_car;
     double measerr_scale = value_(1);
 	
@@ -729,7 +727,7 @@ void CARMA::Save(arma::vec new_car)
 	double logprior = -0.5 * measerr_dof_ / measerr_scale - 
     (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
 	
-	arma::vec phi = theta_(arma::span(2,theta_.n_elem-1));
+	arma::vec phi = value_(arma::span(2,value_.n_elem-1));
 
 	// Add in the prior on phi to the log-likelihood
 	log_posterior_ += -0.5 * arma::sum(phi % phi / phi_var_) + logprior;
@@ -850,7 +848,7 @@ double CARMA::LogDensity(arma::vec car_value) {
 	arma::cx_vec phi_roots(p_);
 	
 	bool use_toms493 = false;
-
+    bool success = false;
 	if (use_toms493) {
 		// Use Jenkins-Traub TOMS493 algorithm to find the roots. The C++ code for this
 		// is a port from the original Fortran routine, so that's why the funny syntax...
@@ -863,8 +861,7 @@ double CARMA::LogDensity(arma::vec car_value) {
 		
 		int p_copy = p_;
 		
-		bool success = rpoly_ak1(op, &p_copy, zeror, zeroi); // Find the roots
-		
+		//bool success = rpoly_ak1(op, &p_copy, zeror, zeroi); // Find the roots
 		if (!success) {
 			// Roots finding algorithm failed to converge, so force rejection of this
 			// proposal by setting log-posterior to negative infinity
@@ -894,7 +891,7 @@ double CARMA::LogDensity(arma::vec car_value) {
 			phi_coefs(i) = std::complex<double>(phi(p_-i-1),0.0);
 		}
         
-        bool success = polyroots(phi_coefs, phi_roots, true);
+        //bool success = polyroots(phi_coefs, phi_roots, true);
         
         if (!success) {
             // Root finding algorithm failed, set log-posterior to negative infinity
@@ -1019,9 +1016,9 @@ void CARMA::PrintInfo(bool print_data)
 	std::cout << "****************** PARAMETERS **************" << std::endl;
 	std::cout << "kappa: " << kappa_ << std::endl;
 	ma_terms_.print("Moving Average Terms:");
-	std::cout << "mu: " << theta_(0) << std::endl;
-	std::cout << "ysigma: " << theta_(1) << std::endl;
-	arma::vec phi = theta_(arma::span(2,theta_.n_elem-1));
+	std::cout << "mu: " << value_(0) << std::endl;
+	std::cout << "ysigma: " << value_(1) << std::endl;
+	arma::vec phi = value_(arma::span(2,value_.n_elem-1));
 	phi.print("phi:");
 	std::cout << "logpost: " << log_posterior_ << std::endl;
 	std::cout << "Prior upper bound on CAR(p) standard deviation: " << max_stdev_ << std::endl;

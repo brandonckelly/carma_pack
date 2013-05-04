@@ -103,13 +103,10 @@
 // Standard includes
 #include <iostream>
 #include <fstream>
-
-// Local includes
+// Include the MCMC sampler header files
+#include <yamcmc++>
+// Local include
 #include "carpack.hpp"
-#include "samplers.hpp"
-#include "parameters.hpp"
-#include "steps.hpp"
-#include "Rpoly.hpp"
 
 // Function prototypes
 void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y, 
@@ -143,19 +140,7 @@ int main (int argc, char * const argv[])
 		std::cin >> car_order;
 		std::cout << std::endl;
 	} while (car_order <= 0);
-	
-    int do_movavg;
-    if (car_order > 1) {
-        do_movavg = 2;
-        do {
-            std::cout << "Add a moving average term? (1=yes,0=no) ";
-            std::cin >> do_movavg;
-            std::cout << std::endl;
-        } while ((do_movavg != 0) && (do_movavg != 1));
-    } else {
-        do_movavg = 0;
-    }
-    
+	    
 	int nwalkers = -1;
 	do {
 		std::cout << "Use how many walkers for ensemble sampler? (n>p+2) ";
@@ -173,11 +158,7 @@ int main (int argc, char * const argv[])
 	yerr = Data.col(2);
     
 	// Run the samplers
-	if (do_movavg == 0) {
-		RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
-	} else {
-		RunEnsembleCarmaSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
-	}
+    RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
 
 	return 0;
 }
