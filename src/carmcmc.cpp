@@ -104,7 +104,7 @@
 #include <iostream>
 #include <fstream>
 // Include the MCMC sampler header files
-#include <yamcmc++>
+#include <yamcmc++.hpp>
 // Local include
 #include "carpack.hpp"
 
@@ -129,8 +129,10 @@ extern RandomGenerator RandGen;
 int main (int argc, char * const argv[]) 
 {
 	// Find what directory we are in
-	std::string idirectory = get_initial_directory();
-		
+	//std::string idirectory = get_initial_directory();
+	
+    std::string idirectory = ".";
+    
 	// Prompt user for MCMC parameters
 	MCMCOptions mcmc_options = mcmc_options_prompt(idirectory);
 	

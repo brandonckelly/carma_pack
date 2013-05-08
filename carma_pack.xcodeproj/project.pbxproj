@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		555C33C8173AC24B00D91BA8 /* libarmadillo.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */; };
+		555C33CA173AC25900D91BA8 /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C9173AC25900D91BA8 /* libyamcmcpp.dylib */; };
 		DFD8B815172B290C006D6BAB /* carma_pack.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DFD8B814172B290C006D6BAB /* carma_pack.1 */; };
 		DFD8B81E172B2AB3006D6BAB /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81C172B2AB3006D6BAB /* carpack.cpp */; };
 		DFD8B81F172B2AB3006D6BAB /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */; };
-		DFF0764517349E86006CB328 /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764417349E86006CB328 /* libyamcmcpp.dylib */; };
-		DFF0764717349EFA006CB328 /* libarmadillo.3.80.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764617349EFA006CB328 /* libarmadillo.3.80.2.dylib */; };
 		DFF0764917349F2C006CB328 /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */; };
 		DFF0764B17349F49006CB328 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764A17349F49006CB328 /* libboost_system.dylib */; };
 		DFF0764D17349F5A006CB328 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
@@ -31,14 +31,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.dylib; path = /usr/local/lib/libarmadillo.dylib; sourceTree = "<absolute>"; };
+		555C33C9173AC25900D91BA8 /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
 		DFD8B814172B290C006D6BAB /* carma_pack.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = carma_pack.1; sourceTree = "<group>"; };
 		DFD8B81B172B2AB3006D6BAB /* carpack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = carpack.hpp; path = src/carpack.hpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DFD8B81C172B2AB3006D6BAB /* carpack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = carpack.cpp; path = src/carpack.cpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carmcmc.cpp; path = src/carmcmc.cpp; sourceTree = SOURCE_ROOT; };
 		DFF0764317349D80006CB328 /* carma_pack.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = carma_pack.py; sourceTree = "<group>"; };
-		DFF0764417349E86006CB328 /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
-		DFF0764617349EFA006CB328 /* libarmadillo.3.80.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.3.80.2.dylib; path = /usr/local/lib/libarmadillo.3.80.2.dylib; sourceTree = "<absolute>"; };
 		DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_filesystem.dylib; path = /usr/local/lib/libboost_filesystem.dylib; sourceTree = "<absolute>"; };
 		DFF0764A17349F49006CB328 /* libboost_system.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_system.dylib; path = /usr/local/lib/libboost_system.dylib; sourceTree = "<absolute>"; };
 		DFF0764C17349F5A006CB328 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -49,11 +49,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				555C33CA173AC25900D91BA8 /* libyamcmcpp.dylib in Frameworks */,
+				555C33C8173AC24B00D91BA8 /* libarmadillo.dylib in Frameworks */,
 				DFF0764D17349F5A006CB328 /* Accelerate.framework in Frameworks */,
 				DFF0764B17349F49006CB328 /* libboost_system.dylib in Frameworks */,
 				DFF0764917349F2C006CB328 /* libboost_filesystem.dylib in Frameworks */,
-				DFF0764717349EFA006CB328 /* libarmadillo.3.80.2.dylib in Frameworks */,
-				DFF0764517349E86006CB328 /* libyamcmcpp.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,11 +92,11 @@
 		DFF0764E1734A07A006CB328 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
+				555C33C9173AC25900D91BA8 /* libyamcmcpp.dylib */,
+				555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */,
 				DFF0764C17349F5A006CB328 /* Accelerate.framework */,
 				DFF0764A17349F49006CB328 /* libboost_system.dylib */,
 				DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */,
-				DFF0764617349EFA006CB328 /* libarmadillo.3.80.2.dylib */,
-				DFF0764417349E86006CB328 /* libyamcmcpp.dylib */,
 			);
 			name = Libraries;
 			sourceTree = "<group>";

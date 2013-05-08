@@ -194,7 +194,7 @@ void CAR1::Save(arma::vec new_car1)
 	
 	log_posterior_ += logprior;
     
-    log_posterior_ = log_posterior_ / temperature_;
+    log_posterior_ = log_posterior_;
 }
 
 // Method of CAR1 to compute the Kalman filter. This is needed for the likelihood 
@@ -251,7 +251,6 @@ double CAR1::LogDensity(arma::vec car1_value)
 		(1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
 	
 	logpost += logprior;
-    logpost = logpost / temperature_;
 	
 	// Prior bounds satisfied?
 	if ( (omega > max_freq_) || (omega < min_freq_) || 
@@ -492,7 +491,6 @@ double CARp::LogDensity(arma::vec theta)
 		(1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
 	
 	logpost += logprior;
-    logpost = logpost / temperature_;
 	
     // Prior bounds satisfied?
 
@@ -731,7 +729,7 @@ void CARMA::Save(arma::vec new_car)
 
 	// Add in the prior on phi to the log-likelihood
 	log_posterior_ += -0.5 * arma::sum(phi % phi / phi_var_) + logprior;
-	log_posterior_ = log_posterior_ / temperature_;
+	log_posterior_ = log_posterior_;
 }
 
 // Calculate the kalman filter mean and variance
@@ -959,7 +957,7 @@ double CARMA::LogDensity(arma::vec car_value) {
 	// Add in the prior on phi to the log-likelihood
 	logpost += -0.5 * arma::sum(phi % phi / phi_var_) + logprior;
     
-	return logpost / temperature_;
+	return logpost;
 }
 
 // Set the value of kappa, the prescribed moving average term.
