@@ -1,0 +1,35 @@
+dt = randomu(seed, 1000) + 0.1
+time = total(dt, /cum)
+time = time - time[0]
+
+sigsqr = 0.25
+qpo_cent = [1.0 / 1.0, 1.0 / 20.0]
+qpo_width = [1.0 / 100.0, 1.0 / 100.0]
+
+p = n_elements(qpo_cent) + n_elements(qpo_width)
+ar_roots = dcomplexarr(p)
+ar_roots[0] = -2.0 * !pi * dcomplex(qpo_width[0], qpo_cent[0])
+ar_roots[1] = conj(ar_roots[0])
+ar_roots[2] = -2.0 * !pi * dcomplex(qpo_width[1], qpo_cent[1])
+ar_roots[3] = conj(ar_roots[2])
+
+y = carma_process(seed, time, sigsqr, ar_roots)
+
+ysig = sqrt(0.01^2 / 100 * randomchi(seed, 100, 1000))
+y = y + ysig * randomn(seed, 1000)
+
+cgplot, time, y
+
+powerspec, y, time, freq, pspec, /regular
+cgplot, freq, pspec, /yl, /xl, ps=1
+
+freq = dindgen(256) / 255.0 * 5 - 3.0
+freq = 10d^freq
+
+cgplot, freq, carma_pspec(freq, sigsqr, ar_roots), thick=2, /yl, /xl
+
+get_lun, lun
+openw, lun, '~/Projects/carma_pack/test_data/car4_test.dat'
+printf, lun, '# qpo_cent = [1.0, 0.05], qpo_width = [0.01, 0.01], sigsqr = 0.25'
+printf, lun, transpose([[time],[y],[ysig]])
+free_lun, lun
