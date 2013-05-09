@@ -109,6 +109,8 @@
 #include "carpack.hpp"
 
 // Function prototypes
+void RunCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
+                   arma::vec& yerr, int p);
 void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y, 
 						   arma::vec& yerr, int p, int nwalkers);
 
@@ -160,7 +162,8 @@ int main (int argc, char * const argv[])
 	yerr = Data.col(2);
     
 	// Run the samplers
-    RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
+    RunCarSampler(mcmc_options, time, y, yerr, car_order);
+    //RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
 
 	return 0;
 }
@@ -197,25 +200,6 @@ void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec&
 		// Set the prior parameters
         CarEnsemble[i].SetPrior(max_stdev);
 	}
-
-    /*
-     
-     This commented region is to run the Affine invariant sampler using the stretch moves.
-     
-    // Construct the proposal ensemble
-    Ensemble<StretchProposal<CAR1> > PropEnsemble;
-     
-	// Add the Stretch proposals to the ensemble
-	for (int i=0; i<nwalkers; i++) {
-		PropEnsemble.AddObject(new StretchProposal<CAR1>(CarEnsemble, i));
-	}
-
-	// Add the Metropolis-Hasting steps to the sampler for each walker
-	int report_iter = mcmc_options.burnin + mcmc_options.thin * mcmc_options.sample_size;
-	for (int i=0; i<nwalkers; i++) {
-		CarModel.AddStep(new MetropStep<arma::vec>(CarEnsemble[i], PropEnsemble[i], report_iter));
-	}
-	*/
     
     // Report average acceptance rates at end of sampler
     int report_iter = mcmc_options.burnin + mcmc_options.thin * mcmc_options.sample_size;
@@ -228,16 +212,19 @@ void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec&
 	arma::mat prop_covar(2+p,2+p);
 	prop_covar.eye();
 	prop_covar.diag() = prop_covar.diag() * 0.01 * 0.01;
-    prop_covar(0,0) = 2.0 * y.n_elem * y.n_elem * arma::var(y) * arma::var(y) / std::pow(y.n_elem, 3.0);
+    prop_covar(0,0) = 2.0 * arma::var(y) * arma::var(y) / y.n_elem;
     
 	// Instantiate base proposal object
-	NormalProposal RAMProp(1.0);
+    StudentProposal RAMProp(8.0, 1.0);
+	//NormalProposal RAMProp(1.0);
 
+    double target_rate = 0.2;
+    
     // Add the steps to the sampler, starting with the hottest chain first
     for (int i=nwalkers-1; i>0; i--) {
         // First add Robust Adaptive Metropolis Step
         CarModel.AddStep( new AdaptiveMetro(CarEnsemble[i], RAMProp, prop_covar, 
-                                            target_arate, mcmc_options.burnin) );
+                                            target_rate, mcmc_options.burnin) );
         // Now add Exchange steps
         CarModel.AddStep( new ExchangeStep<arma::vec, CAR1>(CarEnsemble[i], i, CarEnsemble, report_iter) );
     }
@@ -247,10 +234,46 @@ void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec&
     // Make sure we set this parameter to be tracked
     CarEnsemble[0].SetTracking(true);
     
-    CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_arate, mcmc_options.burnin) );
+    CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
 
     // Now run the MCMC sampler. The samples will be dumped in the 
     // output file provided by the user.
     
 	CarModel.Run();
 }
+
+// Run the MCMC sampler for a CAR(p) process
+void RunCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
+                   arma::vec& yerr, int p)
+{
+    // Instantiate MCMC Sampler object for CAR process
+	Sampler CarModel(mcmc_options);
+    
+	double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
+    
+    // Setup initial covariance matrix for RAM proposals. This
+	// is just a diagonal matrix with the diagonal elements equal to 0.01^2.
+	//
+	// TODO: Get a better guess from maximum-likelihood fit
+	//
+	arma::mat prop_covar(2+p,2+p);
+	prop_covar.eye();
+	prop_covar.diag() = prop_covar.diag() * 0.01 * 0.01;
+    prop_covar(0,0) = 2.0 * arma::var(y) * arma::var(y) / y.n_elem;
+    
+	// Instantiate base proposal object
+    StudentProposal RAMProp(8.0, 1.0);
+	//NormalProposal RAMProp(1.0);
+    
+    CAR1 CarParameter(true, "CAR(1)", time, y, yerr);
+    CarParameter.SetPrior(max_stdev);
+    
+    double target_rate = 0.2;
+    CarModel.AddStep( new AdaptiveMetro(CarParameter, RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
+    
+    // Now run the MCMC sampler. The samples will be dumped in the
+    // output file provided by the user.
+    
+	CarModel.Run();
+}
+

@@ -193,8 +193,6 @@ void CAR1::Save(arma::vec new_car1)
 		(1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
 	
 	log_posterior_ += logprior;
-    
-    log_posterior_ = log_posterior_;
 }
 
 // Method of CAR1 to compute the Kalman filter. This is needed for the likelihood 
