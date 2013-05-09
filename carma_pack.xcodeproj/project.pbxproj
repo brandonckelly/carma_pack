@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		555C33C8173AC24B00D91BA8 /* libarmadillo.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */; };
-		555C33CA173AC25900D91BA8 /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C9173AC25900D91BA8 /* libyamcmcpp.dylib */; };
+		DF05C92B173C5EE9007DC2B8 /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */; };
 		DFD8B815172B290C006D6BAB /* carma_pack.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DFD8B814172B290C006D6BAB /* carma_pack.1 */; };
 		DFD8B81E172B2AB3006D6BAB /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81C172B2AB3006D6BAB /* carpack.cpp */; };
 		DFD8B81F172B2AB3006D6BAB /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */; };
@@ -32,7 +32,7 @@
 
 /* Begin PBXFileReference section */
 		555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.dylib; path = /usr/local/lib/libarmadillo.dylib; sourceTree = "<absolute>"; };
-		555C33C9173AC25900D91BA8 /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
+		DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
 		DFD8B814172B290C006D6BAB /* carma_pack.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = carma_pack.1; sourceTree = "<group>"; };
 		DFD8B81B172B2AB3006D6BAB /* carpack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = carpack.hpp; path = src/carpack.hpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -49,7 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				555C33CA173AC25900D91BA8 /* libyamcmcpp.dylib in Frameworks */,
+				DF05C92B173C5EE9007DC2B8 /* libyamcmcpp.dylib in Frameworks */,
 				555C33C8173AC24B00D91BA8 /* libarmadillo.dylib in Frameworks */,
 				DFF0764D17349F5A006CB328 /* Accelerate.framework in Frameworks */,
 				DFF0764B17349F49006CB328 /* libboost_system.dylib in Frameworks */,
@@ -92,7 +92,7 @@
 		DFF0764E1734A07A006CB328 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
-				555C33C9173AC25900D91BA8 /* libyamcmcpp.dylib */,
+				DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */,
 				555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */,
 				DFF0764C17349F5A006CB328 /* Accelerate.framework */,
 				DFF0764A17349F49006CB328 /* libboost_system.dylib */,

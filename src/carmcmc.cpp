@@ -162,8 +162,8 @@ int main (int argc, char * const argv[])
 	yerr = Data.col(2);
     
 	// Run the samplers
-    RunCarSampler(mcmc_options, time, y, yerr, car_order);
-    //RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
+    //RunCarSampler(mcmc_options, time, y, yerr, car_order);
+    RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
 
 	return 0;
 }
@@ -219,6 +219,8 @@ void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec&
 	//NormalProposal RAMProp(1.0);
 
     double target_rate = 0.2;
+
+    //test_ptemp(CarEnsemble, RAMProp, prop_covar);
     
     // Add the steps to the sampler, starting with the hottest chain first
     for (int i=nwalkers-1; i>0; i--) {
@@ -229,11 +231,9 @@ void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec&
         CarModel.AddStep( new ExchangeStep<arma::vec, CAR1>(CarEnsemble[i], i, CarEnsemble, report_iter) );
     }
     
-    // Add in coolest chain. This is the chain that is actually moving in the posterior.
-    
     // Make sure we set this parameter to be tracked
     CarEnsemble[0].SetTracking(true);
-    
+    // Add in coolest chain. This is the chain that is actually moving in the posterior.
     CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
 
     // Now run the MCMC sampler. The samples will be dumped in the 
@@ -276,4 +276,3 @@ void RunCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
     
 	CarModel.Run();
 }
-
