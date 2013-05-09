@@ -104,7 +104,7 @@
 #include <iostream>
 #include <fstream>
 // Include the MCMC sampler header files
-#include <yamcmc++.hpp>
+#include <yamcmc++>
 // Local include
 #include "carpack.hpp"
 
