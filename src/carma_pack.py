@@ -46,7 +46,7 @@ class CarSample(samplers.MCMCSample):
         if names != self._samples.keys():
             # Parameters are not already in the dictionary, add them.
             self._samples['logpost'] = trace[:, 0]  # log-posterior of the CAR(p) model
-            self._samples['var'] = trace[:, 1]  # Variance of the CAR(p) process
+            self._samples['var'] = trace[:, 1] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 2]  # Measurement errors are scaled by this much.
             ar_index = np.arange(0, self.p, 2)
             # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing

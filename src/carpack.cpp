@@ -154,10 +154,10 @@ std::string CAR1::StringValue()
 {
 	std::stringstream ss;
     
-    for (int i=0; i<value_.n_elem; i++) {
-        ss << value_(i) << " ";
-    }
     ss << log_posterior_;
+    for (int i=0; i<value_.n_elem; i++) {
+        ss << " " << value_(i);
+    }
 
 	//(theta_.t()).raw_print(ss);
 
