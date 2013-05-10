@@ -356,13 +356,14 @@ def get_ar_roots(qpo_width, qpo_centroid):
     :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
     """
     p = qpo_centroid.size + qpo_width.size
-    ar_roots = np.empty(p)
-    ar_roots[:, 0:p / 2] = -2.0 * np.pi * (qpo_width[:, 0:p / 2] + 1j * qpo_centroid[:, 0:p / 2])
-    ar_roots[:, p / 2:p / 2 + p / 2] = ar_roots[:, 0:p / 2].conjugate()
+    ar_roots = np.empty(p, dtype=complex)
+    ar_roots[0:p / 2] = -2.0 * np.pi * (qpo_width[0:p / 2] + 1j * qpo_centroid[0:p / 2])
+    ar_roots[p / 2:p / 2 + p / 2] = ar_roots[0:p / 2].conjugate()
     if p % 2 == 1:
         # p is odd, so add in low-frequency component
-        ar_roots[:, qpo_width.shape(1) - 1] = qpo_width[:, qpo_width.shape(1) - 1]
+        ar_roots[qpo_width.shape(1) - 1] = qpo_width[qpo_width.shape(1) - 1]
 
+    return ar_roots
 
 def power_spectrum(freq, sigma, ar_coef):
     """
@@ -495,3 +496,10 @@ dir = '/Users/bkelly/Projects/carma_pack/test_data/'
 data = np.genfromtxt(dir + 'car4_test_raw.dat')
 car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
 psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
+
+sigma0 = np.sqrt(0.25)
+qpo_width0 = np.array([0.01, 0.01])
+qpo_cent0 = np.array([1.0, 0.05])
+ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+ar_coef0 = np.poly(ar_roots0)
+psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
