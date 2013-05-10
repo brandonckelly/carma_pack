@@ -129,6 +129,11 @@ class CarSample(samplers.MCMCSample):
         if nsamples is None:
             # Use all of the MCMC samples
             nsamples = sigmas.shape[0]
+        else:
+            nsamples0 = sigmas.shape[0]
+            index = np.arange(nsamples) * (nsamples0 / nsamples)
+            sigmas = sigmas[index]
+            ar_coefs = ar_coefs[index]
 
         nfreq = 100
         dt_min = self.time[1:] - self.time[0:self.time.size - 1]
