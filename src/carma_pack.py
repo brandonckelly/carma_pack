@@ -107,7 +107,8 @@ class CarSample(samplers.MCMCSample):
         for k in xrange(self.p):
             denom_product = -2.0 * ar_roots[:, k].real + 0j
             for l in xrange(self.p):
-                denom_product *= (ar_roots[:, l] - ar_roots[:, k]) * (np.conjugate(ar_roots[:, l]) + ar_roots[:, k])
+                if l != k:
+                    denom_product *= (ar_roots[:, l] - ar_roots[:, k]) * (np.conjugate(ar_roots[:, l]) + ar_roots[:, k])
             sigma1_variance += 1.0 / denom_product
 
         sigma = var / sigma1_variance.real
@@ -138,8 +139,9 @@ class CarSample(samplers.MCMCSample):
             sigmas = sigmas[index]
             ar_coefs = ar_coefs[index]
 
-        nfreq = 100
+        nfreq = 1000
         dt_min = self.time[1:] - self.time[0:self.time.size - 1]
+        dt_min = dt_min.min()
         dt_max = self.time.max() - self.time.min()
 
         # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
@@ -149,7 +151,7 @@ class CarSample(samplers.MCMCSample):
 
         frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
         frequencies = np.exp(frequencies)
-        psd_credint = np.empty(nfreq, 3)
+        psd_credint = np.empty((nfreq, 3))
 
         lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
         upper = 100.0 - lower
@@ -157,7 +159,7 @@ class CarSample(samplers.MCMCSample):
         # Compute the PSDs from the MCMC samples
         for i in xrange(nfreq):
             omega = 2.0 * np.pi * 1j * frequencies[i]
-            ar_poly = np.zeros(nsamples)
+            ar_poly = np.zeros(nsamples, dtype=complex)
             for k in xrange(self.p - 1):
                 # Here we compute:
                 #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
@@ -489,12 +491,7 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-#dir = '/Users/bkelly/Projects/carma_pack/test_data/'
-#data = np.genfromtxt(dir + 'car4_test_raw.dat')
-#car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
-#print 'Calculating roots...'
-#car._ar_roots()
-#print 'Calculating coefficients...'
-#car._ar_coefs()
-#print 'Calculating sigma(noise)...'
-#car._sigma_noise()
+dir = '/Users/bkelly/Projects/carma_pack/test_data/'
+data = np.genfromtxt(dir + 'car4_test_raw.dat')
+car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
+psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
