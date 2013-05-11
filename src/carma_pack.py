@@ -134,6 +134,10 @@ class CarSample(samplers.MCMCSample):
             # Use all of the MCMC samples
             nsamples = sigmas.shape[0]
         else:
+            try:
+                nsamples <= sigmas.shape[0]
+            except ValueError:
+                "nsamples must be less than the total number of MCMC samples."
             nsamples0 = sigmas.shape[0]
             index = np.arange(nsamples) * (nsamples0 / nsamples)
             sigmas = sigmas[index]
@@ -286,28 +290,28 @@ def kalman_filter(time, y, yvar, sigsqr, ar_roots):
     # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform quantities
     # into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
     EigenMat = np.ones((p, p), dtype=complex)
-    EigenMat[:, 1] = ar_roots
+    EigenMat[1, :] = ar_roots
     for k in xrange(2, p):
-        EigenMat[:, k] = ar_roots ** k
+        EigenMat[k, :] = ar_roots ** k
 
     # Input vector under the original state space representation
-    Rvector = np.zeros(p)
+    Rvector = np.zeros(p, dtype=complex)
     Rvector[-1] = 1.0
 
     # Input vector under rotated state space representation
     Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
 
     # Compute the vector of moving average coefficients in the rotated state.
-    rotated_MA_coefs = np.ones(p)  # just ones for a CAR(p) model
+    rotated_MA_coefs = np.ones(p, dtype=complex)  # just ones for a CAR(p) model
 
     # Calculate the stationary covariance matrix of the state vector
-    StateVar = np.empty((p, p))
+    StateVar = np.empty((p, p), dtype=complex)
     for j in xrange(p):
         StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
 
     # Initialize variance in one-step prediction error and the state vector
-    PredictionVar = StateVar
-    StateVector = np.zeros(p)
+    PredictionVar = StateVar.copy()
+    StateVector = np.zeros(p, dtype=complex)
 
     # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
     kalman_mean = np.empty_like(time)
@@ -319,10 +323,10 @@ def kalman_filter(time, y, yvar, sigsqr, ar_roots):
     innovation = y[0]
 
     # Convert everything to matrices for convenience, since we'll be doing some Linear algebra.
-    StateVector = np.asmatrix(StateVector).T
-    StateVar = np.asmatrix(StateVar)
-    PredictionVar = np.asmatrix(PredictionVar)
-    rotated_MA_coefs = np.asmatrix(rotated_MA_coefs)  # this is a row vector, so no transpose
+    StateVector = np.matrix(StateVector).T
+    StateVar = np.matrix(StateVar)
+    PredictionVar = np.matrix(PredictionVar)
+    rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
 
     # Finally, calculate the Kalman Filter
     for i in xrange(1, time.size):
@@ -332,12 +336,12 @@ def kalman_filter(time, y, yvar, sigsqr, ar_roots):
         # update the state vector
         StateVector += innovation * KalmanGain
         # update the state one-step prediction error variance
-        PredictionVar -= kalman_var[i - 1] * (KalmanGain * KalmanGain.T)
+        PredictionVar -= kalman_var[i - 1] * (KalmanGain * KalmanGain.H)
         # predict the next state, do element-wise multiplication
-        StateTransition = np.asmatrix(np.exp(ar_roots * dt)).T
+        StateTransition = np.matrix(np.exp(ar_roots * dt)).T
         StateVector = np.multiply(StateVector, StateTransition)
         # update the predicted state covariance matrix
-        PredictionVar = np.multiply(StateTransition - StateTransition.T, PredictionVar - StateVar) + StateVar
+        PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
         # now predict the observation and its variance
         kalman_mean[i] = StateVector.sum().real  # for a CARMA(p,q) model we need to add the rotated MA terms
         kalman_var[i] = PredictionVar.sum().real + yvar[i]  # for a CARMA(p,q) model we need to add the rotated MA terms
@@ -365,6 +369,7 @@ def get_ar_roots(qpo_width, qpo_centroid):
 
     return ar_roots
 
+
 def power_spectrum(freq, sigma, ar_coef):
     """
     Return the power spectrum for a CAR(p) process calculated at the input frequencies.
@@ -390,9 +395,9 @@ def carp_variance(sigsqr, ar_roots):
     sigma1_variance = 0.0
     p = ar_roots.size
     for k in xrange(p):
-        denom_product = -2.0 * ar_roots[:, k].real
+        denom_product = -2.0 * ar_roots[k].real + 0j
         for l in xrange(p):
-            denom_product *= (ar_roots[:, l] - ar_roots[:, k]) * (ar_roots[:, l].congugate() + ar_roots[:, k])
+            denom_product *= (ar_roots[l] - ar_roots[k]) * (ar_roots[l].congugate() + ar_roots[k])
         sigma1_variance += 1.0 / denom_product
 
     return sigsqr * sigma1_variance
@@ -432,20 +437,20 @@ def carp_process(time, sigsqr, ar_roots):
     EigenMat = np.ones((p, p), dtype=complex)
     EigenMat[:, 1] = ar_roots
     for k in xrange(2, p):
-        EigenMat[:, k] = ar_roots ** k
+        EigenMat[k, :] = ar_roots ** k
 
     # Input vector under the original state space representation
-    Rvector = np.zeros(p)
+    Rvector = np.zeros(p, dtype=complex)
     Rvector[-1] = 1.0
 
     # Input vector under rotated state space representation
     Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
 
     # Compute the vector of moving average coefficients in the rotated state.
-    rotated_MA_coefs = np.ones(p)  # just ones for a CAR(p) model
+    rotated_MA_coefs = np.ones(p, dtype=complex)  # just ones for a CAR(p) model
 
     # Calculate the stationary covariance matrix of the state vector
-    StateVar = np.empty((p, p))
+    StateVar = np.empty((p, p), dtype=complex)
     for j in xrange(p):
         StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
 
@@ -492,14 +497,16 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-# dir = '/Users/bkelly/Projects/carma_pack/test_data/'
-# data = np.genfromtxt(dir + 'car4_test_raw.dat')
-# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
-# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
-#
-# sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([0.01, 0.01])
-# qpo_cent0 = np.array([1.0, 0.05])
-# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-# ar_coef0 = np.poly(ar_roots0)
-# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+dir = '/Users/bkelly/Projects/carma_pack/test_data/'
+data = np.genfromtxt(dir + 'car4_test_raw.dat')
+car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
+psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
+
+sigma0 = np.sqrt(0.25)
+qpo_width0 = np.array([0.01, 0.01])
+qpo_cent0 = np.array([1.0, 0.05])
+ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+ar_coef0 = np.poly(ar_roots0)
+psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+
+kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
