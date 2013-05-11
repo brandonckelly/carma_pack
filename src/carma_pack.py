@@ -460,7 +460,7 @@ def carp_process(time, sigsqr, ar_roots):
 
     # Covariance matrix of real and imaginary components of the rotated state vector. The rotated state vector
     # follows a complex multivariate normal distribution
-    ComplexCovar = np.array((2 * p, 2 * p))
+    ComplexCovar = np.empty((2 * p, 2 * p))
     ComplexCovar[0:p, 0:p] = 0.5 * StateVar.real
     ComplexCovar[p:, p:] = ComplexCovar[0:p, 0:p]
     ComplexCovar[p:, 0:p] = -0.5 * StateVar.imag
@@ -514,4 +514,5 @@ def carp_process(time, sigsqr, ar_roots):
 # psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
 #
 # kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
-# car.assess_fit()
+#
+# carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
