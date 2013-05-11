@@ -500,18 +500,18 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
-data = np.genfromtxt(dir + 'car4_test_raw.dat')
-car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
-psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
-
-sigma0 = np.sqrt(0.25)
-qpo_width0 = np.array([0.01, 0.01])
-qpo_cent0 = np.array([1.0, 0.05])
-ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-ar_coef0 = np.poly(ar_roots0)
-psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
-
-kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
-
-carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
+# dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
+# data = np.genfromtxt(dir + 'car4_test_raw.dat')
+# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
+# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
+#
+# sigma0 = np.sqrt(0.25)
+# qpo_width0 = np.array([0.01, 0.01])
+# qpo_cent0 = np.array([1.0, 0.05])
+# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+# ar_coef0 = np.poly(ar_roots0)
+# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+#
+# kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
+#
+# carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
