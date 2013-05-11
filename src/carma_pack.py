@@ -138,6 +138,7 @@ class CarSample(samplers.MCMCSample):
                 nsamples <= sigmas.shape[0]
             except ValueError:
                 "nsamples must be less than the total number of MCMC samples."
+
             nsamples0 = sigmas.shape[0]
             index = np.arange(nsamples) * (nsamples0 / nsamples)
             sigmas = sigmas[index]
@@ -226,15 +227,15 @@ class CarSample(samplers.MCMCSample):
 
         # plot the time series and kalman filter
         plt.subplot(221)
-        plt.plot(self.time, self.y, '.', 'k', label='Data')
-        plt.plot(self.time, kalman_mean, '-', 'r', label='Kalman Filter')
+        plt.plot(self.time, self.y, 'k.', label='Data')
+        plt.plot(self.time, kalman_mean, '-r', label='Kalman Filter')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
         plt.legend()
 
         # plot the standardized residuals and compare with the standard normal
         plt.subplot(222)
-        plt.plot(self.time, standardized_residuals, '.', 'k')
+        plt.plot(self.time, standardized_residuals, '.k')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
 
@@ -242,33 +243,35 @@ class CarSample(samplers.MCMCSample):
         pdf, bin_edges = np.histogram(standardized_residuals, bins=25)
         bin_edges = bin_edges[0:pdf.size]
         # Stretch the PDF so that it is readable on the residual plot when plotted horizontally
-        pdf = pdf / float(pdf.max()) * 0.34 * standardized_residuals.size
+        pdf = pdf / float(pdf.max()) * 0.4 * self.time.max()
         # Add the histogram to the plot
         plt.barh(bin_edges, pdf, height=bin_edges[1] - bin_edges[0], alpha=0.75)
         # now overplot the expected standard normal distribution
         expected_pdf = np.exp(-0.5 * bin_edges ** 2)
-        expected_pdf = expected_pdf / expected_pdf.max() * 0.34 * standardized_residuals.size
-        plt.plot(expected_pdf, bin_edges, '-r')
+        expected_pdf = expected_pdf / expected_pdf.max() * 0.4 * self.time.max()
+        plt.plot(expected_pdf, bin_edges, '-r', lw=2)
 
         # plot the autocorrelation function of the residuals and compare with the 95% confidence intervals for white
         # noise
         plt.subplot(223)
-        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=20, lw=2)
-        wnoise_upper = 1.96 / self.time.size
-        wnoise_lower = -1.96 / self.time.size
-        plt.fill_between([self.time.min(), self.time.max()], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
-        plt.xlim(self.time.min(), self.time.max())
+        maxlag = 20
+        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=maxlag, lw=2)
+        wnoise_upper = 1.96 / np.sqrt(self.time.size)
+        wnoise_lower = -1.96 / np.sqrt(self.time.size)
+        plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+        plt.xlim(0, maxlag)
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Residuals')
 
         # plot the autocorrelation function of the squared residuals and compare with the 95% confidence intervals for
         # white noise
         plt.subplot(224)
-        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals ** 2, maxlags=20, lw=2)
-        wnoise_upper = 1.96 / self.time.size
-        wnoise_lower = -1.96 / self.time.size
-        plt.fill_between([self.time.min(), self.time.max()], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
-        plt.xlim(self.time.min(), self.time.max())
+        squared_residuals = standardized_residuals ** 2
+        lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag, lw=2)
+        wnoise_upper = 1.96 / np.sqrt(self.time.size)
+        wnoise_lower = -1.96 / np.sqrt(self.time.size)
+        plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+        plt.xlim(0, maxlag)
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Sqrd. Resid.')
 
@@ -497,16 +500,17 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-dir = '/Users/bkelly/Projects/carma_pack/test_data/'
-data = np.genfromtxt(dir + 'car4_test_raw.dat')
-car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
-psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
-
-sigma0 = np.sqrt(0.25)
-qpo_width0 = np.array([0.01, 0.01])
-qpo_cent0 = np.array([1.0, 0.05])
-ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-ar_coef0 = np.poly(ar_roots0)
-psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
-
-kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
+# dir = '/Users/bkelly/Projects/carma_pack/test_data/'
+# data = np.genfromtxt(dir + 'car4_test_raw.dat')
+# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
+# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
+#
+# sigma0 = np.sqrt(0.25)
+# qpo_width0 = np.array([0.01, 0.01])
+# qpo_cent0 = np.array([1.0, 0.05])
+# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+# ar_coef0 = np.poly(ar_roots0)
+# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+#
+# kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
+# car.assess_fit()
