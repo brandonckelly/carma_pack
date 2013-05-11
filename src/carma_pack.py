@@ -53,14 +53,14 @@ class CarSample(samplers.MCMCSample):
             self._samples['logpost'] = trace[:, 0]  # log-posterior of the CAR(p) model
             self._samples['var'] = trace[:, 1] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 2]  # Measurement errors are scaled by this much.
-            ar_index = np.arange(0, self.p, 2)
+            ar_index = np.arange(0, self.p - 1, 2)
             # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
             # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
             # roots of the AR(p) characteristic polynomial, respectively.
             self._samples['log_centroid'] = trace[:, 3 + ar_index]
             if self.p % 2 == 1:
                 # Odd number of roots, so add in low-frequency component
-                np.append(ar_index, ar_index.max() + 1)
+                ar_index = np.append(ar_index, ar_index.max() + 1)
             self._samples['log_width'] = trace[:, 4 + ar_index]
 
     def _ar_roots(self):
@@ -72,25 +72,26 @@ class CarSample(samplers.MCMCSample):
         qpo_width = np.exp(self._samples['log_width'])
 
         ar_roots = np.empty((var.size, self.p), dtype=complex)
-        ar_roots[:, 0:self.p / 2] = -2.0 * np.pi * (qpo_width[:, 0:self.p / 2] + 1j * qpo_centroid[:, 0:self.p / 2])
-        ar_roots[:, self.p / 2:self.p / 2 + self.p / 2] = ar_roots[:, 0:self.p / 2].conjugate()
+        for i in xrange(0, self.p/2+1, 2):
+            ar_roots[:,i] = qpo_width[:,i] + 1j * qpo_centroid[:,i]
+            ar_roots[:,i+1] = np.conjugate(ar_roots[:,i])
         if self.p % 2 == 1:
             # p is odd, so add in low-frequency component
-            ar_roots[:, qpo_width.shape(1) - 1] = qpo_width[:, qpo_width.shape(1) - 1]
+            ar_roots[:, -1] = qpo_width[:, -1]
 
         # add it to the MCMC samples
-        self._samples['ar_roots'] = ar_roots
+        self._samples['ar_roots'] = -2.0 * np.pi * ar_roots
 
     def _ar_coefs(self):
         """
         Calculate the CAR(p) autoregressive coefficients and add them to the MCMC samples.
         """
         roots = self._samples['ar_roots']
-        coefs = np.empty((roots.shape[0], self.p + 1))
+        coefs = np.empty((roots.shape[0], self.p + 1), dtype=complex)
         for i in xrange(roots.shape[0]):
             coefs[i, :] = np.poly(roots[i, :])
 
-        self._samples['ar_coefs'] = coefs
+        self._samples['ar_coefs'] = coefs.real
 
     def _sigma_noise(self):
         """
@@ -365,13 +366,14 @@ def get_ar_roots(qpo_width, qpo_centroid):
     """
     p = qpo_centroid.size + qpo_width.size
     ar_roots = np.empty(p, dtype=complex)
-    ar_roots[0:p / 2] = -2.0 * np.pi * (qpo_width[0:p / 2] + 1j * qpo_centroid[0:p / 2])
-    ar_roots[p / 2:p / 2 + p / 2] = ar_roots[0:p / 2].conjugate()
+    for i in xrange(0, self.p/2+1, 2):
+            ar_roots[i] = qpo_width[i] + 1j * qpo_centroid[i]
+            ar_roots[i+1] = np.conjugate(ar_roots[i])
     if p % 2 == 1:
         # p is odd, so add in low-frequency component
-        ar_roots[qpo_width.shape(1) - 1] = qpo_width[qpo_width.shape(1) - 1]
+        ar_roots[-1] = qpo_width[-1]
 
-    return ar_roots
+    return -2.0 * np.pi * ar_roots
 
 
 def power_spectrum(freq, sigma, ar_coef):
