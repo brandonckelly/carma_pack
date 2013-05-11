@@ -3,6 +3,7 @@ __author__ = 'Brandon C. Kelly'
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
+from os import environ
 import samplers
 
 
@@ -439,7 +440,7 @@ def carp_process(time, sigsqr, ar_roots):
     # into the rotated state basis. We then proceed by simulating the rotated state vectors, which are Markovian, and
     # then constructing the CAR(p) process from a linear combination of the rotated state vectors.
     EigenMat = np.ones((p, p), dtype=complex)
-    EigenMat[:, 1] = ar_roots
+    EigenMat[1, :] = ar_roots
     for k in xrange(2, p):
         EigenMat[k, :] = ar_roots ** k
 
@@ -460,11 +461,9 @@ def carp_process(time, sigsqr, ar_roots):
 
     # Covariance matrix of real and imaginary components of the rotated state vector. The rotated state vector
     # follows a complex multivariate normal distribution
-    ComplexCovar = np.empty((2 * p, 2 * p))
-    ComplexCovar[0:p, 0:p] = 0.5 * StateVar.real
-    ComplexCovar[p:, p:] = ComplexCovar[0:p, 0:p]
-    ComplexCovar[p:, 0:p] = -0.5 * StateVar.imag
-    ComplexCovar[0:p, p:] = -ComplexCovar[p:, 0:p]
+    ComplexCovar_top = np.hstack((StateVar.real, StateVar.imag))
+    ComplexCovar_bottom = np.hstack((-StateVar.imag, StateVar.real))
+    ComplexCovar = np.vstack((ComplexCovar_top, ComplexCovar_bottom))
 
     # generate the state vector at time[0] by drawing from its stationary distribution
     state_components = np.random.multivariate_normal(np.zeros(2 * p), ComplexCovar)
@@ -483,13 +482,13 @@ def carp_process(time, sigsqr, ar_roots):
 
         # compute the state vector conditional covariance matrix
         for j in xrange(p):
-            StateCvar[:, j] = StateVar[:, j] * (1.0 - np.exp((ar_roots + ar_roots[j].conj()) * (time[i] - time[i - 1])))
+            StateCvar[:, j] = StateVar[:, j] * (1.0 - np.exp((ar_roots + np.conjugate(ar_roots[j])) *
+                                                             (time[i] - time[i - 1])))
 
         # update the covariance matrix of the state vector components
-        ComplexCovar[0:p, 0:p] = 0.5 * StateCvar.real
-        ComplexCovar[p:, p:] = ComplexCovar[0:p, 0:p]
-        ComplexCovar[p:, 0:p] = -0.5 * StateCvar.imag
-        ComplexCovar[0:p, p:] = -ComplexCovar[p:, 0:p]
+        ComplexCovar_top = np.hstack((StateCvar.real, StateCvar.imag))
+        ComplexCovar_bottom = np.hstack((-StateCvar.imag, StateCvar.real))
+        ComplexCovar = np.vstack((ComplexCovar_top, ComplexCovar_bottom))
 
         # now randomly generate a new value of the rotated state vector
         state_components = np.random.multivariate_normal(np.zeros(2 * p), ComplexCovar)
@@ -501,18 +500,18 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-# dir = '/Users/bkelly/Projects/carma_pack/test_data/'
-# data = np.genfromtxt(dir + 'car4_test_raw.dat')
-# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
-# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
-#
-# sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([0.01, 0.01])
-# qpo_cent0 = np.array([1.0, 0.05])
-# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-# ar_coef0 = np.poly(ar_roots0)
-# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
-#
-# kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
-#
-# carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
+dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
+data = np.genfromtxt(dir + 'car4_test_raw.dat')
+car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
+psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
+
+sigma0 = np.sqrt(0.25)
+qpo_width0 = np.array([0.01, 0.01])
+qpo_cent0 = np.array([1.0, 0.05])
+ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+ar_coef0 = np.poly(ar_roots0)
+psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+
+kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
+
+carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
