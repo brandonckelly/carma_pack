@@ -400,10 +400,11 @@ def carp_variance(sigsqr, ar_roots):
     for k in xrange(p):
         denom_product = -2.0 * ar_roots[k].real + 0j
         for l in xrange(p):
-            denom_product *= (ar_roots[l] - ar_roots[k]) * (ar_roots[l].congugate() + ar_roots[k])
+            if l != k:
+                denom_product *= (ar_roots[l] - ar_roots[k]) * (np.conjugate(ar_roots[l]) + ar_roots[k])
         sigma1_variance += 1.0 / denom_product
 
-    return sigsqr * sigma1_variance
+    return sigsqr * sigma1_variance.real
 
 
 def carp_process(time, sigsqr, ar_roots):
