@@ -72,9 +72,9 @@ class CarSample(samplers.MCMCSample):
         qpo_width = np.exp(self._samples['log_width'])
 
         ar_roots = np.empty((var.size, self.p), dtype=complex)
-        for i in xrange(0, self.p/2+1, 2):
-            ar_roots[:,i] = qpo_width[:,i] + 1j * qpo_centroid[:,i]
-            ar_roots[:,i+1] = np.conjugate(ar_roots[:,i])
+        for i in xrange(self.p/2):
+            ar_roots[:, 2*i] = qpo_width[:,i] + 1j * qpo_centroid[:,i]
+            ar_roots[:, 2*i+1] = np.conjugate(ar_roots[:, 2*i])
         if self.p % 2 == 1:
             # p is odd, so add in low-frequency component
             ar_roots[:, -1] = qpo_width[:, -1]
@@ -366,9 +366,9 @@ def get_ar_roots(qpo_width, qpo_centroid):
     """
     p = qpo_centroid.size + qpo_width.size
     ar_roots = np.empty(p, dtype=complex)
-    for i in xrange(0, self.p/2+1, 2):
-            ar_roots[i] = qpo_width[i] + 1j * qpo_centroid[i]
-            ar_roots[i+1] = np.conjugate(ar_roots[i])
+    for i in xrange(p/2):
+            ar_roots[2*i] = qpo_width[i] + 1j * qpo_centroid[i]
+            ar_roots[2*i+1] = np.conjugate(ar_roots[2*i])
     if p % 2 == 1:
         # p is odd, so add in low-frequency component
         ar_roots[-1] = qpo_width[-1]
@@ -502,18 +502,20 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-# dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
-# data = np.genfromtxt(dir + 'car4_test_raw.dat')
-# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test_mcmc.dat')
-# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
-#
-# sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([0.01, 0.01])
-# qpo_cent0 = np.array([1.0, 0.05])
-# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-# ar_coef0 = np.poly(ar_roots0)
-# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
-#
-# kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
-#
-# carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
+dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
+data = np.genfromtxt(dir + 'car4_test_raw.dat')
+car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_car6.dat')
+psdlo, psdhi, psdhat, freq = car.plot_power_spectrum()
+
+sigma0 = np.sqrt(0.25)
+qpo_width0 = np.array([0.01, 0.01])
+qpo_cent0 = np.array([1.0, 0.05])
+ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+ar_coef0 = np.poly(ar_roots0)
+psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+
+plt.plot(freq, psd0, 'r', lw=2)
+
+#kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
+
+#carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
