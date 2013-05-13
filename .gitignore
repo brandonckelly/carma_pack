@@ -141,3 +141,5 @@ Podfile.lock
 # Ignore PyCharm files
 .idea/
 __pychache__/
+
+test_data/
