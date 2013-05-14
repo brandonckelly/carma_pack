@@ -68,6 +68,7 @@ public:
 	virtual void PrintPrior();
 	
 	// Compute the log-posterior
+    virtual double LogPrior(arma::vec car1_value);
 	virtual double LogDensity(arma::vec car1_value);
 	
 protected:
@@ -109,7 +110,7 @@ public:
 	void KalmanFilter(arma::vec theta);
 	
     // Calcualte the logarithm of the prior
-    virtual double LogPrior(arma::vec theta);
+    double LogPrior(arma::vec theta);
     
 	// Calculate the logarithm of the posterior
 	double LogDensity(arma::vec theta);

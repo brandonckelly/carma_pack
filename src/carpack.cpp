@@ -187,12 +187,7 @@ void CAR1::Save(arma::vec new_car1)
 		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
 	}
 	
-	// Compute the prior on the measurement error scaling parameter. This is a scaled
-	// inverse chi-square distribution with scaling parameter 1.0.
-	double logprior = -0.5 * measerr_dof_ / measerr_scale - 
-		(1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-	log_posterior_ += logprior;
+	log_posterior_ += LogPrior(new_car1);
 }
 
 // Method of CAR1 to compute the Kalman filter. This is needed for the likelihood 
@@ -224,6 +219,17 @@ void CAR1::KalmanFilter(arma::vec car1_value)
 	}
 }
 
+// Return the log-prior for a CAR(1) process
+double CAR1::LogPrior(arma::vec car1_value)
+{
+    double measerr_scale = car1_value(1);
+    
+    double logprior = -0.5 * measerr_dof_ / measerr_scale -
+     (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
+    
+    return logprior;
+}
+
 // Method of CAR1 to compute the log-posterior as a function of the 
 // parameter vector
 double CAR1::LogDensity(arma::vec car1_value)
@@ -243,13 +249,6 @@ double CAR1::LogDensity(arma::vec car1_value)
 		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
 	}
 	
-	// Compute the prior on the measurement error scaling parameter. This is a scaled
-	// inverse chi-square distribution with scaling parameter 1.0.
-	double logprior = -0.5 * measerr_dof_ / measerr_scale - 
-		(1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-	logpost += logprior;
-	
 	// Prior bounds satisfied?
 	if ( (omega > max_freq_) || (omega < min_freq_) || 
 		 (car1_stdev > max_stdev_) || (car1_stdev < 0) ||
@@ -257,8 +256,11 @@ double CAR1::LogDensity(arma::vec car1_value)
 		// Value of either omega or model standard deviation are above the
 		// prior bounds, so set logpost to be negative infinity
 		logpost = -1.0 * arma::datum::inf;
+        return logpost;
 	}
 	
+    logpost += LogPrior(car1_value);
+    
 	return logpost;
 }
 
@@ -469,9 +471,14 @@ double CARp::LogPrior(arma::vec theta)
     double measerr_scale = theta(1);
     // first get prior on the measurement error variance scale parameter
     double logprior = -0.5 * measerr_dof_ / measerr_scale -
-    (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
+        (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
 	
-    // prior for first e
+    // prior for first lorentzian centroid is the probability distribution for the maximum
+    // of a set of p_/2 uniformly distribution random variables
+    logprior += (p_/2 - 1) * (log(theta(2)) - log(min_freq_));
+    
+    // prior for remaining lorentzian centroid are uniform, conditional on previous
+    // lorentzian centroid
     for (int i=1; i<p_/2; i++) {
         logprior += -log(theta(2+2*(i-1)) - log(min_freq_));
     }
