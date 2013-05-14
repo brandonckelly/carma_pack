@@ -230,7 +230,7 @@ class CarSample(samplers.MCMCSample):
         # plot the time series and kalman filter
         plt.subplot(221)
         plt.plot(self.time, self.y, 'k.', label='Data')
-        plt.plot(self.time, kalman_mean, '-r', label='Kalman Filter')
+        plt.plot(self.time, kalman_mean + self.y.mean(), '-r', label='Kalman Filter')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
         plt.legend()
@@ -285,7 +285,7 @@ def kalman_filter(time, y, yvar, sigsqr, ar_roots):
 
     :rtype : A tuple of 2 numpy arrays, containing the Kalman mean and variance.
     :param time: The time values of the time series.
-    :param y: The time series.
+    :param y: The mean-subtracted time series.
     :param yvar: The variance in the measurement errors on the time series.
     :param sigsqr: The variance of the driving white noise term to the CAR(p) process.
     :param ar_roots: The roots of the CAR(p) characteristic polynomial.
@@ -502,19 +502,19 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
-data = np.genfromtxt(dir + 'car4_test.dat')
-car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
-psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
-
-sigma0 = np.sqrt(0.25)
-qpo_width0 = np.array([0.03, 0.1])
-qpo_cent0 = np.array([0.2, 0.013])
-ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-ar_coef0 = np.poly(ar_roots0)
-psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
-
-plt.plot(freq, psd0, 'r', lw=2)
+# dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
+# data = np.genfromtxt(dir + 'car4_test.dat')
+# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
+# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
+#
+# sigma0 = np.sqrt(0.25)
+# qpo_width0 = np.array([0.03, 0.1])
+# qpo_cent0 = np.array([0.2, 0.013])
+# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+# ar_coef0 = np.poly(ar_roots0)
+# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+#
+# plt.plot(freq, psd0, 'r', lw=2)
 
 #kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
 
