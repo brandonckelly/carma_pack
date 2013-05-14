@@ -233,7 +233,7 @@ class CarSample(samplers.MCMCSample):
         plt.plot(self.time, kalman_mean + self.y.mean(), '-r', label='Kalman Filter')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
-        plt.legend()
+        #plt.legend()
 
         # plot the standardized residuals and compare with the standard normal
         plt.subplot(222)
@@ -242,7 +242,7 @@ class CarSample(samplers.MCMCSample):
         plt.xlim(self.time.min(), self.time.max())
 
         # Now add the histogram of values to the standardized residuals plot
-        pdf, bin_edges = np.histogram(standardized_residuals, bins=25)
+        pdf, bin_edges = np.histogram(standardized_residuals, bins=10)
         bin_edges = bin_edges[0:pdf.size]
         # Stretch the PDF so that it is readable on the residual plot when plotted horizontally
         pdf = pdf / float(pdf.max()) * 0.4 * self.time.max()
