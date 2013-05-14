@@ -108,6 +108,9 @@ public:
 	// Calculate the kalman filter mean and variance
 	void KalmanFilter(arma::vec theta);
 	
+    // Calcualte the logarithm of the prior
+    virtual double LogPrior(arma::vec theta);
+    
 	// Calculate the logarithm of the posterior
 	double LogDensity(arma::vec theta);
     

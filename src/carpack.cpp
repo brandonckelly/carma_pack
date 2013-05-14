@@ -463,6 +463,20 @@ void CARp::KalmanFilter(arma::vec theta)
 	}
 }
 
+// Calculate the logarithm of the prior
+double CARp::LogPrior(arma::vec theta)
+{
+    double measerr_scale = theta(1);
+    // first get prior on the measurement error variance scale parameter
+    double logprior = -0.5 * measerr_dof_ / measerr_scale -
+    (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
+	
+    // prior for first e
+    for (int i=1; i<p_/2; i++) {
+        logprior += -log(theta(2+2*(i-1)) - log(min_freq_));
+    }
+}
+
 // Calculate the logarithm of the posterior
 double CARp::LogDensity(arma::vec theta)
 {
@@ -483,13 +497,6 @@ double CARp::LogDensity(arma::vec theta)
         (measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
     }
 	
-	// Compute the prior on the measurement error scaling parameter. This is a scaled
-	// inverse chi-square distribution with scaling parameter 1.0.
-	double logprior = -0.5 * measerr_dof_ / measerr_scale - 
-		(1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-	logpost += logprior;
-	
     // Prior bounds satisfied?
 
     arma::vec lorentz_params = arma::exp(theta(arma::span(2,theta.n_elem-1)));
@@ -503,16 +510,19 @@ double CARp::LogDensity(arma::vec theta)
          (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
         // Value of either the frequencies or the model standard deviation are outside
         // of the prior bounds, so set logpost to be negative infinity
-        logpost = -1.0 * arma::datum::inf;
+        return logpost = -1.0 * arma::datum::inf;
     }
 	// Make sure the Lorentzian centroids are still in decreasing order
 	for (int i=1; i<p_/2; i++) {
 		double lorentz_cent_difference = exp(theta(2+2*(i-1))) - exp(theta(2+2*i));
 		if (lorentz_cent_difference < 0) {
 			// Lorentzians are not in decreasing order, reject this proposal
-			logpost = -1.0 * arma::datum::inf;
+			return logpost = -1.0 * arma::datum::inf;
 		}
     }
+    
+    // Add the log-prior to the log-likelihood
+    logpost += LogPrior(theta);
     
     return logpost;
 }
