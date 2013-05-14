@@ -6,6 +6,8 @@ for year = 1, 9 do begin &$
     time = [time, 365.0 * year + total(dt, /cum)] &$
 endfor
 
+time = time / 10.0
+
 sigsqr = 0.25
 qpo_width = [0.03, 0.1]
 qpo_cent = [0.2, 0.013]
