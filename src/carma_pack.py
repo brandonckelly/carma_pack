@@ -508,11 +508,12 @@ def carp_process(time, sigsqr, ar_roots):
 # psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
 #
 # sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([0.03, 0.1])
-# qpo_cent0 = np.array([0.2, 0.013])
-# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-# ar_coef0 = np.poly(ar_roots0)
-# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+qpo_width0 = np.array([0.005, 0.1])
+qpo_cent0 = np.array([1.0 / 50.0, 1.0 / 500.0])
+ar_roots0 = cm.get_ar_roots(qpo_width0, qpo_cent0)
+ar_coef0 = np.poly(ar_roots0)
+psd0 = cm.power_spectrum(freq, sigma0, ar_coef0.real)
+# loglog(freq, psd0)
 #
 # plt.plot(freq, psd0, 'r', lw=2)
 
