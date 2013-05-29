@@ -103,16 +103,15 @@
 // Standard includes
 #include <iostream>
 #include <fstream>
+#include <vector>
 // Include the MCMC sampler header files
 #include <yamcmc++>
 // Local include
 #include "carpack.hpp"
 
 // Function prototypes
-void RunCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
-                   arma::vec& yerr, int p);
-void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y, 
-						   arma::vec& yerr, int p, int nwalkers);
+std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
+                                             arma::vec& yerr, int p, int nwalkers);
 
 // Temporary testing functions
 void test_carp(arma::vec& time, arma::vec& y, arma::vec& yerr, int p);
@@ -161,19 +160,29 @@ int main (int argc, char * const argv[])
 	y = Data.col(1);
 	yerr = Data.col(2);
     
-	// Run the samplers
-    //RunCarSampler(mcmc_options, time, y, yerr, car_order);
-    RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
+	// Run the sampler
+    std::vector<arma::vec> car_samples;
+    car_samples = RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
 
+    // Save the samples to the output file
+    std::ofstream outfile(mcmc_options.out_file);
+    for (int i=0; i<car_samples.size(); i++) {
+        for (int j=0; j<car_samples[0].n_elem; j++) {
+            outfile << car_samples[i](j) << " ";
+        }
+        outfile << std::endl;
+    }
+    outfile.close();
+    
 	return 0;
 }
 
 // Run the MCMC sampler for a CAR(p) process
-void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y, 
-						   arma::vec& yerr, int p, int nwalkers)
+std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
+                                             arma::vec& yerr, int p, int nwalkers)
 {
     // Instantiate MCMC Sampler object for CAR process
-	Sampler CarModel(mcmc_options);
+	Sampler CarModel(mcmc_options.sample_size, mcmc_options.burnin, mcmc_options.thin);
 	
 	// Construct the parameter ensemble
     Ensemble<CAR1> CarEnsemble;
@@ -240,39 +249,8 @@ void RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec&
     // output file provided by the user.
     
 	CarModel.Run();
-}
-
-// Run the MCMC sampler for a CAR(p) process
-void RunCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
-                   arma::vec& yerr, int p)
-{
-    // Instantiate MCMC Sampler object for CAR process
-	Sampler CarModel(mcmc_options);
     
-	double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
+    std::vector<arma::vec> car_samples = CarEnsemble[0].GetSamples();
     
-    // Setup initial covariance matrix for RAM proposals. This
-	// is just a diagonal matrix with the diagonal elements equal to 0.01^2.
-	//
-	// TODO: Get a better guess from maximum-likelihood fit
-	//
-	arma::mat prop_covar(2+p,2+p);
-	prop_covar.eye();
-	prop_covar.diag() = prop_covar.diag() * 0.01 * 0.01;
-    prop_covar(0,0) = 2.0 * arma::var(y) * arma::var(y) / y.n_elem;
-    
-	// Instantiate base proposal object
-    StudentProposal RAMProp(8.0, 1.0);
-	//NormalProposal RAMProp(1.0);
-    
-    CAR1 CarParameter(true, "CAR(1)", time, y, yerr);
-    CarParameter.SetPrior(max_stdev);
-    
-    double target_rate = 0.2;
-    CarModel.AddStep( new AdaptiveMetro(CarParameter, RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
-    
-    // Now run the MCMC sampler. The samples will be dumped in the
-    // output file provided by the user.
-    
-	CarModel.Run();
+    return car_samples;
 }
