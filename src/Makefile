@@ -1,10 +1,10 @@
-all: carma_pack
+all: carmcmc
 
-carma_pack: force
+carmcmc: force
 	python setup.py build_ext --inplace
 
 clean:
-	rm -rf build src/*.pyc src/carma_pack.so
+	rm -rf build src/*.pyc src/carmcmc.so
 
 force:
 	true

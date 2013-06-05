@@ -108,80 +108,11 @@
 #include "yamcmc++.hpp"
 // Local include
 #include "carpack.hpp"
-// Boost shared pointer
-#include <boost/make_shared.hpp>
-
-// Function prototypes
-std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
-                                             arma::vec& yerr, int p, int nwalkers);
-
-// Temporary testing functions
-void test_carp(arma::vec& time, arma::vec& y, arma::vec& yerr, int p);
-void test_exchange(arma::vec& time, arma::vec& y, arma::vec& yerr, int nwalkers);
-
-// Global variables
-const double target_arate = 0.30; // Target acceptance rate for RAM
-
-// Global random number generator object, instantiated in random.cpp
-extern boost::random::mt19937 rng;
-
-// Object containing some common random number generators.
-extern RandomGenerator RandGen;
-
-
-int main (int argc, char * const argv[]) 
-{
-	// Find what directory we are in
-	//std::string idirectory = get_initial_directory();
-	
-    std::string idirectory = ".";
-    
-	// Prompt user for MCMC parameters
-	MCMCOptions mcmc_options = mcmc_options_prompt(idirectory);
-	
-	int car_order = -1;
-	do {
-		std::cout << "Fit a CAR(p) process of what order? (p>0) ";
-		std::cin >> car_order;
-		std::cout << std::endl;
-	} while (car_order <= 0);
-	    
-	int nwalkers = -1;
-	do {
-		std::cout << "Use how many walkers for ensemble sampler? (n>p+2) ";
-		std::cin >> nwalkers;
-		std::cout << std::endl;
-	} while (nwalkers <= car_order+2);
-	
-	// Load data
-	arma::vec time, y, yerr;
-	arma::mat Data;
-	
-	Data.load(mcmc_options.data_file);
-	time = Data.col(0);
-	y = Data.col(1);
-	yerr = Data.col(2);
-    
-	// Run the sampler
-    std::vector<arma::vec> car_samples;
-    car_samples = RunEnsembleCarSampler(mcmc_options, time, y, yerr, car_order, nwalkers);
-
-    // Save the samples to the output file
-    std::ofstream outfile(mcmc_options.out_file);
-    for (int i=0; i<car_samples.size(); i++) {
-        for (int j=0; j<car_samples[0].n_elem; j++) {
-            outfile << car_samples[i](j) << " ";
-        }
-        outfile << std::endl;
-    }
-    outfile.close();
-    
-	return 0;
-}
+#include "carmcmc.hpp"
 
 // Run the MCMC sampler for a CAR(p) process
-std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
-                                             arma::vec& yerr, int p, int nwalkers)
+std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec time, arma::vec y,
+                                             arma::vec yerr, int p, int nwalkers)
 {
     // Instantiate MCMC Sampler object for CAR process
 	Sampler CarModel(mcmc_options.sample_size, mcmc_options.burnin, mcmc_options.thin);
@@ -236,16 +167,16 @@ std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec
     // Add the steps to the sampler, starting with the hottest chain first
     for (int i=nwalkers-1; i>0; i--) {
         // First add Robust Adaptive Metropolis Step
-        CarModel.AddStep(boost::make_shared<AdaptiveMetro>(CarEnsemble[i], RAMProp, prop_covar, 
-                                                           target_rate, mcmc_options.burnin) );
+        CarModel.AddStep( new AdaptiveMetro(CarEnsemble[i], RAMProp, prop_covar, 
+                                            target_rate, mcmc_options.burnin) );
         // Now add Exchange steps
-        CarModel.AddStep(boost::make_shared<ExchangeStep<arma::vec, CAR1> >(CarEnsemble[i], i, CarEnsemble, report_iter) );
+        CarModel.AddStep( new ExchangeStep<arma::vec, CAR1>(CarEnsemble[i], i, CarEnsemble, report_iter) );
     }
     
     // Make sure we set this parameter to be tracked
     CarEnsemble[0].SetTracking(true);
     // Add in coolest chain. This is the chain that is actually moving in the posterior.
-    CarModel.AddStep(boost::make_shared<AdaptiveMetro>(CarEnsemble[0], RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
+    CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
 
     // Now run the MCMC sampler. The samples will be dumped in the 
     // output file provided by the user.

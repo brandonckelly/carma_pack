@@ -6,20 +6,21 @@ desc = open("README.rst").read()
 required = ["numpy"]
 
 # define the name of the extension to use
-extension_name    = "carma_pack"
+extension_name    = "carmcmc"
 extension_version = "0.1.0"
 extension_url     = "https://github.com/bckelly80/carma_pack"
 
 BOOST_DIR         = os.environ["BOOST_DIR"]
 ARMADILLO_DIR     = os.environ["ARMADILLO_DIR"]
 YAMCMCPP_DIR      = os.environ["YAMCMCPP_DIR"]
-include_dirs      = [BOOST_DIR+"/include", ARMADILLO_DIR+"/include", YAMCMCPP_DIR, "/usr/include/"]
+NUMPY_DIR         = os.environ["NUMPY_DIR"]
+include_dirs      = [NUMPY_DIR+"/include", BOOST_DIR+"/include", ARMADILLO_DIR+"/include", YAMCMCPP_DIR, "/usr/include/"]
 for include_dir in numpy.distutils.misc_util.get_numpy_include_dirs():
     include_dirs.append(include_dir)
-library_dirs      = [BOOST_DIR+"/lib", ARMADILLO_DIR+"/lib64", YAMCMCPP_DIR+"/src", "/usr/lib64/", "/usr/lib/"]
+library_dirs      = [NUMPY_DIR+"/lib", BOOST_DIR+"/lib", ARMADILLO_DIR+"/lib64", YAMCMCPP_DIR+"/src", "/usr/lib64/", "/usr/lib/"]
 
 # define the libraries to link with the boost python library
-libraries = [ "boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp"]
+libraries = [ "boost_python", "boost_filesystem", "boost_system", "armadillo", ":yamcmcpp.so"]
 
 # define the source files for the extension
 source_files = [ "boost_python_wrapper.cpp", "carmcmc.cpp", "carpack.cpp" ]
