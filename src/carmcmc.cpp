@@ -105,9 +105,11 @@
 #include <fstream>
 #include <vector>
 // Include the MCMC sampler header files
-#include <yamcmc++>
+#include "yamcmc++.hpp"
 // Local include
 #include "carpack.hpp"
+// Boost shared pointer
+#include <boost/make_shared.hpp>
 
 // Function prototypes
 std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec& time, arma::vec& y,
@@ -234,16 +236,16 @@ std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec
     // Add the steps to the sampler, starting with the hottest chain first
     for (int i=nwalkers-1; i>0; i--) {
         // First add Robust Adaptive Metropolis Step
-        CarModel.AddStep( new AdaptiveMetro(CarEnsemble[i], RAMProp, prop_covar, 
-                                            target_rate, mcmc_options.burnin) );
+        CarModel.AddStep(boost::make_shared<AdaptiveMetro>(CarEnsemble[i], RAMProp, prop_covar, 
+                                                           target_rate, mcmc_options.burnin) );
         // Now add Exchange steps
-        CarModel.AddStep( new ExchangeStep<arma::vec, CAR1>(CarEnsemble[i], i, CarEnsemble, report_iter) );
+        CarModel.AddStep(boost::make_shared<ExchangeStep<arma::vec, CAR1> >(CarEnsemble[i], i, CarEnsemble, report_iter) );
     }
     
     // Make sure we set this parameter to be tracked
     CarEnsemble[0].SetTracking(true);
     // Add in coolest chain. This is the chain that is actually moving in the posterior.
-    CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
+    CarModel.AddStep(boost::make_shared<AdaptiveMetro>(CarEnsemble[0], RAMProp, prop_covar, target_rate, mcmc_options.burnin) );
 
     // Now run the MCMC sampler. The samples will be dumped in the 
     // output file provided by the user.
