@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from os import environ
-import samplers
+import yamcmcpp.samplers as samplers
 
 
 class CarSample(samplers.MCMCSample):

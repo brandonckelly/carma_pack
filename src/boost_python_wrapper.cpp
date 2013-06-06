@@ -52,7 +52,7 @@ numeric::array runWrapper(MCMCOptions mcmc_options,
     return convResults;
 }
 
-BOOST_PYTHON_MODULE(carmcmc){
+BOOST_PYTHON_MODULE(carmcmcLib){
     import_array();
     numeric::array::set_module_and_type("numpy", "ndarray");
     
