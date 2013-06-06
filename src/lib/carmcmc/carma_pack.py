@@ -12,7 +12,7 @@ class CarSample(samplers.MCMCSample):
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
     """
 
-    def __init__(self, time, y, ysig, filename=None):
+    def __init__(self, time, y, ysig, filename=None, trace=None):
         """
         Constructor for the class. Right same as its superclass.
 
@@ -21,7 +21,7 @@ class CarSample(samplers.MCMCSample):
         self.time = time  # The time values of the time series
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
-        super(CarSample, self).__init__(filename=filename)
+        super(CarSample, self).__init__(filename=filename, trace=trace)
 
         # now calculate the CAR(p) characteristic polynomial roots, coefficients, and amplitude of driving noise and
         # add them to the MCMC samples
@@ -35,6 +35,28 @@ class CarSample(samplers.MCMCSample):
         # make the parameter names (i.e., the keys) public so the use knows how to get them
         self.parameters = self._samples.keys()
 
+    def generate_from_trace(self, trace):
+        # Figure out how many AR terms we have
+        self.p = trace.shape[1] - 2
+        names = ['logpost', 'var', 'measerr_scale', 'log_centroid', 'log_width']
+        if names != self._samples.keys():
+            idx = 0
+            # Parameters are not already in the dictionary, add them.
+            # Not being returned at this point in time
+            #self._samples['logpost']      = trace[:, idx]     # log-posterior of the CAR(p) model
+
+            self._samples['var']           = trace[:, 0] ** 2  # Variance of the CAR(p) process
+            self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
+            ar_index = np.arange(0, self.p - 1, 2)
+            # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
+            # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
+            # roots of the AR(p) characteristic polynomial, respectively.
+            self._samples['log_centroid'] = trace[:, 2 + ar_index]
+            if self.p % 2 == 1:
+                # Odd number of roots, so add in low-frequency component
+                ar_index = np.append(ar_index, ar_index.max() + 1)
+            self._samples['log_width'] = trace[:, 3 + ar_index]
+        
     def generate_from_file(self, filename):
         """
         Build the dictionary of parameter samples from an ascii file of MCMC samples from carpack.
@@ -44,24 +66,7 @@ class CarSample(samplers.MCMCSample):
         # TODO: put in exceptions to make sure files are ready correctly
         # Grab the MCMC output
         trace = np.genfromtxt(filename[0], skip_header=1)
-
-        # Figure out how many AR terms we have
-        self.p = trace.shape[1] - 3
-        names = ['logpost', 'var', 'measerr_scale', 'log_centroid', 'log_width']
-        if names != self._samples.keys():
-            # Parameters are not already in the dictionary, add them.
-            self._samples['logpost'] = trace[:, 0]  # log-posterior of the CAR(p) model
-            self._samples['var'] = trace[:, 1] ** 2  # Variance of the CAR(p) process
-            self._samples['measerr_scale'] = trace[:, 2]  # Measurement errors are scaled by this much.
-            ar_index = np.arange(0, self.p - 1, 2)
-            # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
-            # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
-            # roots of the AR(p) characteristic polynomial, respectively.
-            self._samples['log_centroid'] = trace[:, 3 + ar_index]
-            if self.p % 2 == 1:
-                # Odd number of roots, so add in low-frequency component
-                ar_index = np.append(ar_index, ar_index.max() + 1)
-            self._samples['log_width'] = trace[:, 4 + ar_index]
+        self.generate_from_trace(trace)
 
     def _ar_roots(self):
         """
@@ -195,7 +200,7 @@ class CarSample(samplers.MCMCSample):
 
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
 
-    def assess_fit(self, bestfit="MAP"):
+    def assess_fit(self, bestfit="median"):
         """
         Display plots and provide useful information for assessing the quality of the CAR(p) model fit.
 
@@ -206,7 +211,7 @@ class CarSample(samplers.MCMCSample):
         try:
             bestfit in ['map', 'median', 'mean']
         except ValueError:
-            "bestfit must be one of 'MAP, 'median', or 'mean'"
+            "bestfit must be one of 'map, 'median', or 'mean'"
 
         if bestfit == 'map':
             # use maximum a posteriori estimate
