@@ -32,13 +32,18 @@
 
 /* Begin PBXFileReference section */
 		555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.dylib; path = /usr/local/lib/libarmadillo.dylib; sourceTree = "<absolute>"; };
+		556E3D221766766400C3A045 /* boost_python_wrapper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = boost_python_wrapper.cpp; sourceTree = "<group>"; };
+		556E3D231766766400C3A045 /* carmcmc.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = carmcmc.hpp; sourceTree = "<group>"; };
+		556E3D261766766400C3A045 /* __init__.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = __init__.py; sourceTree = "<group>"; };
+		556E3D271766766400C3A045 /* carma_pack.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = carma_pack.py; sourceTree = "<group>"; };
+		556E3D281766766400C3A045 /* setup.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = setup.py; path = src/setup.py; sourceTree = "<group>"; };
+		556E3D291766766400C3A045 /* testCarmcmc.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = testCarmcmc.py; path = src/testCarmcmc.py; sourceTree = "<group>"; };
 		DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
 		DFD8B814172B290C006D6BAB /* carma_pack.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = carma_pack.1; sourceTree = "<group>"; };
 		DFD8B81B172B2AB3006D6BAB /* carpack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = carpack.hpp; path = src/carpack.hpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DFD8B81C172B2AB3006D6BAB /* carpack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = carpack.cpp; path = src/carpack.cpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carmcmc.cpp; path = src/carmcmc.cpp; sourceTree = SOURCE_ROOT; };
-		DFF0764317349D80006CB328 /* carma_pack.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = carma_pack.py; sourceTree = "<group>"; };
 		DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_filesystem.dylib; path = /usr/local/lib/libboost_filesystem.dylib; sourceTree = "<absolute>"; };
 		DFF0764A17349F49006CB328 /* libboost_system.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_system.dylib; path = /usr/local/lib/libboost_system.dylib; sourceTree = "<absolute>"; };
 		DFF0764C17349F5A006CB328 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -60,9 +65,30 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		556E3D241766766400C3A045 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				556E3D251766766400C3A045 /* carmcmc */,
+			);
+			name = lib;
+			path = src/lib;
+			sourceTree = "<group>";
+		};
+		556E3D251766766400C3A045 /* carmcmc */ = {
+			isa = PBXGroup;
+			children = (
+				556E3D261766766400C3A045 /* __init__.py */,
+				556E3D271766766400C3A045 /* carma_pack.py */,
+			);
+			path = carmcmc;
+			sourceTree = "<group>";
+		};
 		DFD8B806172B290C006D6BAB = {
 			isa = PBXGroup;
 			children = (
+				556E3D241766766400C3A045 /* lib */,
+				556E3D281766766400C3A045 /* setup.py */,
+				556E3D291766766400C3A045 /* testCarmcmc.py */,
 				DFF0764E1734A07A006CB328 /* Libraries */,
 				DFD8B811172B290C006D6BAB /* src */,
 				DFD8B810172B290C006D6BAB /* Products */,
@@ -80,7 +106,8 @@
 		DFD8B811172B290C006D6BAB /* src */ = {
 			isa = PBXGroup;
 			children = (
-				DFF0764317349D80006CB328 /* carma_pack.py */,
+				556E3D221766766400C3A045 /* boost_python_wrapper.cpp */,
+				556E3D231766766400C3A045 /* carmcmc.hpp */,
 				DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */,
 				DFD8B81B172B2AB3006D6BAB /* carpack.hpp */,
 				DFD8B81C172B2AB3006D6BAB /* carpack.cpp */,
