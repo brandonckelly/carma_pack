@@ -199,7 +199,68 @@ class CarSample(samplers.MCMCSample):
         plt.ylabel('Power Spectrum')
 
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+    
+    def plot_models(self, bestfit="median"):
+        bestfit = bestfit.lower()
+        try:
+            bestfit in ['map', 'median', 'mean']
+        except ValueError:
+            "bestfit must be one of 'map, 'median', or 'mean'"
 
+        if bestfit == 'map':
+            # use maximum a posteriori estimate
+            max_index = self._samples['logpost'].argmax()
+            sigsqr = self._samples['sigma'][max_index] ** 2
+            ar_roots = self._samples['ar_roots'][max_index]
+        elif bestfit == 'median':
+            # use posterior median estimate
+            sigsqr = np.median(self._samples['sigma']) ** 2
+            ar_roots = np.median(self._samples['ar_roots'], axis=0)
+        else:
+            # use posterior mean as the best-fit
+            sigsqr = np.mean(self._samples['sigma'] ** 2)
+            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+
+        fig = plt.figure()
+        # compute the kalman filter for data only
+        sp = fig.add_subplot(111)
+        kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
+        sp.plot(self.time, kalman_mean + self.y.mean(), '-r', label='Kalman Filter')
+        sp.fill_between(self.time, kmean + self.y.mean() - np.sqrt(kvar), kmean + self.y.mean() + np.sqrt(kvar), edgecolor=None, facecolor='blue', alpha=0.25)
+        sp.set_xlabel('Time')
+        sp.set_xlim(self.time.min(), self.time.max())
+
+        
+        # compute the kalman filter for interpolated data points
+        # Nope, this is not useful... 
+        if False:
+            sp    = fig.add_subplot(212)
+            mtime = np.arange(self.time.min(), self.time.max(), 0.1)
+            itime = np.append(self.time, mtime)
+            iy    = np.append(self.y, np.zeros((mtime.shape)))
+            idy   = np.append(self.ysig, 1e6 * np.ones((mtime.shape)))
+            idx   = np.argsort(itime)
+            itime = itime[idx]
+            iy    = iy[idx]
+            idy   = idy[idx]
+    
+            nsamp   = sample._samples["ar_roots"].shape[0]
+            ntosamp = 100
+            kmeans  = []
+            for i in range(ntosamp):
+                kmeans.append(kalman_filter(itime, iy - self.y.mean(), idy ** 2, 
+                                            self._samples['sigma'][i/ntosamp*nsamp]**2, 
+                                            self._samples['ar_roots'][i/ntosamp*nsamp])[0])
+            kmean   = np.mean(kmeans, axis=0)
+            kstd    = np.std(kmeans, axis=0)
+            sp.plot(self.time, self.y, 'k.', label='Data')
+            sp.plot(itime, kmean + self.y.mean(), '-r', label='Kalman Filter')
+            sp.fill_between(itime, kmean + self.y.mean() - kstd, kmean + self.y.mean() + kstd, edgecolor=None, facecolor='blue', alpha=0.25)
+            sp.set_xlabel('Time')
+            sp.set_xlim(self.time.min(), self.time.max())
+
+        
     def assess_fit(self, bestfit="median"):
         """
         Display plots and provide useful information for assessing the quality of the CAR(p) model fit.
@@ -236,6 +297,10 @@ class CarSample(samplers.MCMCSample):
         plt.subplot(221)
         plt.plot(self.time, self.y, 'k.', label='Data')
         plt.plot(self.time, kalman_mean + self.y.mean(), '-r', label='Kalman Filter')
+        plt.fillbetween(self.time, 
+                        kalman_mean + self.y.mean() - np.sqrt(kalman_var),
+                        kalman_mean + self.y.mean() + np.sqrt(kalman_var),
+                        facecolor='green', interpolate=True, alpha=0.25)
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
         #plt.legend()
