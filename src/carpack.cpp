@@ -179,7 +179,6 @@ void CAR1::Save(arma::vec new_car1)
 	// IMPORTANT: This assumes that the Kalman filter was calculated
 	// using the value of new_car1.
 	//
-	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
 	log_posterior_ = 0.0;
 	for (int i=0; i<time_.n_elem; i++) {
 		log_posterior_ += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
