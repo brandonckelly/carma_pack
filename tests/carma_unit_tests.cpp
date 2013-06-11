@@ -33,6 +33,7 @@ TEST_CASE("CAR1/constructor", "Make sure constructor sorts the time vector and r
     CAR1 car1_unordered(true, "CAR(1) - 1", time, y, ysig);
     
     // make sure CAR1 constructor sorted the time values
+    time = car1_unordered.GetTime();
     REQUIRE(time(43) == time0(43));
     REQUIRE(time(12) == time0(12));
     arma::vec ycent = car1_unordered.GetTimeSeries();
@@ -48,6 +49,7 @@ TEST_CASE("CAR1/constructor", "Make sure constructor sorts the time vector and r
     CAR1 car1_duplicate(true, "CAR(1) - 2", time, y, ysig);
     
     // make sure CAR1 constructor removed the duplicate value
+    time = car1_duplicate.GetTime();
     REQUIRE(time.size() == (ny-1));
     REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
     ycent = car1_duplicate.GetTimeSeries();
