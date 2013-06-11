@@ -51,6 +51,19 @@ public:
 	virtual std::string StringValue();
 	
     void Save(arma::vec new_value);
+
+    // Methods to get the data vectors //
+    arma::vec GetTime() {
+        return time_;
+    }
+    
+    arma::vec GetTimeSeries() {
+        return y_;
+    }
+    
+    arma::vec GetTimeSeriesErr() {
+        return yerr_;
+    }
     
 	// Methods for the Kalman filter //
 	
@@ -70,12 +83,12 @@ public:
 	// Compute the log-posterior
     virtual double LogPrior(arma::vec car1_value);
 	virtual double LogDensity(arma::vec car1_value);
-	
+    
 protected:
 	// Data vectors
-	arma::vec& time_;
-	arma::vec& y_;
-	arma::vec& yerr_;
+	arma::vec time_;
+	arma::vec y_;
+	arma::vec yerr_;
 	arma::vec dt_;
 	// Vectors for the Kalman filter. Make these protected members so we don't
 	// have to initialize them every time we evaluate the likelihood function.

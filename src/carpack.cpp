@@ -35,13 +35,16 @@ extern RandomGenerator RandGen;
 // do the default values.
 
 CAR1::CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature) : 
-Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
+Parameter<arma::vec>(track, name, temperature)
 {
 	// Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
 	value_.set_size(3);
 	// Set the degrees of freedom for the prior on the measurement error scaling parameter
 	measerr_dof_ = 100;
 	
+    y_ = y - arma::mean(y); // center the time series
+    time_ = time;
+    yerr_ = yerr;
 	int ndata = time.n_rows;
 	
 	dt_ = time(arma::span(1,ndata-1)) - time(arma::span(0,ndata-2));
@@ -52,7 +55,7 @@ Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
 		// Sort the time values such that dt > 0
 		arma::uvec sorted_indices = arma::sort_index(time_);
 		time_ = time.elem(sorted_indices);
-		y_ = y.elem(sorted_indices);
+		y_ = y_.elem(sorted_indices);
 		yerr_ = yerr.elem(sorted_indices);
 		dt_ = time_.rows(1,ndata-1) - time_.rows(0,ndata-2);
 	}
@@ -74,9 +77,6 @@ Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
 	// Set the size of the Kalman filter vectors
 	kalman_mean_.set_size(ndata);
 	kalman_var_.set_size(ndata);
-    
-    // Subtract off the mean from the time series
-    y_ = y_ - arma::mean(y_);
 }
 
 // Method of CAR1 class to set the bounds on the uniform prior.

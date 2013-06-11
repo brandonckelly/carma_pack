@@ -35,8 +35,12 @@ TEST_CASE("CAR1/constructor", "Make sure constructor sorts the time vector and r
     // make sure CAR1 constructor sorted the time values
     REQUIRE(time(43) == time0(43));
     REQUIRE(time(12) == time0(12));
-    REQUIRE(y(43) == y0(43));
-    REQUIRE(y(12) == y0(12));
+    arma::vec ycent = car1_unordered.GetTimeSeries();
+    double ymean = arma::mean(y0);
+    double frac_diff = std::abs(ycent(43) + ymean - y0(43)) / std::abs(y0(43));
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(ycent(12) + ymean - y0(12)) / std::abs(y0(12));
+    REQUIRE(frac_diff < 1e-8);
     
     // duplicate one of the elements of time
     time(43) = time(42);
@@ -45,6 +49,8 @@ TEST_CASE("CAR1/constructor", "Make sure constructor sorts the time vector and r
     
     // make sure CAR1 constructor removed the duplicate value
     REQUIRE(time.size() == (ny-1));
-    REQUIRE(time(43) == time0(44)); // removed element 43rd element from time vector
-    REQUIRE(y(43) == y0(44));
+    REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
+    ycent = car1_duplicate.GetTimeSeries();
+    frac_diff = std::abs(ycent(43) + ymean - y0(44)) / std::abs(y0(44));
+    REQUIRE(frac_diff < 1e-8);
 }
