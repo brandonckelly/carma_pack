@@ -299,7 +299,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					/usr/local/include,
-					"${HOME}/Xcode_Projects/yamcmcpp/yamcmc++",
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
@@ -337,7 +337,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					/usr/local/include,
-					"${HOME}/Xcode_Projects/yamcmcpp/yamcmc++",
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
@@ -356,7 +356,7 @@
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
 					/usr/local/include,
-					"${HOME}/Xcode_Projects/yamcmcpp/yamcmc++",
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				OTHER_LDFLAGS = "";
@@ -370,7 +370,7 @@
 				GCC_OPTIMIZATION_LEVEL = 3;
 				HEADER_SEARCH_PATHS = (
 					/usr/local/include,
-					"${HOME}/Xcode_Projects/yamcmcpp/yamcmc++",
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				OTHER_LDFLAGS = "";
@@ -388,6 +388,7 @@
 				556E3D381766895F00C3A045 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		DFD8B80A172B290C006D6BAB /* Build configuration list for PBXProject "carma_pack" */ = {
 			isa = XCConfigurationList;

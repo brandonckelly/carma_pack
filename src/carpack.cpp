@@ -481,6 +481,7 @@ double CARp::LogPrior(arma::vec theta)
     for (int i=1; i<p_/2; i++) {
         logprior += -log(theta(2+2*(i-1)) - log(min_freq_));
     }
+    return logprior;
 }
 
 // Calculate the logarithm of the posterior
