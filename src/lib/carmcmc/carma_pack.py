@@ -468,8 +468,8 @@ def carp_process(time, sigsqr, ar_roots):
 
     # Covariance matrix of real and imaginary components of the rotated state vector. The rotated state vector
     # follows a complex multivariate normal distribution
-    ComplexCovar_top = np.hstack((StateVar.real, StateVar.imag))
-    ComplexCovar_bottom = np.hstack((-StateVar.imag, StateVar.real))
+    ComplexCovar_top = np.hstack((StateVar.real, -StateVar.imag))
+    ComplexCovar_bottom = np.hstack((StateVar.imag, StateVar.real))
     ComplexCovar = np.vstack((ComplexCovar_top, ComplexCovar_bottom))
 
     # generate the state vector at time[0] by drawing from its stationary distribution
@@ -493,8 +493,8 @@ def carp_process(time, sigsqr, ar_roots):
                                                              (time[i] - time[i - 1])))
 
         # update the covariance matrix of the state vector components
-        ComplexCovar_top = np.hstack((StateCvar.real, StateCvar.imag))
-        ComplexCovar_bottom = np.hstack((-StateCvar.imag, StateCvar.real))
+        ComplexCovar_top = np.hstack((StateCvar.real, -StateCvar.imag))
+        ComplexCovar_bottom = np.hstack((StateCvar.imag, StateCvar.real))
         ComplexCovar = np.vstack((ComplexCovar_top, ComplexCovar_bottom))
 
         # now randomly generate a new value of the rotated state vector
@@ -513,14 +513,35 @@ def carp_process(time, sigsqr, ar_roots):
 # psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
 #
 # sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([0.03, 0.1])
-# qpo_cent0 = np.array([0.2, 0.013])
+# qpo_width0 = np.array([1.0/100.0, 1.0/100.0])
+# qpo_cent0 = np.array([1.0, 1.0/20.0])
 # ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
 # ar_coef0 = np.poly(ar_roots0)
-# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+#psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+
+#plt.plot(freq, psd0, 'r', lw=2)
+
+# print ar_roots0
+# dt = np.random.uniform(0.1, 1.0, 10000)
+# time = np.cumsum(dt)
+# time = time - np.min(time)
+# np.savetxt('time.txt', time, fmt='%10.5f')
+# carp = carp_process(time, sigma0 ** 2, ar_roots0)
+# kmean, kvar = kalman_filter(time, carp, np.zeros(10000), sigma0 ** 2, ar_roots0)
+# sresid = (carp - kmean) / np.sqrt(kvar)
+# print "Sigma in lightcurve:", np.std(carp), np.sqrt(carp_variance(sigma0 ** 2, ar_roots0))
+# plt.hist(sresid, bins=50, normed=True)
+# xgrid = np.linspace(-3.0, 3.0)
+# plt.plot(xgrid, 1.0 / np.sqrt(2.0 * 3.14) * np.exp(-0.5 * xgrid ** 2))
+# plt.show()
 #
-# plt.plot(freq, psd0, 'r', lw=2)
-
-#kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
-
-#carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
+# lags, autocorr, line, other = plt.acorr(sresid, maxlags=2500)
+# wnoise_upper = 1.96 / np.sqrt(time.size)
+# wnoise_lower = -1.96 / np.sqrt(time.size)
+# plt.fill_between([0, 100], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+# plt.xlim([0, 100])
+# plt.show()
+# out_of_bounds = (autocorr < wnoise_lower) | (autocorr > wnoise_upper)
+# nacorr = autocorr.size / 2 - 1
+# out_of_bounds = np.sum(out_of_bounds) / 2 - 1
+# print "Total out of " + str(nacorr) + " of acorr value outside of 95% confidence region: ", out_of_bounds
