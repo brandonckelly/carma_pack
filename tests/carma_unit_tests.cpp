@@ -13,8 +13,8 @@
 #include <armadillo>
 
 // Files containing simulated CAR(1) and CAR(5) time series, used for testing
-std::ifstream car1file("car1_test.dat");
-std::ifstream car5file("car5_test.dat");
+std::string car1file("data/car1_test.dat");
+std::string car5_file("data/car5_test.dat");
 
 /*******************************************************************
                         TESTS FOR CAR1 CLASS
@@ -108,7 +108,7 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
     double max_freq = 10.0;
 	double min_freq = 1.0 / (10.0 * time.max());
 
-    arma::vec bad_theta; // parameter value will violated the prior bounds
+    arma::vec bad_theta(3); // parameter value will violated the prior bounds
     double sigma = max_stdev / 10.0;
     double measerr_scale = 1.0;
     double omega = 2.0 * max_freq;
@@ -149,5 +149,39 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
 
 TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter") {
     // first grab the simulated Gaussian CAR(1) data set
+    arma::mat car1_data;
+    car1_data.load(car1file, arma::raw_ascii);
     
+    arma::vec time = car1_data.col(0);
+    arma::vec y = car1_data.col(1);
+    arma::vec yerr = car1_data.col(2);
+    
+    // CAR(1) process parameters
+    double tau = 100.0;
+    double omega = 1.0 / tau;
+    double sigmay = 2.3;
+    double sigma = sigmay * sqrt(2.0 / tau);
+    double measerr_scale = 1.0;
+    arma::vec theta(3);
+    theta << sigma << measerr_scale << log(omega);
+    
+    CAR1 car1_process(true, "CAR(1)", time, y, yerr);
+    
+    // Compute and grab the kalman filter
+    car1_process.KalmanFilter(theta);
+    arma::vec kmean = car1_process.GetKalmanMean();
+    arma::vec kvar = car1_process.GetKalmanVariance();
+    
+    // Compute the standardized residuals of the time series
+    arma::vec sresid = (kmean - y) / arma::sqrt(kvar + yerr % yerr);
+    
+    // First test that the standardized residuals are consistent with having a standard normal distribution using
+    // the Anderson-Darling test statistic
+    
+    
+    
+    // Now test that the autocorrelation function of the standardized residuals is consistent with a white noise process
+    
+    
+    // Finally, test that the autocorrelation function of the square of the residuals is consistent with a white noise process
 }
