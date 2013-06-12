@@ -216,6 +216,7 @@ void CAR1::KalmanFilter(arma::vec car1_value)
 		kalman_var_(i) = kalman_var_(0) * (1.0 - rho * rho)
 			+ rho * rho * kalman_var_(i-1) * (1.0 - var_ratio);
 	}
+    kalman_var_ += measerr_scale * yerr_ * yerr_; // add in contribution to variance from measurement errors
 }
 
 // Return the log-prior for a CAR(1) process
@@ -243,9 +244,8 @@ double CAR1::LogDensity(arma::vec car1_value)
 	
 	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
 	for (int i=0; i<time_.n_elem; i++) {
-		logpost += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
+		logpost += -0.5 * log(kalman_var_(i)) -
+		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
 	}
 	
 	// Prior bounds satisfied?
