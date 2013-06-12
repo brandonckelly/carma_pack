@@ -499,9 +499,8 @@ double CARp::LogDensity(arma::vec theta)
     
     // TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
     for (int i=0; i<time_.n_elem; i++) {
-        logpost += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-        0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-        (measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
+        logpost += -0.5 * log(kalman_var_(i)) -
+        0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
     }
 	
     // Prior bounds satisfied?

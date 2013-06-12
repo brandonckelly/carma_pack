@@ -11,6 +11,7 @@
 #include "carmcmc.hpp"
 #include "carpack.hpp"
 #include <armadillo>
+#include <boost/math/distributions/normal.hpp>
 
 // Files containing simulated CAR(1) and CAR(5) time series, used for testing
 std::string car1file("data/car1_test.dat");
@@ -175,13 +176,31 @@ TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter") {
     // Compute the standardized residuals of the time series
     arma::vec sresid = (kmean - y) / arma::sqrt(kvar + yerr % yerr);
     
-    // First test that the standardized residuals are consistent with having a standard normal distribution using
+    // First do simple test on mean and variance of standardized residuals
+    REQUIRE(std::abs(arma::mean(sresid)) < 3.0 / sqrt(sresid.n_elem));
+    REQUIRE(std::abs(arma::var(sresid) - 1.0) < 3.0 * sqrt(2.0 * sresid.n_elem) / sresid.n_elem);
+    
+    // Test that the standardized residuals are consistent with having a standard normal distribution using
     // the Anderson-Darling test statistic
-    
-    
+    arma::vec sorted_sresid = arma::sort(sresid);
+    boost::math::normal snorm;
+    arma::vec snorm_cdf(sresid.n_elem);
+    for (int i=0; i<snorm_cdf.n_elem; i++) {
+        // compute the standard normal CDF of the standardized residuals
+        snorm_cdf(i) = boost::math::cdf(snorm, sorted_sresid(i));
+    }
+    double AD_stat = -snorm_cdf.n_elem;
+    for (int i=0; i<snorm_cdf.n_elem; i++) {
+        // compute the Anderson-Darling statistic
+        AD_stat -= 1.0 / snorm_cdf.n_elem * ((2.0 * (i+1) - 1) * log(snorm_cdf(i)) +
+                                             (2.0 * (snorm_cdf.n_elem - (i+1)) + 1.0) * log(1.0 - snorm_cdf(i)));
+    }
+    REQUIRE(AD_stat < 3.857); // critical value for 1% significance level
     
     // Now test that the autocorrelation function of the standardized residuals is consistent with a white noise process
-    
+    arma::vec acorr_sresid = arma::cor(sresid);
+    std::cout << "Acorr size: " << acorr_sresid.n_elem << std::endl;
+    acorr_sresid.print();
     
     // Finally, test that the autocorrelation function of the square of the residuals is consistent with a white noise process
 }
