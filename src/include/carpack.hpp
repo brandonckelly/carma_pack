@@ -13,7 +13,11 @@
 #define __CARPACK_HDEF__
 
 #include <string>
-#include "yamcmc++.hpp"
+#include <random.hpp>
+#include <proposals.hpp>
+#include <samplers.hpp>
+#include <steps.hpp>
+#include <parameters.hpp>
 
 /*
  First-order continuous time autoregressive process (CAR(1)) class, for input into

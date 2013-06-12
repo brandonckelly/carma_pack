@@ -1,10 +1,10 @@
-all: carmcmcLib
+all: carmcmc
 
-carmcmcLib: force
+carmcmc: force
 	CFLAGS="-O3" python setup.py build_ext --inplace
 
 clean:
-	rm -rf build lib/carmcmc/*.pyc lib/carmcmc/carmcmcLib.so
+	rm -rf build 
 
 force:
 	true

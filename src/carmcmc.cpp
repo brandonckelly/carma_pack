@@ -105,10 +105,14 @@
 #include <fstream>
 #include <vector>
 // Include the MCMC sampler header files
-#include "yamcmc++.hpp"
+#include <random.hpp>
+#include <proposals.hpp>
+#include <samplers.hpp>
+#include <steps.hpp>
+#include <parameters.hpp>
 // Local include
-#include "carpack.hpp"
-#include "carmcmc.hpp"
+#include "include/carpack.hpp"
+#include "include/carmcmc.hpp"
 
 // Run the MCMC sampler for a CAR(p) process
 std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec time, arma::vec y,

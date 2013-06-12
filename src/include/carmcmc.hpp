@@ -1,5 +1,5 @@
 #include <vector>
-#include "yamcmc++.hpp"
+#include <samplers.hpp>
 
 std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, 
                                              arma::vec time, arma::vec y,
