@@ -123,7 +123,7 @@ class CarSample(samplers.MCMCSample):
         # add the sigmas to the MCMC samples
         self._samples['sigma'] = np.sqrt(sigma)
 
-    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True):
+    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b"):
         """
         Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD. This
         function returns a tuple containing the lower and upper PSD credibility intervals as a function of
@@ -189,11 +189,11 @@ class CarSample(samplers.MCMCSample):
         plt.subplot(111)
         if plot_log:
             # plot the posterior median first
-            plt.loglog(frequencies, psd_credint[:, 1], 'b')
+            plt.loglog(frequencies, psd_credint[:, 1], color=color)
         else:
-            plt.plot(frequencies, psd_credint[:, 1], 'b')
+            plt.plot(frequencies, psd_credint[:, 1], color=color)
 
-        plt.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor='blue', alpha=0.5)
+        plt.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
         plt.xlim(frequencies.min(), frequencies.max())
         plt.xlabel('Frequency')
         plt.ylabel('Power Spectrum')
