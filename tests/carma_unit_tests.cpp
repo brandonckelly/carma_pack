@@ -526,3 +526,67 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     double omega_zscore = (arma::mean(omega_samples) - log(omega)) / arma::stddev(omega_samples);
     CHECK(std::abs(omega_zscore) < 3.0);
 }
+
+TEST_CASE("CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
+    std::cout << std::endl;
+    std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
+    
+    // first grab the simulated Gaussian CAR(5) data set
+    arma::mat car5_data;
+    car5_data.load(car5file, arma::raw_ascii);
+    
+    arma::vec time = car5_data.col(0);
+    arma::vec y = car5_data.col(1);
+    arma::vec yerr = car5_data.col(2);
+    
+    // MCMC parameters
+    int carp_order = 5;
+    int nwalkers = 10;
+    MCMCOptions mcmc_options;
+    mcmc_options.setSampleSize(100000);
+    mcmc_options.setBurnin(50000);
+    mcmc_options.setThin(1);
+    
+    // run the MCMC sampler
+    std::vector<arma::vec> mcmc_sample;
+    mcmc_sample = RunEnsembleCarSampler(mcmc_options, time, y, yerr, carp_order, nwalkers);
+    
+    // True CAR(5) process parameters
+    double qpo_width[3] = {0.01, 0.01, 0.002};
+    double qpo_cent[2] = {0.2, 0.02};
+    double sigmay = 2.3;
+    double measerr_scale = 1.0;
+    int p = 5;
+    
+    // Create the parameter vector, theta
+	arma::vec theta(p+2);
+    theta(0) = log(sigmay);
+	theta(1) = measerr_scale;
+    for (int i=0; i<p/2; i++) {
+        theta(2+2*i) = log(qpo_cent[i]);
+        theta(3+2*i) = log(qpo_width[i]);
+    }
+    // p is odd, so add in additional value of lorentz_width
+    theta(p+1) = log(qpo_width[p/2]);
+
+    arma::vec sigma_samples(mcmc_sample.size());
+    arma::vec scale_samples(mcmc_sample.size());
+    arma::mat ar_samples(mcmc_sample.size(),p);
+    for (int i=0; i<mcmc_sample.size(); i++) {
+        sigma_samples(i) = log(mcmc_sample[i](0));
+        scale_samples(i) = mcmc_sample[i](1);
+        for (int j=0; j<p; j++) {
+            ar_samples(i,j) = mcmc_sample[i](j+2);
+        }
+    }
+    
+    // Make sure true parameters are within 3sigma of the marginal posterior means
+    double sigma_zscore = (arma::mean(sigma_samples) - log(sigmay)) / arma::stddev(sigma_samples);
+    CHECK(std::abs(sigma_zscore) < 3.0);
+    double scale_zscore = (arma::mean(scale_samples) - measerr_scale) / arma::stddev(scale_samples);
+    CHECK(std::abs(scale_zscore) < 3.0);
+    for (int j=0; j<p; j++) {
+        double ar_zscore = (arma::mean(ar_samples.col(j)) - theta(2+j)) / arma::stddev(ar_samples.col(j));
+        CHECK(std::abs(ar_zscore) < 3.0);
+    }
+}

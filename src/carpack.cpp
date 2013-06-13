@@ -280,71 +280,67 @@ arma::vec CAR1::GetKalmanVariance()
 
 // Return the starting value and set log_posterior_
 arma::vec CARp::StartingValue()
-{    
+{
 	double min_freq = 1.0 / (time_.max() - time_.min());
-    
-    // Obtain initial values for Lorentzian centroids (= system frequencies) and 
-    // widths (= break frequencies)
-    arma::vec lorentz_cent((p_+1)/2);
-    lorentz_cent.randu();
-    lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
-    lorentz_cent = arma::exp(lorentz_cent);
-    
-    // Force system frequencies to be in descending order to make the model identifiable
-    lorentz_cent = arma::sort(lorentz_cent, 1);
-    
-    arma::vec lorentz_width((p_+1)/2);
-    lorentz_width.randu();
-    lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
-    lorentz_width = arma::exp(lorentz_width);
-
-    if ((p_ % 2) == 1) {
-        // p is odd, so add additional low-frequency component
-        lorentz_cent(p_/2) = 0.0;
-        // make initial break frequency of low-frequency component less than minimum
-        // value of the system frequencies
-        lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
-    }
-	
-    // Initial guess for model standard deviation is randomly distributed
-	// around measured standard deviation of the time series
-    
-	double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
-    
-	// Get initial value of the measurement error scaling parameter by
-	// drawing from its prior.
-	
-    double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
-    measerr_scale = std::min(measerr_scale, 1.99);
-    measerr_scale = std::max(measerr_scale, 0.51);
-	
-    /********* PUT IN TRUE VALUE HERE, USED FOR DEBUGGING *********
-     
-     phi(0) = -1.9530404;
-     phi(1) = 0.95999374;
-     phi(2) = 0.0;
-     sigma = 1.0;
-     mu = 6.0;
-     
-     ******* MAKE SURE TO REMOVE THE ABOVE LINES AFTER DEBUGGING!!!! *****/
-    
     // Create the parameter vector, theta
-	arma::vec theta(p_+2);
-	
-    theta(0) = sqrt(yvar);
-	theta(1) = measerr_scale;
-    for (int i=0; i<p_/2; i++) {
-        theta(2+2*i) = log(lorentz_cent(i));
-        theta(3+2*i) = log(lorentz_width(i));
-    }
-    if ((p_ % 2) == 1) {
-        // p is odd, so add in additional value of lorentz_width
-        theta(p_+1) = log(lorentz_width(p_/2));
-    }
+    arma::vec theta(p_+2);
     
-	// Initialize the Kalman filter
-	KalmanFilter(theta);
-	
+    bool good_initials = false;
+    while (!good_initials) {
+        
+        // Obtain initial values for Lorentzian centroids (= system frequencies) and 
+        // widths (= break frequencies)
+        arma::vec lorentz_cent((p_+1)/2);
+        lorentz_cent.randu();
+        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
+        lorentz_cent = arma::exp(lorentz_cent);
+        
+        // Force system frequencies to be in descending order to make the model identifiable
+        lorentz_cent = arma::sort(lorentz_cent, 1);
+        
+        arma::vec lorentz_width((p_+1)/2);
+        lorentz_width.randu();
+        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
+        lorentz_width = arma::exp(lorentz_width);
+
+        if ((p_ % 2) == 1) {
+            // p is odd, so add additional low-frequency component
+            lorentz_cent(p_/2) = 0.0;
+            // make initial break frequency of low-frequency component less than minimum
+            // value of the system frequencies
+            lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
+        }
+        
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        
+        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        
+        // Get initial value of the measurement error scaling parameter by
+        // drawing from its prior.
+        
+        double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
+        measerr_scale = std::min(measerr_scale, 1.99);
+        measerr_scale = std::max(measerr_scale, 0.51);
+        
+        theta(0) = sqrt(yvar);
+        theta(1) = measerr_scale;
+        for (int i=0; i<p_/2; i++) {
+            theta(2+2*i) = log(lorentz_cent(i));
+            theta(3+2*i) = log(lorentz_width(i));
+        }
+        if ((p_ % 2) == 1) {
+            // p is odd, so add in additional value of lorentz_width
+            theta(p_+1) = log(lorentz_width(p_/2));
+        }
+        
+        // Initialize the Kalman filter
+        KalmanFilter(theta);
+        
+        double logpost = LogDensity(theta);
+        good_initials = arma::is_finite(logpost);
+    } // continue loop until the starting values give us a finite posterior
+    
     return theta;
 }
 
@@ -461,26 +457,6 @@ void CARp::KalmanFilter(arma::vec theta)
 		// Finally, update the innovation
 		innovation = y_(i) - kalman_mean_(i);
 	}
-}
-
-// Calculate the logarithm of the prior
-double CARp::LogPrior(arma::vec theta)
-{
-    double measerr_scale = theta(1);
-    // first get prior on the measurement error variance scale parameter
-    double logprior = -0.5 * measerr_dof_ / measerr_scale -
-        (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-    // prior for first lorentzian centroid is the probability distribution for the maximum
-    // of a set of p_/2 uniformly distribution random variables
-    logprior += (p_/2 - 1) * (log(theta(2)) - log(min_freq_));
-    
-    // prior for remaining lorentzian centroid are uniform, conditional on previous
-    // lorentzian centroid
-    for (int i=1; i<p_/2; i++) {
-        logprior += -log(theta(2+2*(i-1)) - log(min_freq_));
-    }
-    return logprior;
 }
 
 // Calculate the logarithm of the posterior
