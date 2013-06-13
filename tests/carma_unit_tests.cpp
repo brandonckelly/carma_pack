@@ -279,6 +279,42 @@ TEST_CASE("CAR5/prior_bounds", "Make sure CARp::LogDensity return -infinity when
     REQUIRE(nbad_cent == 0);
 }
 
+TEST_CASE("CAR5/carp_variance", "Test the CARp::Variance method") {
+    // generate some data
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    
+    // CAR(5) process parameters
+    double qpo_width[3] = {0.01, 0.01, 0.002};
+    double qpo_cent[2] = {0.2, 0.02};
+    double sigma = 2.3;
+    int p = 5;
+    
+    // Construct the complex vector of roots of the characteristic polynomial:
+    // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
+    arma::cx_vec alpha_roots(p);
+    for (int i=0; i<p/2; i++) {
+        alpha_roots(2*i) = std::complex<double> (-1.0 * qpo_width[i],qpo_cent[i]);
+        alpha_roots(2*i+1) = std::conj(alpha_roots(2*i));
+    }
+	
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional low-frequency component
+        alpha_roots(p-1) = std::complex<double> (-1.0 * qpo_width[p/2], 0.0);
+    }
+    
+    alpha_roots *= 2.0 * arma::datum::pi;
+    
+    CARp car5_process(true, "CAR(5)", time, y, ysig, p);
+    
+    double model_var = car5_process.Variance(alpha_roots, sigma);
+    double model_var0 = 218432.09642016294; // known variance, computed from python module carma_pack
+    double frac_diff = std::abs(model_var - model_var0) / std::abs(model_var0);
+    REQUIRE(frac_diff < 1e-8);
+}
+
 TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter for a CAR(1) process") {
     // first grab the simulated Gaussian CAR(1) data set
     arma::mat car1_data;
