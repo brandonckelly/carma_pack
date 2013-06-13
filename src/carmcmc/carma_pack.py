@@ -7,6 +7,7 @@ from os import environ
 import yamcmcpp.samplers as samplers
 
 
+
 class CarSample(samplers.MCMCSample):
     """
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
@@ -571,21 +572,83 @@ def carp_process(time, sigsqr, ar_roots):
 
     return car_process
 
+class Car1Sample(CarSample):
+    def __init__(self, time, y, ysig, filename=None, trace=None):
+        self.time = time  # The time values of the time series
+        self.y    = y     # The measured values of the time series
+        self.ysig = ysig  # The standard deviation of the measurement errors of the time series
+        self.p    = 1     # How many AR terms
+        super(CarSample, self).__init__(filename=filename, trace=trace)
 
-# dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
-# data = np.genfromtxt(dir + 'car4_test.dat')
-# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
-# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
-#
-# sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([0.03, 0.1])
-# qpo_cent0 = np.array([0.2, 0.013])
-# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-# ar_coef0 = np.poly(ar_roots0)
-# psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
-#
-# plt.plot(freq, psd0, 'r', lw=2)
+        print "Calculating coefficients of AR polynomial..."
+        self._ar_coefs()
+        print "Calculating sigma..."
+        self._variance()
 
-#kmean, kvar = kalman_filter(car.time, car.y, car.ysig ** 2, sigma0 ** 2, ar_roots0)
+        # make the parameter names (i.e., the keys) public so the use knows how to get them
+        self.parameters = self._samples.keys()
 
-#carp = carp_process(data[:,0], sigma0 ** 2, ar_roots0)
+    def generate_from_trace(self, trace):
+        # NOTE: we still need to return logpost
+        names = ['logpost', 'sigma', 'measerr_scale', 'log_omega']
+        if names != self._samples.keys():
+            self._samples['sigma']         = trace[:, 0]
+            self._samples['measerr_scale'] = trace[:, 1]
+            self._samples['log_omega']     = trace[:, 1]
+
+    def _ar_roots(self):
+        print "_ar_roots not supported for CAR1"
+        return
+
+    def _ar_coefs(self):
+        print "_ar_coefs not supported for CAR1"
+        return
+    
+    def _variance(self):
+        self._samples['var'] = 0.5 * self._samples['sigma']**2 / self._samples['log_omega']
+        
+    def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b"):
+        sigmas = self._samples['sigma']
+        log_omegas = self._samples['log_omega']
+
+        nfreq = 1000
+        dt_min = self.time[1:] - self.time[0:self.time.size - 1]
+        dt_min = dt_min.min()
+        dt_max = self.time.max() - self.time.min()
+        
+        # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
+        # maximum time scales probed by the time series.
+        freq_max = 1.0 / (dt_min / 2.0)
+        freq_min = (1.0 / (2.0 * dt_max))
+
+        frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
+        frequencies = np.exp(frequencies)
+        psd_credint = np.empty((nfreq, 3))
+
+        lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
+        upper = 100.0 - lower
+        
+        numer = 0.5 / np.pi * sigmas**2
+        for i in xrange(nfreq):
+            denom = 10**log_omegas**2 + frequencies[i]**2
+            psd_samples = numer / denom
+
+            # Now compute credibility interval for power spectrum
+            psd_credint[i, 0] = np.percentile(psd_samples, lower, axis=0)
+            psd_credint[i, 2] = np.percentile(psd_samples, upper, axis=0)
+            psd_credint[i, 1] = np.median(psd_samples, axis=0)
+
+        # Plot the power spectra
+        plt.subplot(111)
+        if plot_log:
+            # plot the posterior median first
+            plt.loglog(frequencies, psd_credint[:, 1], color=color)
+        else:
+            plt.plot(frequencies, psd_credint[:, 1], color=color)
+
+        plt.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
+        plt.xlim(frequencies.min(), frequencies.max())
+        plt.xlabel('Frequency')
+        plt.ylabel('Power Spectrum')
+
+        return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
