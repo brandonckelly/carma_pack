@@ -371,7 +371,7 @@ void CARp::KalmanFilter(arma::vec theta)
     
 	// Initialize the matrix of Eigenvectors. We will work with the state vector
 	// in the space spanned by the Eigenvectors because in this space the state
-	// transition matrix is diagonal, so we calculation of the matrix exponential
+	// transition matrix is diagonal, so the calculation of the matrix exponential
 	// is fast.
 	arma::cx_mat EigenMat(p_,p_);
 	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);

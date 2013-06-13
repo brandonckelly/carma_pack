@@ -165,9 +165,9 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
 	double min_freq = 1.0 / (10.0 * time.max());
 
     arma::vec bad_theta(3); // parameter value will violated the prior bounds
-    double sigma = max_stdev / 10.0;
     double measerr_scale = 1.0;
     double omega = 2.0 * max_freq;
+    double sigma = max_stdev / 10.0 * sqrt(2.0 * omega);
     bad_theta << sigma << measerr_scale << log(omega);
     
     double logpost = car1_test.LogDensity(bad_theta);
@@ -201,6 +201,82 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
     bad_theta(1) = measerr_scale;
     logpost = car1_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
+}
+
+TEST_CASE("CAR5/prior_bounds", "Make sure CARp::LogDensity return -infinity when prior bounds are violated") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 9;
+    
+    CARp car9_test(true, "CAR(9)", time, y, ysig, p);
+    double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
+    car9_test.SetPrior(max_stdev);
+    
+    // prior bounds on lorentzian parameters
+    double max_freq = 10.0;
+	double min_freq = 1.0 / (10.0 * time.max());
+    
+    arma::vec bad_theta(p+2); // parameter value will violated the prior bounds
+    bad_theta = car9_test.StartingValue();
+
+    bad_theta = car9_test.StartingValue();
+    bad_theta(0) = 2.0 * max_stdev;
+    double logpost = car9_test.LogDensity(bad_theta);
+    REQUIRE(logpost == -1.0 * arma::datum::inf);
+    bad_theta(0) = -1.0;
+    logpost = car9_test.LogDensity(bad_theta);
+    REQUIRE(logpost == -1.0 * arma::datum::inf);
+    
+    bad_theta(0) = max_stdev / 10.0;
+    bad_theta(1) = 0.1;
+    logpost = car9_test.LogDensity(bad_theta);
+    REQUIRE(logpost == -1.0 * arma::datum::inf);
+    bad_theta(1) = 4.0;
+    logpost = car9_test.LogDensity(bad_theta);
+    REQUIRE(logpost == -1.0 * arma::datum::inf);
+    
+    bad_theta(1) = 1.0;
+    int nbad_width = 0;
+    for (int j=0; j<p/2; j++) {
+        double qpo_width = bad_theta(3+2*j);
+        bad_theta(3+2*j) = log(min_freq / 2.0);
+        logpost = car9_test.LogDensity(bad_theta);
+        if (logpost != -1.0 * arma::datum::inf) {
+            nbad_width++;
+        }
+        bad_theta(3+2*j) = log(2.0 * max_freq);
+        logpost = car9_test.LogDensity(bad_theta);
+        if (logpost != -1.0 * arma::datum::inf) {
+            nbad_width++;
+        }
+        bad_theta(3+2*j) = qpo_width;
+    }
+    REQUIRE(nbad_width == 0);
+    
+    double qpo_cent = bad_theta(2);
+    bad_theta(2) = log(2.0 * max_freq);
+    logpost = car9_test.LogDensity(bad_theta);
+    REQUIRE(logpost == -1.0 * arma::datum::inf);
+    bad_theta(2) = qpo_cent;
+    qpo_cent = bad_theta(2+2*(p/2-1));
+    bad_theta(2+2*(p/2-1)) = log(min_freq / 2.0);
+    logpost = car9_test.LogDensity(bad_theta);
+    REQUIRE(logpost == -1.0 * arma::datum::inf);
+    bad_theta(2+2*(p/2-1)) = qpo_cent;
+    int nbad_cent = 0;
+    for (int j=1; j<p/2; j++) {
+        // violate the ordering of the lorentzian centroids
+        qpo_cent = bad_theta(2+2*j);
+        bad_theta(2+2*j) = log(1.1) + bad_theta(2+2*(j-1));
+        logpost = car9_test.LogDensity(bad_theta);
+        if (logpost != -1.0 * arma::datum::inf) {
+            nbad_cent++;
+        }
+        bad_theta(2+2*j) = qpo_cent;
+    }
+    REQUIRE(nbad_cent == 0);
 }
 
 TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter for a CAR(1) process") {
