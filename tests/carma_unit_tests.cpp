@@ -12,10 +12,30 @@
 #include "carpack.hpp"
 #include <armadillo>
 #include <boost/math/distributions/normal.hpp>
+#include <boost/math/distributions/chi_squared.hpp>
 
 // Files containing simulated CAR(1) and CAR(5) time series, used for testing
 std::string car1file("data/car1_test.dat");
-std::string car5_file("data/car5_test.dat");
+std::string car5file("data/car5_test.dat");
+
+// Compute the autocorrelation function of a series
+arma::vec autocorr(arma::vec& y, int maxlag) {
+    int ny = y.n_elem;
+    arma::vec acorr = arma::zeros(maxlag);
+    
+    for (int lag=1; lag <= maxlag; lag++) {
+        for (int i=0; i<ny-lag; i++) {
+            acorr(lag-1) += y(i) * y(i+lag);
+        }
+    }
+    
+    double ssqr = 0.0;
+    for (int i=0; i<ny; i++) {
+        ssqr += y(i) * y(i);
+    }
+    
+    return acorr / ssqr;
+}
 
 /*******************************************************************
                         TESTS FOR CAR1 CLASS
@@ -95,6 +115,41 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     REQUIRE(logpost_neq_count == 0);
 }
 
+TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogPost(theta) after running MCMC sampler") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    
+    CARp car5_test(true, "CAR(5)", time, y, ysig, p);
+    
+    double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
+    car5_test.SetPrior(max_stdev);
+    
+    // setup Robust Adaptive Metropolis step object
+    StudentProposal tUnit(8.0, 1.0);
+    arma::mat prop_covar(p+2,p+2);
+    prop_covar.eye();
+    int niter = 1000;
+    double target_rate = 0.4;
+    AdaptiveMetro RAM(car5_test, tUnit, prop_covar, target_rate, niter+1);
+    RAM.Start();
+    
+    // perform a bunch of steps, which will update the car1_test.value_ and car1_test.log_posterior_ values.
+    int logpost_neq_count = 0;
+    for (int i=0; i<niter; i++) {
+        RAM.DoStep();
+        double logdens_stored = car5_test.GetLogDensity(); // stored value of log-posterior for current theta
+        double logdens_computed = car5_test.LogDensity(car5_test.Value()); // explicitly calculate log-posterior for current theta
+        if (std::abs(logdens_computed - logdens_stored) > 1e-10) {
+            logpost_neq_count++; // count the number of time the two log-posterior values do not agree
+        }
+    }
+    // make sure that saved logdensity is always equal to LogDensity(theta) for current thera value
+    REQUIRE(logpost_neq_count == 0);
+}
+
 TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when prior bounds are violated") {
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
@@ -148,7 +203,7 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
     REQUIRE(logpost == -1.0 * arma::datum::inf);
 }
 
-TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter") {
+TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter for a CAR(1) process") {
     // first grab the simulated Gaussian CAR(1) data set
     arma::mat car1_data;
     car1_data.load(car1file, arma::raw_ascii);
@@ -156,6 +211,7 @@ TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter") {
     arma::vec time = car1_data.col(0);
     arma::vec y = car1_data.col(1);
     arma::vec yerr = car1_data.col(2);
+    int ny = y.n_elem;
     
     // CAR(1) process parameters
     double tau = 100.0;
@@ -174,33 +230,138 @@ TEST_CASE("CAR1/kalman_filter", "Test the Kalman Filter") {
     arma::vec kvar = car1_process.GetKalmanVariance();
     
     // Compute the standardized residuals of the time series
-    arma::vec sresid = (kmean - y) / arma::sqrt(kvar + yerr % yerr);
+    arma::vec sresid = (y - arma::mean(y) - kmean) / arma::sqrt(kvar);
     
     // First do simple test on mean and variance of standardized residuals
-    REQUIRE(std::abs(arma::mean(sresid)) < 3.0 / sqrt(sresid.n_elem));
-    REQUIRE(std::abs(arma::var(sresid) - 1.0) < 3.0 * sqrt(2.0 * sresid.n_elem) / sresid.n_elem);
+    //REQUIRE(std::abs(arma::mean(sresid)) < 3.0 / sqrt(ny));
+    //REQUIRE(std::abs(arma::var(sresid) - 1.0) < 3.0 * sqrt(2.0 * ny) / ny);
     
     // Test that the standardized residuals are consistent with having a standard normal distribution using
     // the Anderson-Darling test statistic
     arma::vec sorted_sresid = arma::sort(sresid);
     boost::math::normal snorm;
-    arma::vec snorm_cdf(sresid.n_elem);
-    for (int i=0; i<snorm_cdf.n_elem; i++) {
+    arma::vec snorm_cdf(ny);
+    for (int i=0; i<ny; i++) {
         // compute the standard normal CDF of the standardized residuals
         snorm_cdf(i) = boost::math::cdf(snorm, sorted_sresid(i));
     }
-    double AD_stat = -snorm_cdf.n_elem;
-    for (int i=0; i<snorm_cdf.n_elem; i++) {
+    
+    double AD_sum = 0.0;
+    for (int i=0; i<ny; i++) {
         // compute the Anderson-Darling statistic
-        AD_stat -= 1.0 / snorm_cdf.n_elem * ((2.0 * (i+1) - 1) * log(snorm_cdf(i)) +
-                                             (2.0 * (snorm_cdf.n_elem - (i+1)) + 1.0) * log(1.0 - snorm_cdf(i)));
+        AD_sum += (2.0 * (i+1) - 1) / ny * (log(snorm_cdf(i)) + log(1.0 - snorm_cdf(ny-1-i)));
     }
+    double AD_stat = -ny - AD_sum;
+    REQUIRE(AD_stat < 3.857); // critical value for 1% significance level
+ 
+    // Now test that the autocorrelation function of the standardized residuals is consistent with a white noise process
+    int maxlag = 100;
+    arma::vec acorr_sresid = autocorr(sresid, maxlag);
+    double acorr_95bound = 1.96 / sqrt(ny); // find number of autocorr values outside of 95% confidence interval
+    int out_of_bounds = arma::accu(arma::abs(acorr_sresid) > acorr_95bound);
+    REQUIRE(out_of_bounds < 11); // 99% significance level for binomial distribution with n = 100 and p = 0.05
+
+    double max_asqr = arma::max(acorr_sresid % acorr_sresid);
+    boost::math::chi_squared chisqr(1); // square of ACF has a chi-squared distribution with two DOF
+    double chisqr_cdf = boost::math::cdf(chisqr, max_asqr * ny);
+    double max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
+    REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
+    
+    // Finally, test that the autocorrelation function of the square of the residuals is consistent with a white noise process
+    arma::vec sres_sqr = sresid % sresid;
+    sres_sqr -= arma::mean(sres_sqr);
+    arma::vec acorr_ssqr = autocorr(sres_sqr, maxlag);
+    out_of_bounds = arma::accu(arma::abs(acorr_ssqr) > acorr_95bound);
+    REQUIRE(out_of_bounds < 11); // 99% significance level for binomial distribution with n = 100 and p = 0.05
+    
+    max_asqr = arma::max(acorr_ssqr % acorr_ssqr);
+    chisqr_cdf = boost::math::cdf(chisqr, max_asqr * ny);
+    max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
+    REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
+}
+
+TEST_CASE("CAR5/kalman_filter", "Test the Kalman Filter for a CAR(5) process") {
+    // first grab the simulated Gaussian CAR(1) data set
+    arma::mat car5_data;
+    car5_data.load(car5file, arma::raw_ascii);
+    
+    arma::vec time = car5_data.col(0);
+    arma::vec y = car5_data.col(1);
+    arma::vec yerr = car5_data.col(2);
+    int ny = y.n_elem;
+    
+    // CAR(5) process parameters
+    double qpo_width[3] = {0.01, 0.01, 0.002};
+    double qpo_cent[2] = {0.2, 0.02};
+    double sigmay = 2.3;
+    double measerr_scale = 1.0;
+    int p = 5;
+    
+    // Create the parameter vector, theta
+	arma::vec theta(p+2);
+    theta(0) = sigmay;
+	theta(1) = measerr_scale;
+    for (int i=0; i<p/2; i++) {
+        theta(2+2*i) = log(qpo_cent[i]);
+        theta(3+2*i) = log(qpo_width[i]);
+    }
+    // p is odd, so add in additional value of lorentz_width
+    theta(p+1) = log(qpo_width[p/2]);
+    
+    CARp car5_process(true, "CAR(5)", time, y, yerr, p);
+    
+    // Compute and grab the kalman filter
+    car5_process.KalmanFilter(theta);
+    arma::vec kmean = car5_process.GetKalmanMean();
+    arma::vec kvar = car5_process.GetKalmanVariance();
+    
+    // Compute the standardized residuals of the time series
+    arma::vec sresid = (y - arma::mean(y) - kmean) / arma::sqrt(kvar);
+    
+    // First do simple test on mean and variance of standardized residuals
+    REQUIRE(std::abs(arma::mean(sresid)) < 3.0 / sqrt(ny));
+    REQUIRE(std::abs(arma::var(sresid) - 1.0) < 3.0 * sqrt(2.0 * ny) / ny);
+    
+    // Test that the standardized residuals are consistent with having a standard normal distribution using
+    // the Anderson-Darling test statistic
+    arma::vec sorted_sresid = arma::sort(sresid);
+    boost::math::normal snorm;
+    arma::vec snorm_cdf(ny);
+    for (int i=0; i<ny; i++) {
+        // compute the standard normal CDF of the standardized residuals
+        snorm_cdf(i) = boost::math::cdf(snorm, sorted_sresid(i));
+    }
+
+    double AD_sum = 0.0;
+    for (int i=0; i<ny; i++) {
+        // compute the Anderson-Darling statistic
+        AD_sum += (2.0 * (i+1) - 1) / ny * (log(snorm_cdf(i)) + log(1.0 - snorm_cdf(ny-1-i)));
+    }
+    double AD_stat = -ny - AD_sum;
     REQUIRE(AD_stat < 3.857); // critical value for 1% significance level
     
     // Now test that the autocorrelation function of the standardized residuals is consistent with a white noise process
-    arma::vec acorr_sresid = arma::cor(sresid);
-    std::cout << "Acorr size: " << acorr_sresid.n_elem << std::endl;
-    acorr_sresid.print();
+    int maxlag = 100;
+    arma::vec acorr_sresid = autocorr(sresid, maxlag);
+    double acorr_95bound = 1.96 / sqrt(ny); // find number of autocorr values outside of 95% confidence interval
+    int out_of_bounds = arma::accu(arma::abs(acorr_sresid) > acorr_95bound);
+    REQUIRE(out_of_bounds < 11); // 99% significance level for binomial distribution with n = 100 and p = 0.05
+    
+    double max_asqr = arma::max(acorr_sresid % acorr_sresid);
+    boost::math::chi_squared chisqr(1); // square of ACF has a chi-squared distribution with two DOF
+    double chisqr_cdf = boost::math::cdf(chisqr, max_asqr * ny);
+    double max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
+    REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
     
     // Finally, test that the autocorrelation function of the square of the residuals is consistent with a white noise process
+    arma::vec sres_sqr = sresid % sresid;
+    sres_sqr -= arma::mean(sres_sqr);
+    arma::vec acorr_ssqr = autocorr(sres_sqr, maxlag);
+    out_of_bounds = arma::accu(arma::abs(acorr_ssqr) > acorr_95bound);
+    REQUIRE(out_of_bounds < 11); // 99% significance level for binomial distribution with n = 100 and p = 0.05
+    
+    max_asqr = arma::max(acorr_ssqr % acorr_ssqr);
+    chisqr_cdf = boost::math::cdf(chisqr, max_asqr * ny);
+    max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
+    REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
 }

@@ -181,9 +181,8 @@ void CAR1::Save(arma::vec new_car1)
 	//
 	log_posterior_ = 0.0;
 	for (int i=0; i<time_.n_elem; i++) {
-		log_posterior_ += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
+		log_posterior_ += -0.5 * log(kalman_var_(i)) - 
+		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
 	}
 	
 	log_posterior_ += LogPrior(new_car1);
@@ -216,7 +215,7 @@ void CAR1::KalmanFilter(arma::vec car1_value)
 		kalman_var_(i) = kalman_var_(0) * (1.0 - rho * rho)
 			+ rho * rho * kalman_var_(i-1) * (1.0 - var_ratio);
 	}
-    kalman_var_ += measerr_scale * yerr_ * yerr_; // add in contribution to variance from measurement errors
+    kalman_var_ += measerr_scale * yerr_ % yerr_; // add in contribution to variance from measurement errors
 }
 
 // Return the log-prior for a CAR(1) process
