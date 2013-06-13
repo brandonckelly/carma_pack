@@ -160,7 +160,7 @@ std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, arma::vec
     StudentProposal RAMProp(8.0, 1.0);
 	//NormalProposal RAMProp(1.0);
 
-    double target_rate = 0.2;
+    double target_rate = 0.25;
 
     //test_ptemp(CarEnsemble, RAMProp, prop_covar);
     

@@ -477,3 +477,52 @@ TEST_CASE("CAR5/kalman_filter", "Test the Kalman Filter for a CAR(5) process") {
     max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
     REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
 }
+
+TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
+    std::cout << std::endl;
+    std::cout << "Running test of MCMC sampler for CAR(1) model..." << std::endl << std::endl;
+    
+    // first grab the simulated Gaussian CAR(1) data set
+    arma::mat car1_data;
+    car1_data.load(car1file, arma::raw_ascii);
+    
+    arma::vec time = car1_data.col(0);
+    arma::vec y = car1_data.col(1);
+    arma::vec yerr = car1_data.col(2);
+    
+    // MCMC parameters
+    int carp_order = 1;
+    int nwalkers = 10;
+    MCMCOptions mcmc_options;
+    mcmc_options.setSampleSize(100000);
+    mcmc_options.setBurnin(50000);
+    mcmc_options.setThin(1);
+    
+    // run the MCMC sampler
+    std::vector<arma::vec> mcmc_sample;
+    mcmc_sample = RunEnsembleCarSampler(mcmc_options, time, y, yerr, carp_order, nwalkers);
+    
+    // True CAR(1) process parameters
+    double tau = 100.0;
+    double omega = 1.0 / tau;
+    double sigmay = 2.3;
+    double sigma = sigmay * sqrt(2.0 / tau);
+    double measerr_scale = 1.0;
+    
+    arma::vec omega_samples(mcmc_sample.size());
+    arma::vec sigma_samples(mcmc_sample.size());
+    arma::vec scale_samples(mcmc_sample.size());
+    for (int i=0; i<mcmc_sample.size(); i++) {
+        sigma_samples(i) = log(mcmc_sample[i](0));
+        scale_samples(i) = mcmc_sample[i](1);
+        omega_samples(i) = mcmc_sample[i](2);
+    }
+    
+    // Make sure true parameters are within 3sigma of the marginal posterior means
+    double sigma_zscore = (arma::mean(sigma_samples) - log(sigma)) / arma::stddev(sigma_samples);
+    CHECK(std::abs(sigma_zscore) < 3.0);
+    double scale_zscore = (arma::mean(scale_samples) - measerr_scale) / arma::stddev(scale_samples);
+    CHECK(std::abs(scale_zscore) < 3.0);
+    double omega_zscore = (arma::mean(omega_samples) - log(omega)) / arma::stddev(omega_samples);
+    CHECK(std::abs(omega_zscore) < 3.0);
+}
