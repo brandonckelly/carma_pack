@@ -3,6 +3,7 @@ import yamcmcpp
 import carmcmc 
 import numpy as np
 import matplotlib.pyplot as plt
+import multiprocessing
 
 def loadData(infile):
     dtype = np.dtype([("mjd", np.float),
@@ -22,20 +23,30 @@ def loadData(infile):
         (data["mjd"][iIdx], data["mag"][iIdx], data["dmag"][iIdx]), \
         (data["mjd"][zIdx], data["mag"][zIdx], data["dmag"][zIdx]), 
 
+def doit(args):
+    pModel   = int(args[0])
+    x, y, dy = args[1]
+
+    opt = yamcmcpp.MCMCOptions()
+    opt.setSampleSize(1000000)
+    opt.setThin(1)
+    opt.setBurnin(100000)
+    opt.setChains(5)
+    nWalkers = 10
+
+    return carmcmc.RunEnsembleCarSampler(opt, x, y, dy, pModel, nWalkers)
+    
 
 if __name__ == "__main__":
     u, g, r, i, z = loadData("/astro/users/acbecker/SDSS/RRLyrae/CAR/1640797.txt")
 
-    opt = yamcmcpp.MCMCOptions()
-    opt.setSampleSize(10000)
-    opt.setThin(1)
-    opt.setBurnin(1000)
-    opt.setChains(5)
-    pModel = 4
-    nWalkers = 10
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool.map(int, range(multiprocessing.cpu_count())) 
 
-    for f in (u, g, r, i , z):
-        x, y, dy = f
-        trace    = carmcmc.RunEnsembleCarSampler(opt, x, y, dy, pModel, nWalkers)
-        sample   = carmcmc.CarSample(x, y, dy, trace=trace)
-        import pdb; pdb.set_trace()
+    args = []
+    #for f in (u, g, r, i , z):
+    for f in (r,):
+        for pModel in np.arange(1, 10):
+            args.append((pModel, f))
+    results = pool.map(doit, args)
+    import pdb; pdb.set_trace()

@@ -124,7 +124,7 @@ class CarSample(samplers.MCMCSample):
         # add the sigmas to the MCMC samples
         self._samples['sigma'] = np.sqrt(sigma)
 
-    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b"):
+    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", sp=None):
         """
         Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD. This
         function returns a tuple containing the lower and upper PSD credibility intervals as a function of
@@ -187,17 +187,19 @@ class CarSample(samplers.MCMCSample):
             psd_credint[i, 1] = np.median(psd_samples)
 
         # Plot the power spectra
-        plt.subplot(111)
+        if sp == None:
+            sp = plt.subplot(111)
+
         if plot_log:
             # plot the posterior median first
-            plt.loglog(frequencies, psd_credint[:, 1], color=color)
+            sp.loglog(frequencies, psd_credint[:, 1], color=color)
         else:
-            plt.plot(frequencies, psd_credint[:, 1], color=color)
+            sp.plot(frequencies, psd_credint[:, 1], color=color)
 
-        plt.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
-        plt.xlim(frequencies.min(), frequencies.max())
-        plt.xlabel('Frequency')
-        plt.ylabel('Power Spectrum')
+        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
+        sp.set_xlim(frequencies.min(), frequencies.max())
+        sp.set_xlabel('Frequency')
+        sp.set_ylabel('Power Spectrum')
 
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
     
@@ -227,7 +229,7 @@ class CarSample(samplers.MCMCSample):
         sp = fig.add_subplot(111)
         kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
         sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
-        sp.plot(self.time, kalman_mean + self.y.mean(), '-r', label='Kalman Filter')
+        sp.plot(self.time, kmean + self.y.mean(), '-r', label='Kalman Filter')
         sp.fill_between(self.time, kmean + self.y.mean() - np.sqrt(kvar), kmean + self.y.mean() + np.sqrt(kvar), edgecolor=None, facecolor='blue', alpha=0.25)
         sp.set_xlabel('Time')
         sp.set_xlim(self.time.min(), self.time.max())
@@ -607,7 +609,7 @@ class Car1Sample(CarSample):
     def _variance(self):
         self._samples['var'] = 0.5 * self._samples['sigma']**2 / self._samples['log_omega']
         
-    def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b"):
+    def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None):
         sigmas = self._samples['sigma']
         log_omegas = self._samples['log_omega']
 
@@ -639,16 +641,41 @@ class Car1Sample(CarSample):
             psd_credint[i, 1] = np.median(psd_samples, axis=0)
 
         # Plot the power spectra
-        plt.subplot(111)
+        if sp == None:
+            sp = plt.subplot(111)
+
         if plot_log:
             # plot the posterior median first
-            plt.loglog(frequencies, psd_credint[:, 1], color=color)
+            sp.loglog(frequencies, psd_credint[:, 1], color=color)
         else:
-            plt.plot(frequencies, psd_credint[:, 1], color=color)
+            sp.plot(frequencies, psd_credint[:, 1], color=color)
 
-        plt.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
-        plt.xlim(frequencies.min(), frequencies.max())
-        plt.xlabel('Frequency')
-        plt.ylabel('Power Spectrum')
+        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
+        sp.set_xlim(frequencies.min(), frequencies.max())
+        sp.set_xlabel('Frequency')
+        sp.set_ylabel('Power Spectrum')
 
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+
+    def plot_2dpdf(self, name1, name2, doShow=False):
+        print "Plotting 2d PDF"
+        trace1 = self._samples[name1]
+        trace2 = self._samples[name2]
+
+        fig = plt.figure()
+        # joint distribution
+        axJ = fig.add_axes([0.1, 0.1, 0.7, 0.7])               # [left, bottom, width, height]
+        # y histogram
+        axY = fig.add_axes([0.8, 0.1, 0.125, 0.7], sharey=axJ) 
+        # x histogram
+        axX = fig.add_axes([0.1, 0.8, 0.7, 0.125], sharex=axJ) 
+        axJ.plot(trace1, trace2, 'ro', ms=1, alpha=0.5)  
+        axX.hist(trace1, bins=100)
+        axY.hist(trace2, orientation='horizontal', bins=100)
+        axJ.set_xlabel("%s" % (name1))
+        axJ.set_ylabel("%s" % (name2))
+        plt.setp(axX.get_xticklabels()+axX.get_yticklabels(), visible=False)
+        plt.setp(axY.get_xticklabels()+axY.get_yticklabels(), visible=False)
+        if doShow:
+            plt.show()
+        
