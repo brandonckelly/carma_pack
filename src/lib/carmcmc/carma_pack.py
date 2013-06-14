@@ -45,7 +45,7 @@ class CarSample(samplers.MCMCSample):
             # Not being returned at this point in time
             #self._samples['logpost']      = trace[:, idx]     # log-posterior of the CAR(p) model
 
-            self._samples['var']           = trace[:, 0] ** 2  # Variance of the CAR(p) process
+            self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
             ar_index = np.arange(0, self.p - 1, 2)
             # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
@@ -56,7 +56,7 @@ class CarSample(samplers.MCMCSample):
                 # Odd number of roots, so add in low-frequency component
                 ar_index = np.append(ar_index, ar_index.max() + 1)
             self._samples['log_width'] = trace[:, 3 + ar_index]
-        
+
     def generate_from_file(self, filename):
         """
         Build the dictionary of parameter samples from an ascii file of MCMC samples from carpack.
@@ -77,9 +77,9 @@ class CarSample(samplers.MCMCSample):
         qpo_width = np.exp(self._samples['log_width'])
 
         ar_roots = np.empty((var.size, self.p), dtype=complex)
-        for i in xrange(self.p/2):
-            ar_roots[:, 2*i] = qpo_width[:,i] + 1j * qpo_centroid[:,i]
-            ar_roots[:, 2*i+1] = np.conjugate(ar_roots[:, 2*i])
+        for i in xrange(self.p / 2):
+            ar_roots[:, 2 * i] = qpo_width[:, i] + 1j * qpo_centroid[:, i]
+            ar_roots[:, 2 * i + 1] = np.conjugate(ar_roots[:, 2 * i])
         if self.p % 2 == 1:
             # p is odd, so add in low-frequency component
             ar_roots[:, -1] = qpo_width[:, -1]
@@ -274,7 +274,8 @@ class CarSample(samplers.MCMCSample):
         # white noise
         plt.subplot(224)
         squared_residuals = standardized_residuals ** 2
-        lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag, lw=2)
+        lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag,
+                                                        lw=2)
         wnoise_upper = 1.96 / np.sqrt(self.time.size)
         wnoise_lower = -1.96 / np.sqrt(self.time.size)
         plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
@@ -324,112 +325,191 @@ class CarSample(samplers.MCMCSample):
         return yhat, yhat_var
 
 
-def kalman_filter(time, y, yvar, sigsqr, ar_roots):
-    """
-    Return the Kalman Filter assuming the input CAR(p) parameters. Note that this assumes that the time series has zero
-    mean.
+class KalmanFilter(object):
 
-    :rtype : A tuple of 2 numpy arrays, containing the Kalman mean and variance.
-    :param time: The time values of the time series.
-    :param y: The mean-subtracted time series.
-    :param yvar: The variance in the measurement errors on the time series.
-    :param sigsqr: The variance of the driving white noise term to the CAR(p) process.
-    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
-    """
-    p = ar_roots.size
+    def __init__(self, time, y, yvar, sigsqr, ar_roots):
+        """
+        Constructor for Kalman Filter class.
 
-    # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform quantities
-    # into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
-    EigenMat = np.ones((p, p), dtype=complex)
-    EigenMat[1, :] = ar_roots
-    for k in xrange(2, p):
-        EigenMat[k, :] = ar_roots ** k
+        :param time: The time values of the time series.
+        :param y: The mean-subtracted time series.
+        :param yvar: The variance in the measurement errors on the time series.
+        :param sigsqr: The variance of the driving white noise term in the CAR(p) process.
+        :param ar_roots: The roots of the autoregressive characteristic polynomial.
+        """
+        self.time = time
+        self.y = y
+        self.yvar = yvar
+        self.sigsqr = sigsqr
+        self.ar_roots = ar_roots
+        self.p = ar_roots.size  # order of the CAR(p) process
 
-    # Input vector under the original state space representation
-    Rvector = np.zeros(p, dtype=complex)
-    Rvector[-1] = 1.0
+        # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform
+        # quantities into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
+        EigenMat = np.ones((p, p), dtype=complex)
+        EigenMat[1, :] = ar_roots
+        for k in xrange(2, p):
+            EigenMat[k, :] = ar_roots ** k
 
-    # Input vector under rotated state space representation
-    Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
+        # Input vector under the original state space representation
+        Rvector = np.zeros(p, dtype=complex)
+        Rvector[-1] = 1.0
 
-    # Compute the vector of moving average coefficients in the rotated state.
-    rotated_MA_coefs = np.ones(p, dtype=complex)  # just ones for a CAR(p) model
+        # Input vector under rotated state space representation
+        Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
 
-    # Calculate the stationary covariance matrix of the state vector
-    StateVar = np.empty((p, p), dtype=complex)
-    for j in xrange(p):
-        StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
+        # Compute the vector of moving average coefficients in the rotated state.
+        self.rotated_MA_coefs = np.ones(p, dtype=complex)  # just ones for a CAR(p) model
 
-    # Initialize variance in one-step prediction error and the state vector
-    PredictionVar = StateVar.copy()
-    StateVector = np.zeros(p, dtype=complex)
+        # Calculate the stationary covariance matrix of the state vector
+        self.StateVar = np.empty((p, p), dtype=complex)
+        for j in xrange(p):
+            self.StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
 
-    # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
-    kalman_mean = np.empty_like(time)
-    kalman_var = np.empty_like(time)
-    kalman_mean[0] = 0.0
-    kalman_var[0] = PredictionVar.sum().real + yvar[0]  # Kalman variance must be a real number
+        # Initialize variance in one-step prediction error and the state vector
+        self.PredictionVar = self.StateVar.copy()
+        self.StateVector = np.zeros(p, dtype=complex)
 
-    # Initialize the innovations, i.e., the KF residuals
-    innovation = y[0]
+        # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
+        self.kalman_mean = np.empty_like(time)
+        self.kalman_var = np.empty_like(time)
+        self.kalman_mean[0] = 0.0
+        self.kalman_var[0] = self.PredictionVar.sum().real + yvar[0]  # Kalman variance must be a real number
 
-    # Convert everything to matrices for convenience, since we'll be doing some Linear algebra.
-    StateVector = np.matrix(StateVector).T
-    StateVar = np.matrix(StateVar)
-    PredictionVar = np.matrix(PredictionVar)
-    rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
+        # Initialize the innovations, i.e., the KF residuals
+        self.innovation = y[0]
 
-    # Finally, calculate the Kalman Filter
-    for i in xrange(1, time.size):
-        dt = time[i] - time[i - 1]
-        # First compute the Kalman gain
-        KalmanGain = PredictionVar.sum(axis=1) / kalman_var[i - 1]
-        # update the state vector
-        StateVector += innovation * KalmanGain
-        # update the state one-step prediction error variance
-        PredictionVar -= kalman_var[i - 1] * (KalmanGain * KalmanGain.H)
-        # predict the next state, do element-wise multiplication
-        StateTransition = np.matrix(np.exp(ar_roots * dt)).T
-        StateVector = np.multiply(StateVector, StateTransition)
-        # update the predicted state covariance matrix
-        PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
-        # now predict the observation and its variance
-        kalman_mean[i] = StateVector.sum().real  # for a CARMA(p,q) model we need to add the rotated MA terms
-        kalman_var[i] = PredictionVar.sum().real + yvar[i]  # for a CARMA(p,q) model we need to add the rotated MA terms
-        # finally, update the innovation
-        innovation = y[i] - kalman_mean[i]
+        # Convert everything to matrices for convenience, since we'll be doing some Linear algebra.
+        self.StateVector = np.matrix(self.StateVector).T
+        self.StateVar = np.matrix(self.StateVar)
+        self.PredictionVar = np.matrix(self.PredictionVar)
+        self.rotated_MA_coefs = np.matrix(self.rotated_MA_coefs)  # this is a row vector, so no transpose
 
-    return (kalman_mean, kalman_var)
+    def predict_lightcurve(time_predict, time, y, yerr, ar_roots, sigsqr):
+        """
+        Return the predicted value of a lightcurve and its standard deviation at the input time(s) given the input
+        values of the CARMA(p,q) model parameters and a measured lightcurve.
+
+        :rtype : A tuple containing the predicted value and its variance.
+        :param time_predict: The time at which to predict the lightcurve.
+        :param time: The time values of the measured lightcurve.
+        :param y: The measured lightcurve.
+        :param yerr: The measurement error standard deviations of the measured lightcurve.
+        :param ar_roots: The roots of the autoregressive characteristic polynomial.
+        :param sigsqr: The variance in the driving white noise process.
+        """
+        p = ar_roots.size  # order of the CARMA(p,q) model
+        pass
+
+    def simulate_lightcurve(time_simulate, time, y, yerr, ar_roots, sigsqr):
+        """
+        Simulate a lightcurve at the time value of time_simulate, given a measured lightcurve and input CARMA(p,q)
+        parameters.
+
+        :rtype : A scalar.
+        :param time_simulate: The time at which to simulate a random draw of the lightcurve conditional on the measured
+            time series and the input parameters.
+        :param time: The time values at which the time series is measured.
+        :param y: The measured time series.
+        :param yerr: The standard deviation of measurement errors in the time series.
+        :param ar_roots: The roots of the autoregressive characteristic polynomial.
+        :param sigsqr: The variance in the driving white noise process.
+        """
+        pass
 
 
-def predict_lightcurve(time_predict, time, y, yerr, ar_roots, sigsqr):
-    """
-    Return the predicted value of a lightcurve and its standard deviation at the input time(s) given the inputs values
-    of the CARMA(p,q) model parameters and a measured lightcurve.
+    def kalman_filter(time, y, yvar, sigsqr, ar_roots):
+        """
+        Return the Kalman Filter assuming the input CAR(p) parameters. Note that this assumes that the time series has
+        zero mean.
 
-    :rtype : A tuple containing the predicted value and its variance.
-    :param time_predict: The time at which to predict the lightcurve.
-    :param time: The time values of the measured lightcurve.
-    :param y: The measured lightcurve.
-    :param yerr: The measurement error standard deviations of the measured lightcurve.
-    :param ar_roots: The roots of the autoregressive characteristic polynomial.
-    :param sigsqr: The variance in the driving white noise process.
-    """
-    pass
+        :rtype : A tuple of 2 numpy arrays, containing the Kalman mean and variance.
+        :param time: The time values of the time series.
+        :param y: The mean-subtracted time series.
+        :param yvar: The variance in the measurement errors on the time series.
+        :param sigsqr: The variance of the driving white noise term to the CAR(p) process.
+        :param ar_roots: The roots of the CAR(p) characteristic polynomial.
+        """
+        p = ar_roots.size
+
+        # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform quantities
+        # into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
+        EigenMat = np.ones((p, p), dtype=complex)
+        EigenMat[1, :] = ar_roots
+        for k in xrange(2, p):
+            EigenMat[k, :] = ar_roots ** k
+
+        # Input vector under the original state space representation
+        Rvector = np.zeros(p, dtype=complex)
+        Rvector[-1] = 1.0
+
+        # Input vector under rotated state space representation
+        Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
+
+        # Compute the vector of moving average coefficients in the rotated state.
+        rotated_MA_coefs = np.ones(p, dtype=complex)  # just ones for a CAR(p) model
+
+        # Calculate the stationary covariance matrix of the state vector
+        StateVar = np.empty((p, p), dtype=complex)
+        for j in xrange(p):
+            StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
+
+        # Initialize variance in one-step prediction error and the state vector
+        PredictionVar = StateVar.copy()
+        StateVector = np.zeros(p, dtype=complex)
+
+        # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
+        kalman_mean = np.empty_like(time)
+        kalman_var = np.empty_like(time)
+        kalman_mean[0] = 0.0
+        kalman_var[0] = PredictionVar.sum().real + yvar[0]  # Kalman variance must be a real number
+
+        # Initialize the innovations, i.e., the KF residuals
+        innovation = y[0]
+
+        # Convert everything to matrices for convenience, since we'll be doing some Linear algebra.
+        StateVector = np.matrix(StateVector).T
+        StateVar = np.matrix(StateVar)
+        PredictionVar = np.matrix(PredictionVar)
+        rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
+
+        # Finally, calculate the Kalman Filter
+        for i in xrange(1, time.size):
+            dt = time[i] - time[i - 1]
+            # First compute the Kalman gain
+            KalmanGain = PredictionVar.sum(axis=1) / kalman_var[i - 1]
+            # update the state vector
+            StateVector += innovation * KalmanGain
+            # update the state one-step prediction error variance
+            PredictionVar -= kalman_var[i - 1] * (KalmanGain * KalmanGain.H)
+            # predict the next state, do element-wise multiplication
+            StateTransition = np.matrix(np.exp(ar_roots * dt)).T
+            StateVector = np.multiply(StateVector, StateTransition)
+            # update the predicted state covariance matrix
+            PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
+            # now predict the observation and its variance
+            kalman_mean[i] = StateVector.sum().real  # for a CARMA(p,q) model we need to add the rotated MA terms
+            kalman_var[i] = PredictionVar.sum().real + yvar[
+                i]  # for a CARMA(p,q) model we need to add the rotated MA terms
+            # finally, update the innovation
+            innovation = y[i] - kalman_mean[i]
+
+        return (kalman_mean, kalman_var)
+
 
 def get_ar_roots(qpo_width, qpo_centroid):
     """
-    Return the roots of the characteristic polynomial of the CAR(p) process, given the lorentzian widths and centroids.
-     
-    :rtype : a numpy array
-    :param qpo_width: The widths of the lorentzian functions defining the PSD.
-    :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
-    """
+Return the roots of the characteristic polynomial of the CAR(p) process, given the lorentzian widths and centroids.
+
+:rtype : a numpy array
+:param qpo_width: The widths of the lorentzian functions defining the PSD.
+:param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
+"""
     p = qpo_centroid.size + qpo_width.size
     ar_roots = np.empty(p, dtype=complex)
-    for i in xrange(p/2):
-            ar_roots[2*i] = qpo_width[i] + 1j * qpo_centroid[i]
-            ar_roots[2*i+1] = np.conjugate(ar_roots[2*i])
+    for i in xrange(p / 2):
+        ar_roots[2 * i] = qpo_width[i] + 1j * qpo_centroid[i]
+        ar_roots[2 * i + 1] = np.conjugate(ar_roots[2 * i])
     if p % 2 == 1:
         # p is odd, so add in low-frequency component
         ar_roots[-1] = qpo_width[-1]
@@ -439,14 +519,14 @@ def get_ar_roots(qpo_width, qpo_centroid):
 
 def power_spectrum(freq, sigma, ar_coef):
     """
-    Return the power spectrum for a CAR(p) process calculated at the input frequencies.
+Return the power spectrum for a CAR(p) process calculated at the input frequencies.
 
-    :param freq: The frequencies at which to calculate the PSD.
-    :param sigma: The standard deviation driving white noise.
-    :param ar_coef: The CAR(p) model autoregressive coefficients.
+:param freq: The frequencies at which to calculate the PSD.
+:param sigma: The standard deviation driving white noise.
+:param ar_coef: The CAR(p) model autoregressive coefficients.
 
-    :rtype : A numpy array.
-    """
+:rtype : A numpy array.
+"""
     ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
     pspec = sigma ** 2 / np.abs(ar_poly) ** 2
     return pspec
@@ -454,11 +534,11 @@ def power_spectrum(freq, sigma, ar_coef):
 
 def carp_variance(sigsqr, ar_roots):
     """
-    Return the variance of a CAR(p) process.
+Return the variance of a CAR(p) process.
 
-    :param sigsqr: The variance in the driving white noise.
-    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
-    """
+:param sigsqr: The variance in the driving white noise.
+:param ar_roots: The roots of the CAR(p) characteristic polynomial.
+"""
     sigma1_variance = 0.0
     p = ar_roots.size
     for k in xrange(p):
@@ -473,13 +553,13 @@ def carp_variance(sigsqr, ar_roots):
 
 def carp_process(time, sigsqr, ar_roots):
     """
-    Generate a CAR(p) process.
+Generate a CAR(p) process.
 
-    :param time: The time values to generate the CAR(p) process at.
-    :param sigsqr: The variance in the driving white noise term.
-    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
-    :rtype : A numpy array containing the simulated CAR(p) process values at time.
-    """
+:param time: The time values to generate the CAR(p) process at.
+:param sigsqr: The variance in the driving white noise term.
+:param ar_roots: The roots of the CAR(p) characteristic polynomial.
+:rtype : A numpy array containing the simulated CAR(p) process values at time.
+"""
     p = ar_roots.size
     time.sort()
     # make sure process is stationary
@@ -536,7 +616,8 @@ def carp_process(time, sigsqr, ar_roots):
     # calculate first value of the CAR(p) process
     car_process[0] = np.real(np.sum(rotated_MA_coefs * state_vector))
 
-    StateCvar = np.empty_like(StateVar)  # the state vector covariance matrix, conditional on the previous state vector
+    StateCvar = np.empty_like(
+        StateVar)  # the state vector covariance matrix, conditional on the previous state vector
 
     # now generate remaining CAR(p) values
     for i in xrange(1, time.size):
@@ -563,41 +644,41 @@ def carp_process(time, sigsqr, ar_roots):
     return car_process
 
 
-# dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
-# data = np.genfromtxt(dir + 'car4_test.dat')
-# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
-# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
-#
-# sigma0 = np.sqrt(0.25)
-# qpo_width0 = np.array([1.0/100.0, 1.0/100.0])
-# qpo_cent0 = np.array([1.0, 1.0/20.0])
-# ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-# ar_coef0 = np.poly(ar_roots0)
-#psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+    # dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
+    # data = np.genfromtxt(dir + 'car4_test.dat')
+    # car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
+    # psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
+    #
+    # sigma0 = np.sqrt(0.25)
+    # qpo_width0 = np.array([1.0/100.0, 1.0/100.0])
+    # qpo_cent0 = np.array([1.0, 1.0/20.0])
+    # ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
+    # ar_coef0 = np.poly(ar_roots0)
+    #psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
 
-#plt.plot(freq, psd0, 'r', lw=2)
+    #plt.plot(freq, psd0, 'r', lw=2)
 
-# print ar_roots0
-# dt = np.random.uniform(0.1, 1.0, 10000)
-# time = np.cumsum(dt)
-# time = time - np.min(time)
-# np.savetxt('time.txt', time, fmt='%10.5f')
-# carp = carp_process(time, sigma0 ** 2, ar_roots0)
-# kmean, kvar = kalman_filter(time, carp, np.zeros(10000), sigma0 ** 2, ar_roots0)
-# sresid = (carp - kmean) / np.sqrt(kvar)
-# print "Sigma in lightcurve:", np.std(carp), np.sqrt(carp_variance(sigma0 ** 2, ar_roots0))
-# plt.hist(sresid, bins=50, normed=True)
-# xgrid = np.linspace(-3.0, 3.0)
-# plt.plot(xgrid, 1.0 / np.sqrt(2.0 * 3.14) * np.exp(-0.5 * xgrid ** 2))
-# plt.show()
-#
-# lags, autocorr, line, other = plt.acorr(sresid, maxlags=2500)
-# wnoise_upper = 1.96 / np.sqrt(time.size)
-# wnoise_lower = -1.96 / np.sqrt(time.size)
-# plt.fill_between([0, 100], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
-# plt.xlim([0, 100])
-# plt.show()
-# out_of_bounds = (autocorr < wnoise_lower) | (autocorr > wnoise_upper)
-# nacorr = autocorr.size / 2 - 1
-# out_of_bounds = np.sum(out_of_bounds) / 2 - 1
-# print "Total out of " + str(nacorr) + " of acorr value outside of 95% confidence region: ", out_of_bounds
+    # print ar_roots0
+    # dt = np.random.uniform(0.1, 1.0, 10000)
+    # time = np.cumsum(dt)
+    # time = time - np.min(time)
+    # np.savetxt('time.txt', time, fmt='%10.5f')
+    # carp = carp_process(time, sigma0 ** 2, ar_roots0)
+    # kmean, kvar = kalman_filter(time, carp, np.zeros(10000), sigma0 ** 2, ar_roots0)
+    # sresid = (carp - kmean) / np.sqrt(kvar)
+    # print "Sigma in lightcurve:", np.std(carp), np.sqrt(carp_variance(sigma0 ** 2, ar_roots0))
+    # plt.hist(sresid, bins=50, normed=True)
+    # xgrid = np.linspace(-3.0, 3.0)
+    # plt.plot(xgrid, 1.0 / np.sqrt(2.0 * 3.14) * np.exp(-0.5 * xgrid ** 2))
+    # plt.show()
+    #
+    # lags, autocorr, line, other = plt.acorr(sresid, maxlags=2500)
+    # wnoise_upper = 1.96 / np.sqrt(time.size)
+    # wnoise_lower = -1.96 / np.sqrt(time.size)
+    # plt.fill_between([0, 100], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+    # plt.xlim([0, 100])
+    # plt.show()
+    # out_of_bounds = (autocorr < wnoise_lower) | (autocorr > wnoise_upper)
+    # nacorr = autocorr.size / 2 - 1
+    # out_of_bounds = np.sum(out_of_bounds) / 2 - 1
+    # print "Total out of " + str(nacorr) + " of acorr value outside of 95% confidence region: ", out_of_bounds
