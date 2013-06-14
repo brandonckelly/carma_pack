@@ -282,6 +282,47 @@ class CarSample(samplers.MCMCSample):
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Sqrd. Resid.')
 
+    def predict_lightcurve(self, time, bestfit='median'):
+        """
+        Return the predicted value of the lightcurve and its standard deviation at the input time(s) given the best-fit
+        value of the CARMA(p,q) model and the measured lightcurve.
+
+        :param time: A scalar or numpy array containing the time values at to predict the time series at.
+        :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
+            mean ("mean") or the posterior median ("median").
+        """
+        bestfit = bestfit.lower()
+        try:
+            bestfit in ['map', 'median', 'mean']
+        except ValueError:
+            "bestfit must be one of 'map, 'median', or 'mean'"
+
+        if bestfit == 'map':
+            # use maximum a posteriori estimate
+            max_index = self._samples['logpost'].argmax()
+            sigsqr = self._samples['sigma'][max_index] ** 2
+            ar_roots = self._samples['ar_roots'][max_index]
+        elif bestfit == 'median':
+            # use posterior median estimate
+            sigsqr = np.median(self._samples['sigma']) ** 2
+            ar_roots = np.median(self._samples['ar_roots'], axis=0)
+        else:
+            # use posterior mean as the best-fit
+            sigsqr = np.mean(self._samples['sigma'] ** 2)
+            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+
+        if np.isscalar(time):
+            yhat, yhat_var = predict_lightcurve(time, self.y, self.ysig, ar_roots, sigsqr)
+        else:
+            yhat = np.empty(time.size)
+            yhat_var = np.empty(time.size)
+            for i in xrange(time.size):
+                yhati, yhat_vari = predict_lightcurve(time, self.y, self.ysig, ar_roots, sigsqr)
+                yhat[i] = yhati
+                yhat_var[i] = yhat_var
+
+        return yhat, yhat_var
+
 
 def kalman_filter(time, y, yvar, sigsqr, ar_roots):
     """
@@ -360,6 +401,21 @@ def kalman_filter(time, y, yvar, sigsqr, ar_roots):
 
     return (kalman_mean, kalman_var)
 
+
+def predict_lightcurve(time_predict, time, y, yerr, ar_roots, sigsqr):
+    """
+    Return the predicted value of a lightcurve and its standard deviation at the input time(s) given the inputs values
+    of the CARMA(p,q) model parameters and a measured lightcurve.
+
+    :rtype : A tuple containing the predicted value and its variance.
+    :param time_predict: The time at which to predict the lightcurve.
+    :param time: The time values of the measured lightcurve.
+    :param y: The measured lightcurve.
+    :param yerr: The measurement error standard deviations of the measured lightcurve.
+    :param ar_roots: The roots of the autoregressive characteristic polynomial.
+    :param sigsqr: The variance in the driving white noise process.
+    """
+    pass
 
 def get_ar_roots(qpo_width, qpo_centroid):
     """
