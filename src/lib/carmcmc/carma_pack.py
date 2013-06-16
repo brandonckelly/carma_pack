@@ -479,6 +479,11 @@ class KalmanFilter(object):
         :rtype : A tuple containing the predicted value and its variance.
         :param time_predict: The time at which to predict the lightcurve.
         """
+        try:
+            self.time.min() < time_predict
+        except ValueError:
+            "backcasting currently not supported: time_predict must be greater than self.time.min()"
+
         self.reset()
         # find the index where time[ipredict-1] < time_predict < time[ipredict]
         ipredict = np.max(np.where(self.time < time_predict)) + 1
@@ -503,6 +508,10 @@ class KalmanFilter(object):
         # the measured time series
         cprecision = 1.0 / ypredict_var
         cmean = cprecision * ypredict_mean
+
+        if ipredict >= self.time.size:
+            # we are forecasting (extrapolating) the value, so no need to run interpolation steps below
+            return ypredict_mean, ypredict_var
 
         # for time > time_predict we need to compute the coefficients for the linear filter, i.e., at time[j]:
         # E(y[j]|{y[i]; j<i}) = alpha[j] + beta[j] * ypredict. we do this using recursions similar to the kalman
