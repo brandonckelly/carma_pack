@@ -3,7 +3,6 @@ __author__ = 'Brandon C. Kelly'
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
-from os import environ
 import yamcmcpp.samplers as samplers
 
 
@@ -433,7 +432,7 @@ class KalmanFilter(object):
         self._rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
         self._StateTransition = np.zeros_like(self._StateVector)
         self._KalmanGain = np.zeros_like(self._StateVector)
-        self._current_index = 0
+        self._current_index = 1
 
     def update(self):
         """
@@ -466,7 +465,7 @@ class KalmanFilter(object):
         completion, and are stored in the instantiated KalmanFilter object.
         """
         self.reset()
-        for i in xrange(self.time.size):
+        for i in xrange(self.time.size - 1):
             self.update()
 
         return self.kalman_mean, self.kalman_var
@@ -501,8 +500,8 @@ class KalmanFilter(object):
         self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
                                           self._PredictionVar - self._StateVar) + self._StateVar
 
-        ypredict_mean = np.real(self._rotated_MA_coefs * self._StateVector)
-        ypredict_var = np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H)
+        ypredict_mean = np.asscalar(np.real(self._rotated_MA_coefs * self._StateVector))
+        ypredict_var = np.asscalar(np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H))
 
         # start the running statistics for the conditional mean and precision of the predicted time series value, given
         # the measured time series
@@ -534,8 +533,8 @@ class KalmanFilter(object):
                                           self._PredictionVar - self._StateVar) + self._StateVar
         # compute the coefficients for the linear filter at time[ipredict], and compute the variance in the predicted
         # y[ipredict]
-        const = np.real(self._rotated_MA_coefs * const_state)
-        slope = np.real(self._rotated_MA_coefs * slope_state)
+        const = np.asscalar(np.real(self._rotated_MA_coefs * const_state))
+        slope = np.asscalar(np.real(self._rotated_MA_coefs * slope_state))
         self.kalman_var[ipredict] = \
             np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H) + \
             self.yvar[ipredict]
@@ -543,6 +542,11 @@ class KalmanFilter(object):
         # update the running conditional mean and variance of the predicted time series value
         cprecision += slope ** 2 / self.kalman_var[ipredict]
         cmean += slope * (self.y[ipredict] - const) / self.kalman_var[ipredict]
+
+        self.const = np.zeros(self.time.size+1)
+        self.slope = np.zeros(self.time.size+1)
+        self.const[ipredict] = const
+        self.slope[ipredict] = slope
 
         # now repeat for time > time_predict
         for i in xrange(ipredict+1, self.time.size):
@@ -561,8 +565,8 @@ class KalmanFilter(object):
             self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
                                               self._PredictionVar - self._StateVar) + self._StateVar
             # compute the coefficients for predicting y[i]|y[j],j<i as a function of ypredict
-            const = np.real(self._rotated_MA_coefs * const_state)
-            slope = np.real(self._rotated_MA_coefs * slope_state)
+            const = np.asscalar(np.real(self._rotated_MA_coefs * const_state))
+            slope = np.asscalar(np.real(self._rotated_MA_coefs * slope_state))
             # compute the variance in predicting y[i]|y[j],j<i
             self.kalman_var[i] = \
                 np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H) + \
@@ -570,6 +574,9 @@ class KalmanFilter(object):
             # finally, update the running conditional mean and variance of the predicted time series value
             cprecision += slope ** 2 / self.kalman_var[i]
             cmean += slope * (self.y[i] - const) / self.kalman_var[i]
+
+            self.const[i] = const
+            self.slope[i] = slope
 
         cvar = 1.0 / cprecision
         cmean *= cvar
@@ -764,41 +771,58 @@ Generate a CAR(p) process.
     return car_process
 
 
-    # dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
-    # data = np.genfromtxt(dir + 'car4_test.dat')
-    # car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
-    # psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
-    #
-    # sigma0 = np.sqrt(0.25)
-    # qpo_width0 = np.array([1.0/100.0, 1.0/100.0])
-    # qpo_cent0 = np.array([1.0, 1.0/20.0])
-    # ar_roots0 = get_ar_roots(qpo_width0, qpo_cent0)
-    # ar_coef0 = np.poly(ar_roots0)
-    #psd0 = power_spectrum(freq, sigma0, ar_coef0.real)
+# dir = environ['HOME'] + '/Projects/carma_pack/test_data/'
+# data = np.genfromtxt(dir + 'car4_test.dat')
+# car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
+# psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
+#
+sigmay = 2.3
+qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
+qpo_cent = np.array([1.0/5.0, 1.0/50.0])
+ar_roots0 = get_ar_roots(qpo_width, qpo_cent)
 
-    #plt.plot(freq, psd0, 'r', lw=2)
+sigsqr = sigmay ** 2 / carp_variance(1.0, ar_roots0)
+sigma0 = np.sqrt(sigsqr)
 
-    # print ar_roots0
-    # dt = np.random.uniform(0.1, 1.0, 10000)
-    # time = np.cumsum(dt)
-    # time = time - np.min(time)
-    # np.savetxt('time.txt', time, fmt='%10.5f')
-    # carp = carp_process(time, sigma0 ** 2, ar_roots0)
-    # kmean, kvar = kalman_filter(time, carp, np.zeros(10000), sigma0 ** 2, ar_roots0)
-    # sresid = (carp - kmean) / np.sqrt(kvar)
-    # print "Sigma in lightcurve:", np.std(carp), np.sqrt(carp_variance(sigma0 ** 2, ar_roots0))
-    # plt.hist(sresid, bins=50, normed=True)
-    # xgrid = np.linspace(-3.0, 3.0)
-    # plt.plot(xgrid, 1.0 / np.sqrt(2.0 * 3.14) * np.exp(-0.5 * xgrid ** 2))
-    # plt.show()
-    #
-    # lags, autocorr, line, other = plt.acorr(sresid, maxlags=2500)
-    # wnoise_upper = 1.96 / np.sqrt(time.size)
-    # wnoise_lower = -1.96 / np.sqrt(time.size)
-    # plt.fill_between([0, 100], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
-    # plt.xlim([0, 100])
-    # plt.show()
-    # out_of_bounds = (autocorr < wnoise_lower) | (autocorr > wnoise_upper)
-    # nacorr = autocorr.size / 2 - 1
-    # out_of_bounds = np.sum(out_of_bounds) / 2 - 1
-    # print "Total out of " + str(nacorr) + " of acorr value outside of 95% confidence region: ", out_of_bounds
+print ar_roots0
+dt = np.random.uniform(0.1, 1.0, 100)
+time = np.cumsum(dt)
+time = time - np.min(time)
+carp = carp_process(time, sigma0 ** 2, ar_roots0)
+yvar = np.random.uniform(0.05, 0.1, carp.size)
+carp += np.random.normal(0.0, np.sqrt(yvar), time.size)
+kfilter = KalmanFilter(time, carp, yvar, sigma0 ** 2, ar_roots0)
+
+plt.plot(time, carp)
+plt.plot(time, carp, '.')
+plt.show()
+
+time_predict = np.mean(time)
+ypredict = carp.mean() + np.random.normal(0.0, carp.std())
+ipredict = np.max(np.where(time < time_predict)) + 1
+time1 = np.insert(time, ipredict, time_predict)
+carp1 = np.insert(carp, ipredict, ypredict)
+yvar1 = np.insert(yvar, ipredict, 0.0)
+
+kfilter1 = KalmanFilter(time1, carp1, yvar1, sigma0 ** 2, ar_roots0)
+kmean, kvar = kfilter.filter()
+kmean1, kvar1 = kfilter1.filter()
+yp_mean, yp_var = kfilter.predict(time_predict)
+
+# sresid = (carp - kmean) / np.sqrt(kvar)
+# print "Sigma in lightcurve:", np.std(carp), np.sqrt(carp_variance(sigma0 ** 2, ar_roots0))
+# plt.hist(sresid, bins=50, normed=True)
+# xgrid = np.linspace(-3.0, 3.0)
+# plt.plot(xgrid, 1.0 / np.sqrt(2.0 * 3.14) * np.exp(-0.5 * xgrid ** 2))
+# plt.show()
+#
+# lags, autocorr, line, other = plt.acorr(sresid, maxlags=2500)
+# wnoise_upper = 1.96 / np.sqrt(time.size)
+# wnoise_lower = -1.96 / np.sqrt(time.size)
+# plt.fill_between([0, 100], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+# plt.xlim([0, 100])
+# plt.show()
+# out_of_bounds = (autocorr < wnoise_lower) | (autocorr > wnoise_upper)
+# nacorr = autocorr.size / 2 - 1
+# out_of_bounds = np.sum(out_of_bounds) / 2 - 1
+# print "Total out of " + str(nacorr) + " of acorr value outside of 95% confidence region: ", out_of_bounds
