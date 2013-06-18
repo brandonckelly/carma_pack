@@ -226,21 +226,26 @@ class CarSample(samplers.MCMCSample):
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
 
-        # compute the kalman filter
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
-        kalman_mean, kalman_var = kalman_filter.filter()
+        # compute the marginal mean and variance of the predicted values
+        nplot = 256
+        time_predict = np.linspace(self.time.min(), self.time.max(), nplot)
+        predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
+        predicted_low = predicted_mean - np.sqrt(predicted_var)
+        predicted_high = predicted_mean + np.sqrt(predicted_var)
 
-        standardized_residuals = (self.y - self.y.mean() - kalman_mean) / np.sqrt(kalman_var)
-
-        # plot the time series and kalman filter
+        # plot the time series and the marginal 1-sigma error bands
         plt.subplot(221)
+        plt.fill_between(self.time, predicted_high, y2=predicted_low, color='cyan')
+        plt.plot(self.time, predicted_mean, '-b', label='Interpolation')
         plt.plot(self.time, self.y, 'k.', label='Data')
-        plt.plot(self.time, kalman_mean + self.y.mean(), '-r', label='Kalman Filter')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
         #plt.legend()
 
         # plot the standardized residuals and compare with the standard normal
+        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kalman_mean, kalman_var = kalman_filter.filter()
+        standardized_residuals = (self.y - self.y.mean() - kalman_mean) / np.sqrt(kalman_var)
         plt.subplot(222)
         plt.plot(self.time, standardized_residuals, '.k')
         plt.xlabel('Time')
@@ -479,7 +484,7 @@ class KalmanFilter(object):
         :param time_predict: The time at which to predict the lightcurve.
         """
         try:
-            self.time.min() < time_predict
+            self.time.min() > time_predict
         except ValueError:
             "backcasting currently not supported: time_predict must be greater than self.time.min()"
 
@@ -777,40 +782,40 @@ Generate a CAR(p) process.
 # psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
 #
 
-np.random.seed(2)
-
-sigmay = 2.3
-qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
-qpo_cent = np.array([1.0/5.0, 1.0/50.0])
-ar_roots0 = get_ar_roots(qpo_width, qpo_cent)
-
-sigsqr = sigmay ** 2 / carp_variance(1.0, ar_roots0)
-sigma0 = np.sqrt(sigsqr)
-
-print ar_roots0
-dt = np.random.uniform(0.1, 1.0, 100)
-time = np.cumsum(dt)
-time = time - np.min(time)
-carp = carp_process(time, sigma0 ** 2, ar_roots0)
-yvar = np.random.uniform(0.05, 0.1, carp.size)
-carp += np.random.normal(0.0, np.sqrt(yvar), time.size)
-kfilter = KalmanFilter(time, carp, yvar, sigma0 ** 2, ar_roots0)
-
-plt.plot(time, carp)
-plt.plot(time, carp, '.')
-plt.show()
-
-time_predict = np.mean(time)
-ypredict = carp.mean() + np.random.normal(0.0, carp.std())
-ipredict = np.max(np.where(time < time_predict)) + 1
-time1 = np.insert(time, ipredict, time_predict)
-carp1 = np.insert(carp, ipredict, ypredict)
-yvar1 = np.insert(yvar, ipredict, 0.0)
-
-kfilter1 = KalmanFilter(time1, carp1, yvar1, sigma0 ** 2, ar_roots0)
-kmean, kvar = kfilter.filter()
-kmean1, kvar1 = kfilter1.filter()
-yp_mean, yp_var = kfilter.predict(time_predict)
+# np.random.seed(2)
+#
+# sigmay = 2.3
+# qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
+# qpo_cent = np.array([1.0/5.0, 1.0/50.0])
+# ar_roots0 = get_ar_roots(qpo_width, qpo_cent)
+#
+# sigsqr = sigmay ** 2 / carp_variance(1.0, ar_roots0)
+# sigma0 = np.sqrt(sigsqr)
+#
+# print ar_roots0
+# dt = np.random.uniform(0.1, 1.0, 100)
+# time = np.cumsum(dt)
+# time = time - np.min(time)
+# carp = carp_process(time, sigma0 ** 2, ar_roots0)
+# yvar = np.random.uniform(0.05, 0.1, carp.size)
+# carp += np.random.normal(0.0, np.sqrt(yvar), time.size)
+# kfilter = KalmanFilter(time, carp, yvar, sigma0 ** 2, ar_roots0)
+#
+# plt.plot(time, carp)
+# plt.plot(time, carp, '.')
+# plt.show()
+#
+# time_predict = np.mean(time)
+# ypredict = carp.mean() + np.random.normal(0.0, carp.std())
+# ipredict = np.max(np.where(time < time_predict)) + 1
+# time1 = np.insert(time, ipredict, time_predict)
+# carp1 = np.insert(carp, ipredict, ypredict)
+# yvar1 = np.insert(yvar, ipredict, 0.0)
+#
+# kfilter1 = KalmanFilter(time1, carp1, yvar1, sigma0 ** 2, ar_roots0)
+# kmean, kvar = kfilter.filter()
+# kmean1, kvar1 = kfilter1.filter()
+# yp_mean, yp_var = kfilter.predict(time_predict)
 
 # sresid = (carp - kmean) / np.sqrt(kvar)
 # print "Sigma in lightcurve:", np.std(carp), np.sqrt(carp_variance(sigma0 ** 2, ar_roots0))
