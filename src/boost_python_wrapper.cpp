@@ -36,17 +36,17 @@ numeric::array armaToNumeric2(std::vector<arma::vec> aa) {
     return extract<numeric::array>(na);
 }
 
-numeric::array runWrapper(MCMCOptions mcmc_options, 
+numeric::array runWrapper(int sample_size, int burnin,
                           numeric::array x, 
                           numeric::array y, 
                           numeric::array dy, 
-                          int p, int nwalkers) {
+                          int p, int nwalkers, int thin=1) {
     
     arma::vec ax(numericToArma(x));
     arma::vec ay(numericToArma(y));
     arma::vec ady(numericToArma(dy));
 
-    std::vector<arma::vec> runResults = RunEnsembleCarSampler(mcmc_options, ax, ay, ady, p, nwalkers);
+    std::vector<arma::vec> runResults = RunEnsembleCarSampler(sample_size, burnin, ax, ay, ady, p, nwalkers, thin);
     numeric::array convResults = armaToNumeric2(runResults);
 
     return convResults;
@@ -56,5 +56,5 @@ BOOST_PYTHON_MODULE(carmcmcLib){
     import_array();
     numeric::array::set_module_and_type("numpy", "ndarray");
     
-    def("RunEnsembleCarSampler", runWrapper);
+    def("run_mcmc", runWrapper);
 };
