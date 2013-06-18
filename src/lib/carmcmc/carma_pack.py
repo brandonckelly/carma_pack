@@ -486,7 +486,7 @@ class KalmanFilter(object):
         self.reset()
         # find the index where time[ipredict-1] < time_predict < time[ipredict]
         ipredict = np.max(np.where(self.time < time_predict)) + 1
-        for i in xrange(ipredict):
+        for i in xrange(ipredict-1):
             # run the kalman filter for time < time_predict
             self.update()
 
@@ -543,8 +543,8 @@ class KalmanFilter(object):
         cprecision += slope ** 2 / self.kalman_var[ipredict]
         cmean += slope * (self.y[ipredict] - const) / self.kalman_var[ipredict]
 
-        self.const = np.zeros(self.time.size+1)
-        self.slope = np.zeros(self.time.size+1)
+        self.const = np.zeros(self.time.size)
+        self.slope = np.zeros(self.time.size)
         self.const[ipredict] = const
         self.slope[ipredict] = slope
 
@@ -552,12 +552,12 @@ class KalmanFilter(object):
         for i in xrange(ipredict+1, self.time.size):
             self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[i-1]
             # update the state prediction coefficients: coefs(i|i-1) --> coefs(i|i)
-            const_state += self._KalmanGain * (self.y[i] - const)
+            const_state += self._KalmanGain * (self.y[i-1] - const)
             slope_state -= self._KalmanGain * slope
             # update the state one-step prediction error variance
             self._PredictionVar -= self.kalman_var[i-1] * (self._KalmanGain * self._KalmanGain.H)
             # compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
-            dt = time_predict - self.time[i-1]
+            dt = self.time[i] - self.time[i-1]
             self._StateTransition = np.matrix(np.exp(self.ar_roots * dt)).T
             const_state = np.multiply(const_state, self._StateTransition)
             slope_state = np.multiply(slope_state, self._StateTransition)
@@ -776,6 +776,9 @@ Generate a CAR(p) process.
 # car = CarSample(data[:, 0], data[:, 1], data[:, 2], filename=dir + 'car4_test.out')
 # psdlo, psdhi, psdhat, freq = car.plot_power_spectrum(percentile=95.0)
 #
+
+np.random.seed(2)
+
 sigmay = 2.3
 qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
 qpo_cent = np.array([1.0/5.0, 1.0/50.0])
