@@ -2,6 +2,7 @@
 #define BOOST_SYSTEM_NO_DEPRECATED 1
 #endif
 
+#include <utility>
 #include <boost/python.hpp>
 #include <boost/python/numeric.hpp>
 #include <boost/python/extract.hpp>
@@ -21,6 +22,17 @@ arma::vec numericToArma(numeric::array na) {
     return aa;
 }
 
+
+numeric::array vectorToNumeric(std::vector<double> v) {
+    int nx = v.size();
+    int dimens[1] = {nx};
+    object nv(handle<>(PyArray_FromDims(1, dimens, PyArray_DOUBLE)));
+    for (int i = 0; i < nx; i++) {
+        nv[i] = v[i];
+    }
+    return extract<numeric::array>(nv);
+}
+
 numeric::array armaToNumeric2(std::vector<arma::vec> aa) {
     int nx = aa.size();
     int ny = aa[0].n_elem;
@@ -34,20 +46,21 @@ numeric::array armaToNumeric2(std::vector<arma::vec> aa) {
     return extract<numeric::array>(na);
 }
 
-numeric::array runWrapper(MCMCOptions mcmc_options, 
-                          numeric::array x, 
-                          numeric::array y, 
-                          numeric::array dy, 
-                          int p, int nwalkers) {
+boost::python::tuple runWrapper(MCMCOptions mcmc_options, 
+                                numeric::array x, 
+                                numeric::array y, 
+                                numeric::array dy, 
+                                int p, int nwalkers) {
     
     arma::vec ax(numericToArma(x));
     arma::vec ay(numericToArma(y));
     arma::vec ady(numericToArma(dy));
 
-    std::vector<arma::vec> runResults = RunEnsembleCarSampler(mcmc_options, ax, ay, ady, p, nwalkers);
-    numeric::array convResults = armaToNumeric2(runResults);
-
-    return convResults;
+    std::pair<std::vector<arma::vec>, std::vector<double> > runResults = 
+        RunEnsembleCarSampler(mcmc_options, ax, ay, ady, p, nwalkers);
+    numeric::array convResults = armaToNumeric2(runResults.first);
+    numeric::array likeResults = vectorToNumeric(runResults.second);
+    return boost::python::make_tuple(likeResults, convResults);
 }
 
 BOOST_PYTHON_MODULE(_carmcmc){

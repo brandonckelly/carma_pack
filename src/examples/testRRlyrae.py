@@ -28,13 +28,19 @@ def doit(args):
     x, y, dy = args[1]
 
     opt = yamcmcpp.MCMCOptions()
-    opt.setSampleSize(1000000)
+    opt.setSampleSize(10000)
     opt.setThin(1)
-    opt.setBurnin(100000)
+    opt.setBurnin(1000)
     opt.setChains(5)
     nWalkers = 10
 
-    return carmcmc.RunEnsembleCarSampler(opt, x, y, dy, pModel, nWalkers)
+    logpost, params = carmcmc.RunEnsembleCarSampler(opt, x, y, dy, pModel, nWalkers)
+    if pModel == 1:
+        sample = carmcmc.Car1Sample(x, y, dy, logpost=logpost, trace=params)
+    else:
+        sample = carmcmc.CarSample(x, y, dy, logpost=logpost, trace=params)
+    
+    return sample
     
 
 if __name__ == "__main__":
@@ -46,7 +52,7 @@ if __name__ == "__main__":
     args = []
     #for f in (u, g, r, i , z):
     for f in (r,):
-        for pModel in np.arange(1, 10):
+        for pModel in np.arange(1, 3):
             args.append((pModel, f))
     results = pool.map(doit, args)
     import pdb; pdb.set_trace()
