@@ -8,9 +8,7 @@
 #include <armadillo>
 #include "Python.h"
 #include "numpy/ndarrayobject.h"
-
-#include "carpack.hpp"
-#include "carmcmc.hpp"
+#include "include/carmcmc.hpp"
 
 using namespace boost::python;
 
@@ -52,7 +50,7 @@ numeric::array runWrapper(int sample_size, int burnin,
     return convResults;
 }
 
-BOOST_PYTHON_MODULE(carmcmcLib){
+BOOST_PYTHON_MODULE(_carmcmc){
     import_array();
     numeric::array::set_module_and_type("numpy", "ndarray");
     
