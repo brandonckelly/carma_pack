@@ -1,6 +1,6 @@
 #include <vector>
 #include <samplers.hpp>
 
-std::vector<arma::vec> RunEnsembleCarSampler(MCMCOptions mcmc_options, 
+std::vector<arma::vec> RunEnsembleCarSampler(int sample_size, int burnin,
                                              arma::vec time, arma::vec y,
-                                             arma::vec yerr, int p, int nwalkers);
+                                             arma::vec yerr, int p, int nwalkers, int thin=1);

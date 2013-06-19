@@ -142,4 +142,6 @@ Podfile.lock
 .idea/
 __pychache__/
 
-test_data/
+#####
+# Ignore setup file for bkelly
+setup_bkelly.py

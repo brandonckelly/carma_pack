@@ -35,13 +35,16 @@ extern RandomGenerator RandGen;
 // do the default values.
 
 CAR1::CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature) : 
-Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
+Parameter<arma::vec>(track, name, temperature)
 {
 	// Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
 	value_.set_size(3);
 	// Set the degrees of freedom for the prior on the measurement error scaling parameter
 	measerr_dof_ = 100;
 	
+    y_ = y - arma::mean(y); // center the time series
+    time_ = time;
+    yerr_ = yerr;
 	int ndata = time.n_rows;
 	
 	dt_ = time(arma::span(1,ndata-1)) - time(arma::span(0,ndata-2));
@@ -52,7 +55,7 @@ Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
 		// Sort the time values such that dt > 0
 		arma::uvec sorted_indices = arma::sort_index(time_);
 		time_ = time.elem(sorted_indices);
-		y_ = y.elem(sorted_indices);
+		y_ = y_.elem(sorted_indices);
 		yerr_ = yerr.elem(sorted_indices);
 		dt_ = time_.rows(1,ndata-1) - time_.rows(0,ndata-2);
 	}
@@ -74,9 +77,6 @@ Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
 	// Set the size of the Kalman filter vectors
 	kalman_mean_.set_size(ndata);
 	kalman_var_.set_size(ndata);
-    
-    // Subtract off the mean from the time series
-    y_ = y_ - arma::mean(y_);
 }
 
 // Method of CAR1 class to set the bounds on the uniform prior.
@@ -179,12 +179,10 @@ void CAR1::Save(arma::vec new_car1)
 	// IMPORTANT: This assumes that the Kalman filter was calculated
 	// using the value of new_car1.
 	//
-	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
 	log_posterior_ = 0.0;
 	for (int i=0; i<time_.n_elem; i++) {
-		log_posterior_ += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
+		log_posterior_ += -0.5 * log(kalman_var_(i)) - 
+		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
 	}
 	
 	log_posterior_ += LogPrior(new_car1);
@@ -217,6 +215,7 @@ void CAR1::KalmanFilter(arma::vec car1_value)
 		kalman_var_(i) = kalman_var_(0) * (1.0 - rho * rho)
 			+ rho * rho * kalman_var_(i-1) * (1.0 - var_ratio);
 	}
+    kalman_var_ += measerr_scale * yerr_ % yerr_; // add in contribution to variance from measurement errors
 }
 
 // Return the log-prior for a CAR(1) process
@@ -244,9 +243,8 @@ double CAR1::LogDensity(arma::vec car1_value)
 	
 	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
 	for (int i=0; i<time_.n_elem; i++) {
-		logpost += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
+		logpost += -0.5 * log(kalman_var_(i)) -
+		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
 	}
 	
 	// Prior bounds satisfied?
@@ -282,71 +280,67 @@ arma::vec CAR1::GetKalmanVariance()
 
 // Return the starting value and set log_posterior_
 arma::vec CARp::StartingValue()
-{    
+{
 	double min_freq = 1.0 / (time_.max() - time_.min());
-    
-    // Obtain initial values for Lorentzian centroids (= system frequencies) and 
-    // widths (= break frequencies)
-    arma::vec lorentz_cent((p_+1)/2);
-    lorentz_cent.randu();
-    lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
-    lorentz_cent = arma::exp(lorentz_cent);
-    
-    // Force system frequencies to be in descending order to make the model identifiable
-    lorentz_cent = arma::sort(lorentz_cent, 1);
-    
-    arma::vec lorentz_width((p_+1)/2);
-    lorentz_width.randu();
-    lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
-    lorentz_width = arma::exp(lorentz_width);
-
-    if ((p_ % 2) == 1) {
-        // p is odd, so add additional low-frequency component
-        lorentz_cent(p_/2) = 0.0;
-        // make initial break frequency of low-frequency component less than minimum
-        // value of the system frequencies
-        lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
-    }
-	
-    // Initial guess for model standard deviation is randomly distributed
-	// around measured standard deviation of the time series
-    
-	double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
-    
-	// Get initial value of the measurement error scaling parameter by
-	// drawing from its prior.
-	
-    double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
-    measerr_scale = std::min(measerr_scale, 1.99);
-    measerr_scale = std::max(measerr_scale, 0.51);
-	
-    /********* PUT IN TRUE VALUE HERE, USED FOR DEBUGGING *********
-     
-     phi(0) = -1.9530404;
-     phi(1) = 0.95999374;
-     phi(2) = 0.0;
-     sigma = 1.0;
-     mu = 6.0;
-     
-     ******* MAKE SURE TO REMOVE THE ABOVE LINES AFTER DEBUGGING!!!! *****/
-    
     // Create the parameter vector, theta
-	arma::vec theta(p_+2);
-	
-    theta(0) = sqrt(yvar);
-	theta(1) = measerr_scale;
-    for (int i=0; i<p_/2; i++) {
-        theta(2+2*i) = log(lorentz_cent(i));
-        theta(3+2*i) = log(lorentz_width(i));
-    }
-    if ((p_ % 2) == 1) {
-        // p is odd, so add in additional value of lorentz_width
-        theta(p_+1) = log(lorentz_width(p_/2));
-    }
+    arma::vec theta(p_+2);
     
-	// Initialize the Kalman filter
-	KalmanFilter(theta);
-	
+    bool good_initials = false;
+    while (!good_initials) {
+        
+        // Obtain initial values for Lorentzian centroids (= system frequencies) and 
+        // widths (= break frequencies)
+        arma::vec lorentz_cent((p_+1)/2);
+        lorentz_cent.randu();
+        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
+        lorentz_cent = arma::exp(lorentz_cent);
+        
+        // Force system frequencies to be in descending order to make the model identifiable
+        lorentz_cent = arma::sort(lorentz_cent, 1);
+        
+        arma::vec lorentz_width((p_+1)/2);
+        lorentz_width.randu();
+        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
+        lorentz_width = arma::exp(lorentz_width);
+
+        if ((p_ % 2) == 1) {
+            // p is odd, so add additional low-frequency component
+            lorentz_cent(p_/2) = 0.0;
+            // make initial break frequency of low-frequency component less than minimum
+            // value of the system frequencies
+            lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
+        }
+        
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        
+        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        
+        // Get initial value of the measurement error scaling parameter by
+        // drawing from its prior.
+        
+        double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
+        measerr_scale = std::min(measerr_scale, 1.99);
+        measerr_scale = std::max(measerr_scale, 0.51);
+        
+        theta(0) = sqrt(yvar);
+        theta(1) = measerr_scale;
+        for (int i=0; i<p_/2; i++) {
+            theta(2+2*i) = log(lorentz_cent(i));
+            theta(3+2*i) = log(lorentz_width(i));
+        }
+        if ((p_ % 2) == 1) {
+            // p is odd, so add in additional value of lorentz_width
+            theta(p_+1) = log(lorentz_width(p_/2));
+        }
+        
+        // Initialize the Kalman filter
+        KalmanFilter(theta);
+        
+        double logpost = LogDensity(theta);
+        good_initials = arma::is_finite(logpost);
+    } // continue loop until the starting values give us a finite posterior
+    
     return theta;
 }
 
@@ -373,7 +367,7 @@ void CARp::KalmanFilter(arma::vec theta)
     
 	// Initialize the matrix of Eigenvectors. We will work with the state vector
 	// in the space spanned by the Eigenvectors because in this space the state
-	// transition matrix is diagonal, so we calculation of the matrix exponential
+	// transition matrix is diagonal, so the calculation of the matrix exponential
 	// is fast.
 	arma::cx_mat EigenMat(p_,p_);
 	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);
@@ -465,25 +459,6 @@ void CARp::KalmanFilter(arma::vec theta)
 	}
 }
 
-// Calculate the logarithm of the prior
-double CARp::LogPrior(arma::vec theta)
-{
-    double measerr_scale = theta(1);
-    // first get prior on the measurement error variance scale parameter
-    double logprior = -0.5 * measerr_dof_ / measerr_scale -
-        (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-    // prior for first lorentzian centroid is the probability distribution for the maximum
-    // of a set of p_/2 uniformly distribution random variables
-    logprior += (p_/2 - 1) * (log(theta(2)) - log(min_freq_));
-    
-    // prior for remaining lorentzian centroid are uniform, conditional on previous
-    // lorentzian centroid
-    for (int i=1; i<p_/2; i++) {
-        logprior += -log(theta(2+2*(i-1)) - log(min_freq_));
-    }
-}
-
 // Calculate the logarithm of the posterior
 double CARp::LogDensity(arma::vec theta)
 {
@@ -499,9 +474,8 @@ double CARp::LogDensity(arma::vec theta)
     
     // TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
     for (int i=0; i<time_.n_elem; i++) {
-        logpost += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-        0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-        (measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
+        logpost += -0.5 * log(kalman_var_(i)) -
+        0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
     }
 	
     // Prior bounds satisfied?
