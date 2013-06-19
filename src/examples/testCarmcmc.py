@@ -6,19 +6,17 @@ import matplotlib.pyplot as plt
 
 infile   = sys.argv[1]
 x, y, dy = np.loadtxt(sys.argv[1], unpack=True)
-#dy     = 0.01 * np.ones(len(x))
-#dy     = np.zeros(len(x))
 
-opt = yamcmcpp.MCMCOptions()
-opt.setSampleSize(100000)
-opt.setThin(1)
-opt.setBurnin(10000)
-opt.setChains(5)
-pModel = 4
-nWalkers = 10
+nSample    = 10000
+nBurnin    = 1000
+nThin      = 1
+nWalkers   = 10
+pModel     = 4
+nWalkers   = 10
 
-trace  = carmcmc.RunEnsembleCarSampler(opt, x, y, dy, pModel, nWalkers)
-sample = carmcmc.CarSample(x, y, dy, trace=trace)
+logpost, params = carmcmc.run_mcmc(nSample, nBurnin, x, y, dy, pModel, nWalkers, nThin)
+sample = carmcmc.CarSample(x, y, dy, logpost=logpost, trace=params)
+
 #sample.autocorr_timescale(sample._samples["ar_coefs"])
 sample.effective_samples("ar_coefs")
 #sample.plot_trace("ar_coefs")

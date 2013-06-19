@@ -16,6 +16,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <utility>
 // Include the MCMC sampler header files
 #include <random.hpp>
 #include <proposals.hpp>
@@ -27,8 +28,9 @@
 #include "include/carmcmc.hpp"
 
 // Run the MCMC sampler for a CAR(p) process
-std::vector<arma::vec> RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
-                                             arma::vec yerr, int p, int nwalkers, int thin)
+std::pair<std::vector<arma::vec>, std::vector<double> > 
+RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
+                      arma::vec yerr, int p, int nwalkers, int thin)
 {
     // Instantiate MCMC Sampler object for CAR process
 	Sampler CarModel(sample_size, burnin, thin);
@@ -100,6 +102,7 @@ std::vector<arma::vec> RunEnsembleCarSampler(int sample_size, int burnin, arma::
 	CarModel.Run();
     
     std::vector<arma::vec> car_samples = CarEnsemble[0].GetSamples();
-    
-    return car_samples;
+    std::vector<double> car_likes = CarEnsemble[0].GetLogLikes();
+
+    return std::make_pair(car_samples, car_likes);
 }

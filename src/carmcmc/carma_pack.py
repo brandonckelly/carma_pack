@@ -13,7 +13,7 @@ class CarSample(samplers.MCMCSample):
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
     """
 
-    def __init__(self, time, y, ysig, filename=None, trace=None):
+    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
         """
         Constructor for the class. Right same as its superclass.
 
@@ -22,7 +22,7 @@ class CarSample(samplers.MCMCSample):
         self.time = time  # The time values of the time series
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
-        super(CarSample, self).__init__(filename=filename, trace=trace)
+        super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         # now calculate the CAR(p) characteristic polynomial roots, coefficients, and amplitude of driving noise and
         # add them to the MCMC samples
@@ -35,17 +35,17 @@ class CarSample(samplers.MCMCSample):
 
         # make the parameter names (i.e., the keys) public so the use knows how to get them
         self.parameters = self._samples.keys()
+        
+    def set_logpost(self, logpost):
+        self._samples['logpost'] = logpost  # log-posterior of the CAR(p) model
 
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 2
-        names = ['logpost', 'var', 'measerr_scale', 'log_centroid', 'log_width']
+        names = ['var', 'measerr_scale', 'log_centroid', 'log_width']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
-            # Not being returned at this point in time
-            #self._samples['logpost']      = trace[:, idx]     # log-posterior of the CAR(p) model
-
             self._samples['var']           = trace[:, 0] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
             ar_index = np.arange(0, self.p - 1, 2)
@@ -435,6 +435,38 @@ class CarSample(samplers.MCMCSample):
         ysim += self.y.mean()  # add mean back into time series
 
         return ysim
+
+    def DIC(self, bestfit="median"):
+        """ 
+        Calculate the Deviance Information Criterion for the model.
+
+        This is defined as 3 times the mean/median value of chi2 
+        Minus 2 times the value of chi2 using the mean/median parameters
+        """
+        
+        # Need to calculate chi2 until logpost is returned by sampler
+        nsamp = self._samples["sigma"].shape[0]
+        chi2 = np.empty((nsamp))
+        for i in xrange(nsamp):
+            kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, 
+                                        self._samples['sigma'][i]**2,
+                                        self._samples['ar_roots'][i])
+            chi2[i] = np.sum( (self.y - self.y.mean() - kmean)**2 / kvar )
+        self._samples["chi2"] = chi2
+
+        if bestfit == 'median':
+            sigsqr = np.median(self._samples['sigma']) ** 2
+            ar_roots = np.median(self._samples['ar_roots'], axis=0)
+            chi2 = np.median(self._samples["chi2"])
+        else:
+            sigsqr = np.mean(self._samples['sigma'] ** 2)
+            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+            chi2 = np.mean(self._samples["chi2"])
+
+        kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        p = chi2 - np.sum( (self.y - self.y.mean() - kmean)**2 / kvar )
+
+        return chi2 + 2 * p
 
 
 class KalmanFilter(object):
@@ -839,13 +871,13 @@ def carp_process(time, sigsqr, ar_roots):
 
     return car_process
 
-class Car1Sample(CarSample):
-    def __init__(self, time, y, ysig, filename=None, trace=None):
+class CarSample1(CarSample):
+    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
         self.time = time  # The time values of the time series
         self.y    = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.p    = 1     # How many AR terms
-        super(CarSample, self).__init__(filename=filename, trace=trace)
+        super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()
@@ -856,8 +888,7 @@ class Car1Sample(CarSample):
         self.parameters = self._samples.keys()
 
     def generate_from_trace(self, trace):
-        # NOTE: we still need to return logpost
-        names = ['logpost', 'sigma', 'measerr_scale', 'log_omega']
+        names = ['sigma', 'measerr_scale', 'log_omega']
         if names != self._samples.keys():
             self._samples['sigma']         = trace[:, 0]
             self._samples['measerr_scale'] = trace[:, 1]
