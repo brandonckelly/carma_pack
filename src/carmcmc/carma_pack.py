@@ -7,7 +7,6 @@ from os import environ
 import yamcmcpp.samplers as samplers
 
 
-
 class CarSample(samplers.MCMCSample):
     """
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
