@@ -34,7 +34,7 @@ class CarSample(samplers.MCMCSample):
 
         # make the parameter names (i.e., the keys) public so the use knows how to get them
         self.parameters = self._samples.keys()
-        
+
     def set_logpost(self, logpost):
         self._samples['logpost'] = logpost  # log-posterior of the CAR(p) model
 
@@ -45,7 +45,7 @@ class CarSample(samplers.MCMCSample):
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
-            self._samples['var']           = trace[:, 0] ** 2  # Variance of the CAR(p) process
+            self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
             ar_index = np.arange(0, self.p - 1, 2)
             # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
@@ -56,7 +56,7 @@ class CarSample(samplers.MCMCSample):
                 # Odd number of roots, so add in low-frequency component
                 ar_index = np.append(ar_index, ar_index.max() + 1)
             self._samples['log_width'] = trace[:, 3 + ar_index]
-        
+
     def generate_from_file(self, filename):
         """
         Build the dictionary of parameter samples from an ascii file of MCMC samples from carpack.
@@ -77,9 +77,9 @@ class CarSample(samplers.MCMCSample):
         qpo_width = np.exp(self._samples['log_width'])
 
         ar_roots = np.empty((var.size, self.p), dtype=complex)
-        for i in xrange(self.p/2):
-            ar_roots[:, 2*i] = qpo_width[:,i] + 1j * qpo_centroid[:,i]
-            ar_roots[:, 2*i+1] = np.conjugate(ar_roots[:, 2*i])
+        for i in xrange(self.p / 2):
+            ar_roots[:, 2 * i] = qpo_width[:, i] + 1j * qpo_centroid[:, i]
+            ar_roots[:, 2 * i + 1] = np.conjugate(ar_roots[:, 2 * i])
         if self.p % 2 == 1:
             # p is odd, so add in low-frequency component
             ar_roots[:, -1] = qpo_width[:, -1]
@@ -201,7 +201,7 @@ class CarSample(samplers.MCMCSample):
         sp.set_ylabel('Power Spectrum')
 
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
-    
+
     def plot_models(self, bestfit="median"):
         bestfit = bestfit.lower()
         try:
@@ -226,43 +226,21 @@ class CarSample(samplers.MCMCSample):
         fig = plt.figure()
         # compute the kalman filter for data only
         sp = fig.add_subplot(111)
-        kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kmean, kvar = kfilter.filter()
         sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
         sp.plot(self.time, kmean + self.y.mean(), '-r', label='Kalman Filter')
-        sp.fill_between(self.time, kmean + self.y.mean() - np.sqrt(kvar), kmean + self.y.mean() + np.sqrt(kvar), edgecolor=None, facecolor='blue', alpha=0.25)
+        # compute the marginal mean and variance of the predicted values
+        nplot = 256
+        time_predict = np.linspace(self.time.min(), self.time.max(), nplot)
+        predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
+        predicted_low = predicted_mean - np.sqrt(predicted_var)
+        predicted_high = predicted_mean + np.sqrt(predicted_var)
+        sp.fill_between(self.time, predicted_low, predicted_high,
+                        edgecolor=None, facecolor='blue', alpha=0.25)
         sp.set_xlabel('Time')
         sp.set_xlim(self.time.min(), self.time.max())
 
-        
-        # compute the kalman filter for interpolated data points
-        # Nope, this is not useful... 
-        if False:
-            sp    = fig.add_subplot(212)
-            mtime = np.arange(self.time.min(), self.time.max(), 0.1)
-            itime = np.append(self.time, mtime)
-            iy    = np.append(self.y, np.zeros((mtime.shape)))
-            idy   = np.append(self.ysig, 1e6 * np.ones((mtime.shape)))
-            idx   = np.argsort(itime)
-            itime = itime[idx]
-            iy    = iy[idx]
-            idy   = idy[idx]
-    
-            nsamp   = sample._samples["ar_roots"].shape[0]
-            ntosamp = 100
-            kmeans  = []
-            for i in range(ntosamp):
-                kmeans.append(kalman_filter(itime, iy - self.y.mean(), idy ** 2, 
-                                            self._samples['sigma'][i/ntosamp*nsamp]**2, 
-                                            self._samples['ar_roots'][i/ntosamp*nsamp])[0])
-            kmean   = np.mean(kmeans, axis=0)
-            kstd    = np.std(kmeans, axis=0)
-            sp.plot(self.time, self.y, 'k.', label='Data')
-            sp.plot(itime, kmean + self.y.mean(), '-r', label='Kalman Filter')
-            sp.fill_between(itime, kmean + self.y.mean() - kstd, kmean + self.y.mean() + kstd, edgecolor=None, facecolor='blue', alpha=0.25)
-            sp.set_xlabel('Time')
-            sp.set_xlim(self.time.min(), self.time.max())
-
-        
     def assess_fit(self, bestfit="median"):
         """
         Display plots and provide useful information for assessing the quality of the CAR(p) model fit.
@@ -435,37 +413,42 @@ class CarSample(samplers.MCMCSample):
 
         return ysim
 
-    def DIC(self, bestfit="median"):
+    def DIC(self, bestfit="mean"):
         """ 
         Calculate the Deviance Information Criterion for the model.
 
         This is defined as 3 times the mean/median value of chi2 
         Minus 2 times the value of chi2 using the mean/median parameters
         """
-        
+
         # Need to calculate chi2 until logpost is returned by sampler
         nsamp = self._samples["sigma"].shape[0]
-        chi2 = np.empty((nsamp))
+        chi2 = np.empty(nsamp)
+        loglik = np.empty(nsamp)
         for i in xrange(nsamp):
-            kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, 
-                                        self._samples['sigma'][i]**2,
-                                        self._samples['ar_roots'][i])
-            chi2[i] = np.sum( (self.y - self.y.mean() - kmean)**2 / kvar )
+            kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, self._samples['sigma'][i] ** 2,
+                                   self._samples['ar_roots'][i])
+            kmean, kvar = kfilter.filter()
+            chi2[i] = np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
+            loglik[i] = -0.5 * np.sum(np.log(kvar)) - 0.5 * chi2
         self._samples["chi2"] = chi2
+        self._samples["loglik"] = loglik
 
         if bestfit == 'median':
             sigsqr = np.median(self._samples['sigma']) ** 2
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
-            chi2 = np.median(self._samples["chi2"])
+            loglik = np.median(self._samples["loglik"])
         else:
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
-            chi2 = np.mean(self._samples["chi2"])
+            loglik = np.mean(self._samples["loglik"])
 
-        kmean, kvar = kalman_filter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
-        p = chi2 - np.sum( (self.y - self.y.mean() - kmean)**2 / kvar )
+        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kmean, kvar = kfilter.filter()
+        loglik_hat = -0.5 * np.sum(np.log(kvar)) - 0.5 * np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
+        p = -2.0 * loglik + 2.0 * loglik_hat
 
-        return chi2 + 2 * p
+        return -2.0 * loglik + 2 * p
 
 
 class KalmanFilter(object):
@@ -587,15 +570,15 @@ class KalmanFilter(object):
         self.reset()
         # find the index where time[ipredict-1] < time_predict < time[ipredict]
         ipredict = np.max(np.where(self.time < time_predict)) + 1
-        for i in xrange(ipredict-1):
+        for i in xrange(ipredict - 1):
             # run the kalman filter for time < time_predict
             self.update()
 
         # predict the value of y[time_predict]
-        self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[ipredict-1]
+        self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[ipredict - 1]
         self._StateVector += self._innovation * self._KalmanGain
-        self._PredictionVar -= self.kalman_var[ipredict-1] * (self._KalmanGain * self._KalmanGain.H)
-        dt = time_predict - self.time[ipredict-1]
+        self._PredictionVar -= self.kalman_var[ipredict - 1] * (self._KalmanGain * self._KalmanGain.H)
+        dt = time_predict - self.time[ipredict - 1]
         self._StateTransition = np.matrix(np.exp(self.ar_roots * dt)).T
         self._StateVector = np.multiply(self._StateVector, self._StateTransition)
         self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
@@ -650,15 +633,15 @@ class KalmanFilter(object):
         self.slope[ipredict] = slope
 
         # now repeat for time > time_predict
-        for i in xrange(ipredict+1, self.time.size):
-            self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[i-1]
+        for i in xrange(ipredict + 1, self.time.size):
+            self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[i - 1]
             # update the state prediction coefficients: coefs(i|i-1) --> coefs(i|i)
-            const_state += self._KalmanGain * (self.y[i-1] - const)
+            const_state += self._KalmanGain * (self.y[i - 1] - const)
             slope_state -= self._KalmanGain * slope
             # update the state one-step prediction error variance
-            self._PredictionVar -= self.kalman_var[i-1] * (self._KalmanGain * self._KalmanGain.H)
+            self._PredictionVar -= self.kalman_var[i - 1] * (self._KalmanGain * self._KalmanGain.H)
             # compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
-            dt = self.time[i] - self.time[i-1]
+            dt = self.time[i] - self.time[i - 1]
             self._StateTransition = np.matrix(np.exp(self.ar_roots * dt)).T
             const_state = np.multiply(const_state, self._StateTransition)
             slope_state = np.multiply(slope_state, self._StateTransition)
@@ -722,7 +705,6 @@ class KalmanFilter(object):
             self.yvar = yvar0
 
         return ysimulated
-
 
 
 def get_ar_roots(qpo_width, qpo_centroid):
@@ -870,12 +852,13 @@ def carp_process(time, sigsqr, ar_roots):
 
     return car_process
 
+
 class CarSample1(CarSample):
     def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
         self.time = time  # The time values of the time series
-        self.y    = y     # The measured values of the time series
+        self.y = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
-        self.p    = 1     # How many AR terms
+        self.p = 1     # How many AR terms
         super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         print "Calculating coefficients of AR polynomial..."
@@ -889,9 +872,9 @@ class CarSample1(CarSample):
     def generate_from_trace(self, trace):
         names = ['sigma', 'measerr_scale', 'log_omega']
         if names != self._samples.keys():
-            self._samples['sigma']         = trace[:, 0]
+            self._samples['sigma'] = trace[:, 0]
             self._samples['measerr_scale'] = trace[:, 1]
-            self._samples['log_omega']     = trace[:, 1]
+            self._samples['log_omega'] = trace[:, 1]
 
     def _ar_roots(self):
         print "_ar_roots not supported for CAR1"
@@ -900,10 +883,10 @@ class CarSample1(CarSample):
     def _ar_coefs(self):
         print "_ar_coefs not supported for CAR1"
         return
-    
+
     def _variance(self):
-        self._samples['var'] = 0.5 * self._samples['sigma']**2 / self._samples['log_omega']
-        
+        self._samples['var'] = 0.5 * self._samples['sigma'] ** 2 / self._samples['log_omega']
+
     def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None):
         sigmas = self._samples['sigma']
         log_omegas = self._samples['log_omega']
@@ -912,7 +895,7 @@ class CarSample1(CarSample):
         dt_min = self.time[1:] - self.time[0:self.time.size - 1]
         dt_min = dt_min.min()
         dt_max = self.time.max() - self.time.min()
-        
+
         # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
         # maximum time scales probed by the time series.
         freq_max = 1.0 / (dt_min / 2.0)
@@ -924,10 +907,10 @@ class CarSample1(CarSample):
 
         lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
         upper = 100.0 - lower
-        
-        numer = 0.5 / np.pi * sigmas**2
+
+        numer = 0.5 / np.pi * sigmas ** 2
         for i in xrange(nfreq):
-            denom = 10**log_omegas**2 + frequencies[i]**2
+            denom = 10 ** log_omegas ** 2 + frequencies[i] ** 2
             psd_samples = numer / denom
 
             # Now compute credibility interval for power spectrum
@@ -961,16 +944,16 @@ class CarSample1(CarSample):
         # joint distribution
         axJ = fig.add_axes([0.1, 0.1, 0.7, 0.7])               # [left, bottom, width, height]
         # y histogram
-        axY = fig.add_axes([0.8, 0.1, 0.125, 0.7], sharey=axJ) 
+        axY = fig.add_axes([0.8, 0.1, 0.125, 0.7], sharey=axJ)
         # x histogram
-        axX = fig.add_axes([0.1, 0.8, 0.7, 0.125], sharex=axJ) 
-        axJ.plot(trace1, trace2, 'ro', ms=1, alpha=0.5)  
+        axX = fig.add_axes([0.1, 0.8, 0.7, 0.125], sharex=axJ)
+        axJ.plot(trace1, trace2, 'ro', ms=1, alpha=0.5)
         axX.hist(trace1, bins=100)
         axY.hist(trace2, orientation='horizontal', bins=100)
         axJ.set_xlabel("%s" % (name1))
         axJ.set_ylabel("%s" % (name2))
-        plt.setp(axX.get_xticklabels()+axX.get_yticklabels(), visible=False)
-        plt.setp(axY.get_xticklabels()+axY.get_yticklabels(), visible=False)
+        plt.setp(axX.get_xticklabels() + axX.get_yticklabels(), visible=False)
+        plt.setp(axY.get_xticklabels() + axY.get_yticklabels(), visible=False)
         if doShow:
             plt.show()
         
