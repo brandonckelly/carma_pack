@@ -123,7 +123,7 @@ class CarSample(samplers.MCMCSample):
         # add the sigmas to the MCMC samples
         self._samples['sigma'] = np.sqrt(sigma)
 
-    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", sp=None):
+    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", sp=None, doShow=True):
         """
         Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD. This
         function returns a tuple containing the lower and upper PSD credibility intervals as a function of
@@ -200,6 +200,9 @@ class CarSample(samplers.MCMCSample):
         sp.set_xlabel('Frequency')
         sp.set_ylabel('Power Spectrum')
 
+        if doShow:
+            plt.show()
+
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
 
     def plot_models(self, bestfit="median"):
@@ -271,14 +274,15 @@ class CarSample(samplers.MCMCSample):
         # compute the marginal mean and variance of the predicted values
         nplot = 256
         time_predict = np.linspace(self.time.min(), self.time.max(), nplot)
+        time_predict = time_predict[1:]
         predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
 
         # plot the time series and the marginal 1-sigma error bands
         plt.subplot(221)
-        plt.fill_between(self.time, predicted_high, y2=predicted_low, color='cyan')
-        plt.plot(self.time, predicted_mean, '-b', label='Interpolation')
+        plt.fill_between(time_predict, predicted_high, y2=predicted_low, color='cyan')
+        plt.plot(time_predict, predicted_mean, '-b', label='Interpolation')
         plt.plot(self.time, self.y, 'k.', label='Data')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
@@ -330,6 +334,8 @@ class CarSample(samplers.MCMCSample):
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Sqrd. Resid.')
 
+        plt.show()
+
     def predict_lightcurve(self, time, bestfit='median'):
         """
         Return the predicted value of the lightcurve and its standard deviation at the input time(s) given the best-fit
@@ -370,7 +376,7 @@ class CarSample(samplers.MCMCSample):
             for i in xrange(time.size):
                 yhati, yhat_vari = kalman_filter.predict(time[i])
                 yhat[i] = yhati
-                yhat_var[i] = yhat_var
+                yhat_var[i] = yhat_vari
 
         yhat += self.y.mean()  # add mean back into time series
 
@@ -687,7 +693,7 @@ class KalmanFilter(object):
             time0 = self.time  # save original values
             y0 = self.y
             yvar0 = self.yvar
-            ysimulated = np.empty(self.time.size)
+            ysimulated = np.empty(time_simulate.size)
             time_simulate.sort()
             for i in xrange(time_simulate.size):
                 cmean, cvar = self.predict(time_simulate[i])

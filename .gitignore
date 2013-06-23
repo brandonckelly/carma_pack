@@ -134,8 +134,9 @@ Pods/
 Podfile.lock
 
 ######
-# Ignore .pyc files
+# Ignore python build files
 *.pyc
+*.so
 
 ####
 # Ignore PyCharm files
