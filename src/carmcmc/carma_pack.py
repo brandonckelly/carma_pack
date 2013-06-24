@@ -281,7 +281,7 @@ class CarSample(samplers.MCMCSample):
 
         # plot the time series and the marginal 1-sigma error bands
         plt.subplot(221)
-        plt.fill_between(time_predict, predicted_high, y2=predicted_low, color='cyan')
+        plt.fill_between(time_predict, predicted_low, predicted_high, color='cyan')
         plt.plot(time_predict, predicted_mean, '-b', label='Interpolation')
         plt.plot(self.time, self.y, 'k.', label='Data')
         plt.xlabel('Time')

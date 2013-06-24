@@ -40,14 +40,16 @@ print "Calculating interpolated values..."
 sample.assess_fit()
 
 print "Calculating forecasted and simulated lightcurve..."
-tpredict = np.linspace(580.0, 640.0, 100)
+tpredict = np.linspace(580.0, 640.0, 200)
 tsim = tpredict
 pmean, pvar = sample.predict_lightcurve(tpredict)
 ysim = sample.simulate_lightcurve(tsim)
 plt.fill_between(tpredict, pmean - np.sqrt(pvar), pmean + np.sqrt(pvar), alpha=0.25)
 plt.plot(x, y, 'k.', label='Measured')
-plt.plot(tsim, ysim, 'b-', label='Simulated')
-plt.xlim(x.min(), 640.0)
+plt.plot(tsim, ysim, 'b-', label='Simulated 1')
+ysim = sample.simulate_lightcurve(tsim)
+plt.plot(tsim, ysim, 'r-', label='Simulated 2')
+plt.xlim(tsim.min(), tsim.max())
 plt.legend()
 plt.show()
 
