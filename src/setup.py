@@ -10,11 +10,11 @@ BOOST_DIR = os.environ["BOOST_DIR"]
 ARMADILLO_DIR = os.environ["ARMADILLO_DIR"]
 YAMCMCPP_DIR = os.environ["YAMCMCPP_DIR"]
 NUMPY_DIR = os.environ["NUMPY_DIR"]
-include_dirs = [NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include", YAMCMCPP_DIR + "/include",
+include_dirs = [YAMCMCPP_DIR + "/include", NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include",
                 "/usr/include/"]
 for include_dir in numpy.distutils.misc_util.get_numpy_include_dirs():
     include_dirs.append(include_dir)
-library_dirs = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR + "/lib", YAMCMCPP_DIR + "/lib", "/usr/lib64/",
+library_dirs = [YAMCMCPP_DIR + "/lib", NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR + "/lib", "/usr/lib64/",
                 "/usr/lib/"]
 
 
