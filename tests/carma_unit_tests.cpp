@@ -497,8 +497,10 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     int burnin = 50000;
     
     // run the MCMC sampler
+    std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
+    mcmc_out = RunEnsembleCarSampler(sample_size, burnin, time, y, yerr, carp_order, nwalkers);
     std::vector<arma::vec> mcmc_sample;
-    mcmc_sample = RunEnsembleCarSampler(sample_size, burnin, time, y, yerr, carp_order, nwalkers);
+    mcmc_sample = mcmc_out.first;
     
     // True CAR(1) process parameters
     double tau = 100.0;
@@ -544,8 +546,10 @@ TEST_CASE("CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
     int burnin = 50000;
     
     // run the MCMC sampler
+    std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
+    mcmc_out = RunEnsembleCarSampler(sample_size, burnin, time, y, yerr, carp_order, nwalkers);
     std::vector<arma::vec> mcmc_sample;
-    mcmc_sample = RunEnsembleCarSampler(sample_size, burnin, time, y, yerr, carp_order, nwalkers);
+    mcmc_sample = mcmc_out.first;
     
     // True CAR(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
