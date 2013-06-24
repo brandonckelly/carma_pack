@@ -8,7 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		555C33C8173AC24B00D91BA8 /* libarmadillo.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */; };
+		556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */; };
+		556E3D3B1766A26300C3A045 /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */; };
+		556E3D3C1766A26A00C3A045 /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81C172B2AB3006D6BAB /* carpack.cpp */; };
+		556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
+		556E3D3E1766A39F00C3A045 /* libarmadillo.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */; };
+		556E3D3F1766A39F00C3A045 /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */; };
+		556E3D401766A39F00C3A045 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764A17349F49006CB328 /* libboost_system.dylib */; };
+		556E3D411766A39F00C3A045 /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */; };
 		DF05C92B173C5EE9007DC2B8 /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */; };
+		DFA8DA9617712B3600C76A3E /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = DFA8DA9517712B3600C76A3E /* Makefile */; };
 		DFD8B815172B290C006D6BAB /* carma_pack.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DFD8B814172B290C006D6BAB /* carma_pack.1 */; };
 		DFD8B81E172B2AB3006D6BAB /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81C172B2AB3006D6BAB /* carpack.cpp */; };
 		DFD8B81F172B2AB3006D6BAB /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */; };
@@ -18,6 +27,15 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		556E3D2E1766895F00C3A045 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		DFD8B80D172B290C006D6BAB /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -32,19 +50,43 @@
 
 /* Begin PBXFileReference section */
 		555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.dylib; path = /usr/local/lib/libarmadillo.dylib; sourceTree = "<absolute>"; };
+		556E3D221766766400C3A045 /* boost_python_wrapper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = boost_python_wrapper.cpp; sourceTree = "<group>"; };
+		556E3D281766766400C3A045 /* setup.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = setup.py; path = src/setup.py; sourceTree = "<group>"; };
+		556E3D291766766400C3A045 /* testCarmcmc.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = testCarmcmc.py; path = src/testCarmcmc.py; sourceTree = "<group>"; };
+		556E3D301766895F00C3A045 /* carma_unit_tests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_unit_tests; sourceTree = BUILT_PRODUCTS_DIR; };
+		556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carma_unit_tests.cpp; path = tests/carma_unit_tests.cpp; sourceTree = "<group>"; };
 		DF05C92A173C5EE9007DC2B8 /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
+		DFA8DA9317712AFB00C76A3E /* carmcmc.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = carmcmc.hpp; path = src/include/carmcmc.hpp; sourceTree = "<group>"; };
+		DFA8DA9417712AFB00C76A3E /* carpack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = carpack.hpp; path = src/include/carpack.hpp; sourceTree = "<group>"; };
+		DFA8DA9517712B3600C76A3E /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = "<group>"; };
+		DFA8DA9717712B5000C76A3E /* setup_bkelly.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = setup_bkelly.py; path = src/setup_bkelly.py; sourceTree = "<group>"; };
+		DFA8DA9917712B6900C76A3E /* car1_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car1_test.dat; sourceTree = "<group>"; };
+		DFA8DA9A17712B6900C76A3E /* car5_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car5_test.dat; sourceTree = "<group>"; };
+		DFA8DA9B17712B6900C76A3E /* generate_test_data.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = generate_test_data.py; path = tests/generate_test_data.py; sourceTree = "<group>"; };
+		DFA8DA9D17712BAD00C76A3E /* __init__.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = __init__.py; sourceTree = "<group>"; };
+		DFA8DA9E17712BAD00C76A3E /* carma_pack.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = carma_pack.py; sourceTree = "<group>"; };
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
 		DFD8B814172B290C006D6BAB /* carma_pack.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = carma_pack.1; sourceTree = "<group>"; };
-		DFD8B81B172B2AB3006D6BAB /* carpack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = carpack.hpp; path = src/carpack.hpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DFD8B81C172B2AB3006D6BAB /* carpack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = carpack.cpp; path = src/carpack.cpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carmcmc.cpp; path = src/carmcmc.cpp; sourceTree = SOURCE_ROOT; };
-		DFF0764317349D80006CB328 /* carma_pack.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = carma_pack.py; sourceTree = "<group>"; };
 		DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_filesystem.dylib; path = /usr/local/lib/libboost_filesystem.dylib; sourceTree = "<absolute>"; };
 		DFF0764A17349F49006CB328 /* libboost_system.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_system.dylib; path = /usr/local/lib/libboost_system.dylib; sourceTree = "<absolute>"; };
 		DFF0764C17349F5A006CB328 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		556E3D2D1766895F00C3A045 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				556E3D3E1766A39F00C3A045 /* libarmadillo.dylib in Frameworks */,
+				556E3D3F1766A39F00C3A045 /* libboost_filesystem.dylib in Frameworks */,
+				556E3D401766A39F00C3A045 /* libboost_system.dylib in Frameworks */,
+				556E3D411766A39F00C3A045 /* libyamcmcpp.dylib in Frameworks */,
+				556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DFD8B80C172B290C006D6BAB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -60,9 +102,55 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		556E3D2B176688AB00C3A045 /* tests */ = {
+			isa = PBXGroup;
+			children = (
+				DFA8DA9817712B6900C76A3E /* data */,
+				DFA8DA9B17712B6900C76A3E /* generate_test_data.py */,
+				556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */,
+			);
+			name = tests;
+			sourceTree = "<group>";
+		};
+		DFA8DA9217712AE900C76A3E /* include */ = {
+			isa = PBXGroup;
+			children = (
+				DFA8DA9317712AFB00C76A3E /* carmcmc.hpp */,
+				DFA8DA9417712AFB00C76A3E /* carpack.hpp */,
+			);
+			name = include;
+			sourceTree = "<group>";
+		};
+		DFA8DA9817712B6900C76A3E /* data */ = {
+			isa = PBXGroup;
+			children = (
+				DFA8DA9917712B6900C76A3E /* car1_test.dat */,
+				DFA8DA9A17712B6900C76A3E /* car5_test.dat */,
+			);
+			name = data;
+			path = tests/data;
+			sourceTree = "<group>";
+		};
+		DFA8DA9C17712BAD00C76A3E /* carmcmc */ = {
+			isa = PBXGroup;
+			children = (
+				DFA8DA9D17712BAD00C76A3E /* __init__.py */,
+				DFA8DA9E17712BAD00C76A3E /* carma_pack.py */,
+			);
+			name = carmcmc;
+			path = src/carmcmc;
+			sourceTree = "<group>";
+		};
 		DFD8B806172B290C006D6BAB = {
 			isa = PBXGroup;
 			children = (
+				DFA8DA9C17712BAD00C76A3E /* carmcmc */,
+				DFA8DA9717712B5000C76A3E /* setup_bkelly.py */,
+				DFA8DA9517712B3600C76A3E /* Makefile */,
+				DFA8DA9217712AE900C76A3E /* include */,
+				556E3D2B176688AB00C3A045 /* tests */,
+				556E3D281766766400C3A045 /* setup.py */,
+				556E3D291766766400C3A045 /* testCarmcmc.py */,
 				DFF0764E1734A07A006CB328 /* Libraries */,
 				DFD8B811172B290C006D6BAB /* src */,
 				DFD8B810172B290C006D6BAB /* Products */,
@@ -73,6 +161,7 @@
 			isa = PBXGroup;
 			children = (
 				DFD8B80F172B290C006D6BAB /* carma_pack */,
+				556E3D301766895F00C3A045 /* carma_unit_tests */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -80,9 +169,8 @@
 		DFD8B811172B290C006D6BAB /* src */ = {
 			isa = PBXGroup;
 			children = (
-				DFF0764317349D80006CB328 /* carma_pack.py */,
+				556E3D221766766400C3A045 /* boost_python_wrapper.cpp */,
 				DFD8B81D172B2AB3006D6BAB /* carmcmc.cpp */,
-				DFD8B81B172B2AB3006D6BAB /* carpack.hpp */,
 				DFD8B81C172B2AB3006D6BAB /* carpack.cpp */,
 				DFD8B814172B290C006D6BAB /* carma_pack.1 */,
 			);
@@ -104,6 +192,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		556E3D2F1766895F00C3A045 /* carma_unit_tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 556E3D361766895F00C3A045 /* Build configuration list for PBXNativeTarget "carma_unit_tests" */;
+			buildPhases = (
+				556E3D2C1766895F00C3A045 /* Sources */,
+				556E3D2D1766895F00C3A045 /* Frameworks */,
+				556E3D2E1766895F00C3A045 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = carma_unit_tests;
+			productName = carma_unit_tests;
+			productReference = 556E3D301766895F00C3A045 /* carma_unit_tests */;
+			productType = "com.apple.product-type.tool";
+		};
 		DFD8B80E172B290C006D6BAB /* carma_pack */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DFD8B818172B290C006D6BAB /* Build configuration list for PBXNativeTarget "carma_pack" */;
@@ -143,23 +248,49 @@
 			projectRoot = "";
 			targets = (
 				DFD8B80E172B290C006D6BAB /* carma_pack */,
+				556E3D2F1766895F00C3A045 /* carma_unit_tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		556E3D2C1766895F00C3A045 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				556E3D3C1766A26A00C3A045 /* carpack.cpp in Sources */,
+				556E3D3B1766A26300C3A045 /* carmcmc.cpp in Sources */,
+				556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DFD8B80B172B290C006D6BAB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				DFD8B81E172B2AB3006D6BAB /* carpack.cpp in Sources */,
 				DFD8B81F172B2AB3006D6BAB /* carmcmc.cpp in Sources */,
+				DFA8DA9617712B3600C76A3E /* Makefile in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		556E3D371766895F00C3A045 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		556E3D381766895F00C3A045 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		DFD8B816172B290C006D6BAB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -187,7 +318,10 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = /usr/local/include;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
+				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
@@ -222,7 +356,10 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = /usr/local/include;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
+				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
@@ -238,6 +375,10 @@
 		DFD8B819172B290C006D6BAB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
+				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -248,6 +389,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_OPTIMIZATION_LEVEL = 3;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"${HOME}/Projects/yamcmcpp/yamcmc++",
+				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -257,6 +402,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		556E3D361766895F00C3A045 /* Build configuration list for PBXNativeTarget "carma_unit_tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				556E3D371766895F00C3A045 /* Debug */,
+				556E3D381766895F00C3A045 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		DFD8B80A172B290C006D6BAB /* Build configuration list for PBXProject "carma_pack" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

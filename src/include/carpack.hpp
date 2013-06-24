@@ -13,7 +13,11 @@
 #define __CARPACK_HDEF__
 
 #include <string>
-#include <yamcmc++>
+#include <random.hpp>
+#include <proposals.hpp>
+#include <samplers.hpp>
+#include <steps.hpp>
+#include <parameters.hpp>
 
 /*
  First-order continuous time autoregressive process (CAR(1)) class, for input into
@@ -51,6 +55,19 @@ public:
 	virtual std::string StringValue();
 	
     void Save(arma::vec new_value);
+
+    // Methods to get the data vectors //
+    arma::vec GetTime() {
+        return time_;
+    }
+    
+    arma::vec GetTimeSeries() {
+        return y_;
+    }
+    
+    arma::vec GetTimeSeriesErr() {
+        return yerr_;
+    }
     
 	// Methods for the Kalman filter //
 	
@@ -70,12 +87,12 @@ public:
 	// Compute the log-posterior
     virtual double LogPrior(arma::vec car1_value);
 	virtual double LogDensity(arma::vec car1_value);
-	
+    
 protected:
 	// Data vectors
-	arma::vec& time_;
-	arma::vec& y_;
-	arma::vec& yerr_;
+	arma::vec time_;
+	arma::vec y_;
+	arma::vec yerr_;
 	arma::vec dt_;
 	// Vectors for the Kalman filter. Make these protected members so we don't
 	// have to initialize them every time we evaluate the likelihood function.
@@ -109,9 +126,6 @@ public:
 	// Calculate the kalman filter mean and variance
 	void KalmanFilter(arma::vec theta);
 	
-    // Calcualte the logarithm of the prior
-    double LogPrior(arma::vec theta);
-    
 	// Calculate the logarithm of the posterior
 	double LogDensity(arma::vec theta);
     
