@@ -20,9 +20,82 @@
 #include <parameters.hpp>
 
 /*
- First-order continuous time autoregressive process (CAR(1)) class, for input into
- MYMCMC. Note that this is the same same as a Ornstein-Uhlenbeck process. A CAR(1) 
- process, Y(t), is defined as
+ Class to perform the Kalman Filter and related operations for a zero-mean CAR(1) process (see below).
+ This class will calculate the Kalman Filter, needed to calculate the log-likelihood in the CAR1
+ parameter class. It will also provide interpolated, extrapolated, and simulated values given a 
+ CAR(1) model and a measured time series.
+ */
+
+class KalmanFilter1 {
+public:
+    // Constructor
+    KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, double omega);
+    
+    // Methods to set and get the data
+    void SetTime(arma::vec& time) {
+        time_ = time;
+    }
+    arma::vec GetTime() {
+        return time_;
+    }
+    void SetTimeSeries(arma::vec& y) {
+        y_ = y;
+    }
+    arma::vec GetTimeSeries() {
+        return y_;
+    }
+    void SetTimeSeriesErr(arma::vec& yerr) {
+        yerr_ = yerr;
+    }
+    arma::vec GetTimeSeriesErr() {
+        return yerr_;
+    }
+    
+    // Methods to set and get the parameter values
+    void SetSigsqr(double sigsqr) {
+        sigsqr_ = sigsqr;
+    }
+    double GetSigsqr() {
+        return sigsqr_;
+    }
+    virtual void SetOmega(double omega) {
+        omega_ = omega;
+    }
+    virtual double GetOmega() {
+        return omega_;
+    }
+    
+    // Methods to get the kalman filter mean and variance
+    arma::vec GetMean() {
+        return mean_;
+    }
+    arma::vec GetVariance() {
+        return var_;
+    }
+    
+    // Methods to perform the Kalman Filter operations
+    virtual void Reset();
+    virtual void Update();
+    virtual void Filter();
+    virtual std::pair<double, double> Predict();
+    virtual arma::vec Simulate();
+    
+private:
+    // measured time series
+    arma::vec& time_;
+    arma::vec& y_;
+    arma::vec& yerr_;
+    // parameters
+    double sigsqr_;
+    double omega_;
+    // kalman filter mean and variance at the time_ values
+    arma::vec mean_;
+    arma::vec var_;
+};
+
+/*
+ First-order continuous time autoregressive process (CAR(1)) class. Note that this is the same
+ as an Ornstein-Uhlenbeck process. A CAR(1) process, Y(t), is defined as
  
  dY(t) = -omega * (Y(t) - mu) * dt + sigma * dW(t),
  
