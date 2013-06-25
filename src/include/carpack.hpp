@@ -80,18 +80,30 @@ public:
     virtual std::pair<double, double> Predict();
     virtual arma::vec Simulate();
     
-private:
+protected:
     // measured time series
     arma::vec& time_;
     arma::vec& y_;
     arma::vec& yerr_;
-    // parameters
-    double sigsqr_;
-    double omega_;
     // kalman filter mean and variance at the time_ values
     arma::vec mean_;
     arma::vec var_;
+private:
+    // parameters
+    double sigsqr_;
+    double omega_;
 };
+
+class KalmanFilterp : public KalmanFilter1 {
+public:
+    // Constructor
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec omega);
+    
+private:
+    // parameters
+    double sigsqr_;
+    arma::cx_vec ar_roots_;
+}
 
 /*
  First-order continuous time autoregressive process (CAR(1)) class. Note that this is the same
