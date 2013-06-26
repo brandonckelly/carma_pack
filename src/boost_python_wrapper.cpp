@@ -6,6 +6,7 @@
 #include <boost/python.hpp>
 #include <boost/python/numeric.hpp>
 #include <boost/python/extract.hpp>
+#include <boost/shared_ptr.hpp>
 #include <armadillo>
 #include "Python.h"
 #include "numpy/ndarrayobject.h"
@@ -47,22 +48,23 @@ numeric::array armaToNumeric2(std::vector<arma::vec> aa) {
     return extract<numeric::array>(na);
 }
 
-boost::python::tuple runWrapper(int sample_size, int burnin,
-                                numeric::array x, 
-                                numeric::array y, 
-                                numeric::array dy, 
-                                int p, int nwalkers, int thin=1) {
+boost::shared_ptr<CAR1> runWrapper(int sample_size, int burnin,
+                                   numeric::array x, 
+                                   numeric::array y, 
+                                   numeric::array dy, 
+                                   int p, int nwalkers, int thin=1) {
     
     arma::vec ax(numericToArma(x));
     arma::vec ay(numericToArma(y));
     arma::vec ady(numericToArma(dy));
 
-    std::pair<std::vector<arma::vec>, std::vector<double> > runResults = 
-            RunEnsembleCarSampler(sample_size, burnin, ax, ay, ady, p, nwalkers, thin);
+    boost::shared_ptr<CAR1> retObject = 
+        RunEnsembleCarSampler(sample_size, burnin, ax, ay, ady, p, nwalkers, thin);
 
-    numeric::array convResults = armaToNumeric2(runResults.first);
-    numeric::array likeResults = vectorToNumeric(runResults.second);
-    return boost::python::make_tuple(likeResults, convResults);
+    //numeric::array convResults = armaToNumeric2(runResults.first);
+    //numeric::array likeResults = vectorToNumeric(runResults.second);
+    //return boost::python::make_tuple(likeResults, convResults);
+    return retObject;
 }
 
 struct CAR1Wrap : CAR1, wrapper<CAR1>
