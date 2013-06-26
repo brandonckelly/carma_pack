@@ -19,17 +19,16 @@
 #include <steps.hpp>
 #include <parameters.hpp>
 
-/*
- Class to perform the Kalman Filter and related operations for a zero-mean CAR(1) process (see below).
- This class will calculate the Kalman Filter, needed to calculate the log-likelihood in the CAR1
- parameter class. It will also provide interpolated, extrapolated, and simulated values given a 
- CAR(1) model and a measured time series.
+/* 
+ Abstract base class for the Kalman Filter.
  */
 
-class KalmanFilter1 {
+template <class OmegaType>
+class KalmanFilter {
 public:
     // Constructor
-    KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, double omega);
+    KalmanFilter(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, OmegaType omega) :
+    time_(time), y_(y), yerr_(yerr), sigsqr_(sigsqr), omega_(omega) {};
     
     // Methods to set and get the data
     void SetTime(arma::vec& time) {
@@ -58,10 +57,10 @@ public:
     double GetSigsqr() {
         return sigsqr_;
     }
-    virtual void SetOmega(double omega) {
+    void SetOmega(OmegaType omega) {
         omega_ = omega;
     }
-    virtual double GetOmega() {
+    OmegaType GetOmega() {
         return omega_;
     }
     
@@ -74,36 +73,57 @@ public:
     }
     
     // Methods to perform the Kalman Filter operations
-    virtual void Reset();
-    virtual void Update();
-    virtual void Filter();
-    virtual std::pair<double, double> Predict();
-    virtual arma::vec Simulate();
-    
+    virtual void Reset() = 0;
+    virtual void Update() = 0;
+    virtual void Filter() = 0;
+    virtual std::pair<double, double> Predict() = 0;
+    virtual arma::vec Simulate() = 0;
+
 protected:
-    // measured time series
+    // Data
     arma::vec& time_;
     arma::vec& y_;
     arma::vec& yerr_;
-    // kalman filter mean and variance at the time_ values
-    arma::vec mean_;
-    arma::vec var_;
-private:
-    // parameters
+    // Kalman mean and variance
+    arma::vec& mean_;
+    arma::vec& var_;
+    // The Kalman Filter parameters
     double sigsqr_;
-    double omega_;
+    OmegaType omega_;
 };
 
-class KalmanFilterp : public KalmanFilter1 {
+/*
+ Class to perform the Kalman Filter and related operations for a zero-mean CAR(1) process (see below).
+ This class will calculate the Kalman Filter, needed to calculate the log-likelihood in the CAR1
+ parameter class. It will also provide interpolated, extrapolated, and simulated values given a 
+ CAR(1) model and a measured time series.
+ */
+
+class KalmanFilter1 : public KalmanFilter<double> {};
+
+/*
+ Same as KalmanFilter1 but for a CARMA(p,q) process
+ */
+
+class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructor
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec omega);
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec omega, arma::vec ma_terms) :
+    KalmanFilter(time, y, yerr, sigsqr, omega), ma_terms_(ma_terms) {};
+    
+    // Set and get and moving average terms
+    void SetMA(arma::vec ma_terms) {
+        ma_terms_ = ma_terms;
+    }
+    arma::vec GetMA() {
+        return ma_terms_;
+    }
     
 private:
-    // parameters
-    double sigsqr_;
-    arma::cx_vec ar_roots_;
-}
+    // parameters 
+    arma::cx_vec ar_roots_; // ar_roots are derived from the values of omega_
+    arma::vec ma_terms_; // moving average terms
+};
 
 /*
  First-order continuous time autoregressive process (CAR(1)) class. Note that this is the same
