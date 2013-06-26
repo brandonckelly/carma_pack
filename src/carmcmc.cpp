@@ -17,6 +17,8 @@
 #include <fstream>
 #include <vector>
 #include <utility>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 // Include the MCMC sampler header files
 #include <random.hpp>
 #include <proposals.hpp>
@@ -28,7 +30,8 @@
 #include "include/carmcmc.hpp"
 
 // Run the MCMC sampler for a CAR(p) process
-std::pair<std::vector<arma::vec>, std::vector<double> > 
+//std::pair<std::vector<arma::vec>, std::vector<double> > 
+boost::shared_ptr<Parameter<arma::vec> >
 RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
                       arma::vec yerr, int p, int nwalkers, int thin)
 {
@@ -51,14 +54,19 @@ RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
 		// Add this walker to the ensemble
 		if (p == 1) {
 			// Doing a CAR(1) model
-			CarEnsemble.AddObject(new CAR1(false, "CAR(1) Parameters", time, y, yerr, temp_ladder(i)));
+            boost::shared_ptr<Parameter<arma::vec> > object = boost::make_shared<CAR1>
+                (new CAR1(false, "CAR(1) Parameters", time, y, yerr, temp_ladder(i)));
+            CarEnsemble.AddObject(object);
+
 		} else {
 			// Doing a CAR(p) model
-			CarEnsemble.AddObject(new CARp(false, "CAR(p) Parameters", time, y, yerr, p, temp_ladder(i)));
+            boost::shared_ptr<Parameter<arma::vec> > object = boost::make_shared<CARp>
+                (new CARp(false, "CAR(p) Parameters", time, y, yerr, p, temp_ladder(i)));
+			CarEnsemble.AddObject(object);
 		}
 		
 		// Set the prior parameters
-        CarEnsemble[i].SetPrior(max_stdev);
+        CarEnsemble[i]->SetPrior(max_stdev);
 	}
     
     // Report average acceptance rates at end of sampler
@@ -92,7 +100,7 @@ RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
     }
     
     // Make sure we set this parameter to be tracked
-    CarEnsemble[0].SetTracking(true);
+    CarEnsemble[0]->SetTracking(true);
     // Add in coolest chain. This is the chain that is actually moving in the posterior.
     CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, burnin) );
 
@@ -100,9 +108,12 @@ RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
     // output file provided by the user.
     
 	CarModel.Run();
-    
+
+    return CarEnsemble[0];
+    /*
     std::vector<arma::vec> car_samples = CarEnsemble[0].GetSamples();
     std::vector<double> car_likes = CarEnsemble[0].GetLogLikes();
 
     return std::make_pair(car_samples, car_likes);
+    */
 }

@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing
 
+import pdb; pdb.set_trace()
+
 colors = ["b", "g", "r", "m", "k"]
 
 def loadData(infile):

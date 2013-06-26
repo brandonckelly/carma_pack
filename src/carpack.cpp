@@ -34,7 +34,7 @@ extern RandomGenerator RandGen;
 // time data vector is strictly increasing, and sets the prior parameters
 // do the default values.
 
-CAR1::CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature) : 
+CAR1::CAR1(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, double temperature) : 
 Parameter<arma::vec>(track, name, temperature)
 {
 	// Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
@@ -551,7 +551,7 @@ void CARp::PrintInfo()
  ******************************************************************/
 
 // Constructor
-CARMA::CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature) :
+CARMA::CARMA(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, int p, double temperature) :
 	CAR1(track, name, time, y, yerr, temperature), p_(p) 
 {
 	value_.set_size(p_+2);

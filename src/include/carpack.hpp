@@ -49,7 +49,7 @@ class CAR1 : public Parameter<arma::vec> {
 	
 public:
 	// Constructor //
-	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0);
+	CAR1(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, double temperature=1.0);
 
 	virtual arma::vec StartingValue();
 	virtual std::string StringValue();
@@ -87,7 +87,7 @@ public:
 	// Compute the log-posterior
     virtual double LogPrior(arma::vec car1_value);
 	virtual double LogDensity(arma::vec car1_value);
-    
+
 protected:
 	// Data vectors
 	arma::vec time_;
@@ -114,7 +114,7 @@ protected:
 class CARp : public CAR1 {
 public:
     // Constructor
-    CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
+    CARp(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, int p, double temperature=1.0):
     CAR1(track, name, time, y, yerr, temperature), p_(p)
 	{ 
 		value_.set_size(p_+2);
@@ -149,7 +149,7 @@ class CARMA : public CAR1 {
 	
 public:
 	// Constructor //
-	CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0);
+	CARMA(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, int p, double temperature=1.0);
 
 	// Return the starting value and set log_posterior_
 	arma::vec StartingValue();
