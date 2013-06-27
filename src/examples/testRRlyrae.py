@@ -5,8 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing
 
-import pdb; pdb.set_trace()
-
 colors = ["b", "g", "r", "m", "k"]
 
 def loadData(infile):
@@ -35,8 +33,9 @@ def doit(args):
     nBurnin    = 1000
     nThin      = 1
     nWalkers   = 10
+    import pdb; pdb.set_trace()
+    sample = carmcmc.run_mcmc(nSample, nBurnin, x, y, dy, pModel, nWalkers, nThin)
 
-    logpost, params = carmcmc.run_mcmc(nSample, nBurnin, x, y, dy, pModel, nWalkers, nThin)
     if pModel == 1:
         sample = carmcmc.CarSample1(x, y, dy, logpost=logpost, trace=params)
     else:
@@ -50,6 +49,8 @@ if __name__ == "__main__":
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
+
+    doit((1,r))
 
     args = []
     #for f in (u, g, r, i , z):
