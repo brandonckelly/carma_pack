@@ -19,18 +19,20 @@
 
 using namespace boost::python;
 
+/*
 boost::shared_ptr<CAR1> runWrapper(int sample_size, int burnin,
                                    std::vector<double> x, 
                                    std::vector<double> y, 
                                    std::vector<double> dy, 
                                    int p, int nwalkers, int thin=1) {
 
-    /* We may still need this around to cast the return object */
+    // We may still need this around to cast the return object 
     boost::shared_ptr<CAR1> retObject = 
         RunEnsembleCarSampler(sample_size, burnin, x, y, dy, p, nwalkers, thin);
 
     return retObject;
 }
+*/
 
 BOOST_PYTHON_MODULE(_carmcmc){
     import_array();
@@ -42,7 +44,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<std::vector<std::vector<double > > >("vecvecD")
         .def(vector_indexing_suite<std::vector<std::vector<double> > >());
 
-    class_<CAR1>("CAR1", no_init)
+    class_<CAR1, boost::shared_ptr<CAR1> >("CAR1", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,optional<double> >())
         .def("getLogPrior", &CAR1::getLogPrior)
         .def("getLogDensity", &CAR1::getLogDensity)
@@ -50,26 +52,18 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("GetLogLikes", &CAR1::GetLogLikes)
     ;
 
-    class_<CARp>("CARp", no_init)
+    class_<CARp, bases<CAR1>, boost::shared_ptr<CARp> >("CARp", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
         .def("getLogPrior", &CARp::getLogPrior)
         .def("getLogDensity", &CARp::getLogDensity)
-        .def("getSamples", &CARp::GetSamples)
-        .def("GetLogLikes", &CARp::GetLogLikes)
     ;
 
-    class_<CARMA>("CARMA", no_init)
+    class_<CARMA, bases<CAR1>, boost::shared_ptr<CARMA> >("CARMA", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
         .def("getLogPrior", &CARMA::getLogPrior)
         .def("getLogDensity", &CARMA::getLogDensity)
-        .def("getSamples", &CARMA::GetSamples)
-        .def("GetLogLikes", &CARMA::GetLogLikes)
     ;
     
-    def("run_mcmc", RunEnsembleCarSampler);
-
-    register_ptr_to_python< boost::shared_ptr<CAR1> >();
-    register_ptr_to_python< boost::shared_ptr<CARp> >();
-    register_ptr_to_python< boost::shared_ptr<CARMA> >();
-
+    def("run_mcmc1", RunEnsembleCarSampler1);
+    def("run_mcmcp", RunEnsembleCarSamplerp);
 };
