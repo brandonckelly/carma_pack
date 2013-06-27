@@ -41,7 +41,6 @@ def configuration(parent_package='', top_path=None):
     )
     config.add_data_dir(("../../../../include", "include"))
     config.add_data_dir(("../../../../examples", "examples"))
-    config.test_suite = "tests/testCarmcmc"
     return config
 
 
