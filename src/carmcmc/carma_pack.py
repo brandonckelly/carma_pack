@@ -12,7 +12,7 @@ class CarSample(samplers.MCMCSample):
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
     """
 
-    def __init__(self, time, y, ysig, sampler, filename=None):
+    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
         """
         Constructor for the class. Right same as its superclass.
 
@@ -21,11 +21,6 @@ class CarSample(samplers.MCMCSample):
         self.time = time  # The time values of the time series
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
-
-        self.sampler = sampler # Wrapper around C++ sampler
-        logpost = np.array(self.sampler.GetLogLikes())
-        trace = np.array(self.sampler.getSamples())
-
         super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         # now calculate the CAR(p) characteristic polynomial roots, coefficients, and amplitude of driving noise and
@@ -865,16 +860,11 @@ def carp_process(time, sigsqr, ar_roots):
 
 
 class CarSample1(CarSample):
-    def __init__(self, time, y, ysig, sampler, filename=None):
+    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
         self.time = time  # The time values of the time series
         self.y = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.p = 1     # How many AR terms
-
-        self.sampler = sampler # Wrapper around C++ sampler
-        logpost = np.array(self.sampler.GetLogLikes())
-        trace = np.array(self.sampler.getSamples())
-
         super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         print "Calculating coefficients of AR polynomial..."

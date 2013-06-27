@@ -7,22 +7,14 @@ import matplotlib.pyplot as plt
 infile = sys.argv[1]
 x, y, dy = np.loadtxt(sys.argv[1], unpack=True)
 
-# Should not have to do this...
-xv         = carmcmc.vecD()
-xv.extend(x)
-yv         = carmcmc.vecD()
-yv.extend(y)
-dyv        = carmcmc.vecD()
-dyv.extend(dy)
-
 nSample = 25000
 nBurnin = 5000
 nThin = 1
 nWalkers = 10
 pModel = 4
 
-sampler = carmcmc.run_mcmc(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
-sample = carmcmc.CarSample(x, y, dy, sampler)
+logpost, params = carmcmc.run_mcmc(nSample, nBurnin, x, y, dy, pModel, nWalkers, nThin)
+sample = carmcmc.CarSample(x, y, dy, logpost=logpost, trace=params)
 
 #sample.autocorr_timescale(sample._samples["ar_coefs"])
 sample.posterior_summaries("log_centroid")
