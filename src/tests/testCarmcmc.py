@@ -39,7 +39,6 @@ class TestCarpackOrder(unittest.TestCase):
                                      pModel, 
                                      self.nWalkers, self.nThin)
         psampler = carmcmc.CarSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
-        import pdb; pdb.set_trace()
         self.assertEqual(psampler.p, pModel)
 
         psamples  = np.array(psampler.sampler.getSamples())
