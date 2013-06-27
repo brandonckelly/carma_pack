@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from os import environ
 import yamcmcpp.samplers as samplers
+import _carmcmc as carmcmcLib
 
 
 class CarSample(samplers.MCMCSample):
@@ -424,7 +425,7 @@ class CarSample(samplers.MCMCSample):
 
         return ysim
 
-    def DIC(self, bestfit="mean"):
+    def DIC(self, bestfit="median"):
         """ 
         Calculate the Deviance Information Criterion for the model.
 
@@ -432,35 +433,23 @@ class CarSample(samplers.MCMCSample):
         Minus 2 times the value of chi2 using the mean/median parameters
         """
 
-        # Need to calculate chi2 until logpost is returned by sampler
-        nsamp = self._samples["sigma"].shape[0]
-        chi2 = np.empty(nsamp)
-        loglik = np.empty(nsamp)
-        for i in xrange(nsamp):
-            kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, self._samples['sigma'][i] ** 2,
-                                   self._samples['ar_roots'][i])
-            kmean, kvar = kfilter.filter()
-            chi2[i] = np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
-            loglik[i] = -0.5 * np.sum(np.log(kvar)) - 0.5 * chi2
-        self._samples["chi2"] = chi2
-        self._samples["loglik"] = loglik
-
-        if bestfit == 'median':
-            sigsqr = np.median(self._samples['sigma']) ** 2
-            ar_roots = np.median(self._samples['ar_roots'], axis=0)
-            loglik = np.median(self._samples["loglik"])
+        # Easier to do it here than undo what happens in generate_from_trace
+        rawSamples = np.array(self.sampler.getSamples())
+        
+        if bestfit == "median":
+            dicPars = np.median(rawSamples, axis=0)
+            logLike = np.median(self._samples['logpost'], axis=0)
         else:
-            sigsqr = np.mean(self._samples['sigma'] ** 2)
-            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
-            loglik = np.mean(self._samples["loglik"])
+            dicPars = np.mean(rawSamples, axis=0)
+            logLike = np.mean(self._samples['logpost'], axis=0)
 
-        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
-        kmean, kvar = kfilter.filter()
-        loglik_hat = -0.5 * np.sum(np.log(kvar)) - 0.5 * np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
-        p = -2.0 * loglik + 2.0 * loglik_hat
+        dicVec = carmcmcLib.vecD()
+        dicVec.extend(dicPars)
+        logLikePar = self.sampler.getLogDensity(dicVec)
 
-        return -2.0 * loglik + 2 * p
-
+        dicp = -2 * logLike + 2 * logLikePar
+        dic  = -2 * logLike + 2 * dicp
+        return dic
 
 class KalmanFilter(object):
     def __init__(self, time, y, yvar, sigsqr, ar_roots):

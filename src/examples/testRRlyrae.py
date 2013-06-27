@@ -29,8 +29,8 @@ def doit(args):
     pModel   = int(args[0])
     x, y, dy = args[1]
 
-    nSample    = 10000
-    nBurnin    = 1000
+    nSample    = 100000
+    nBurnin    = 10000
     nThin      = 1
     nWalkers   = 10
 
@@ -42,13 +42,16 @@ def doit(args):
     dyv        = carmcmc.vecD()
     dyv.extend(dy)
 
-    import pdb; pdb.set_trace()
-    sampler = carmcmc.run_mcmc(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
-
     if pModel == 1:
-        return carmcmc.CarSample1(x, y, dy, sampler)
+        sampler = carmcmc.run_mcmc1(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
+        samplep = carmcmc.CarSample1(x, y, dy, sampler)
     else:
-        return carmcmc.CarSample(x, y, dy, sampler)
+        sampler = carmcmc.run_mcmcp(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
+        samplep = carmcmc.CarSample(x, y, dy, sampler)
+        
+    dic = samplep.DIC()
+    print "DIC", pModel, dic
+    return dic
     
 
 if __name__ == "__main__":
@@ -57,12 +60,12 @@ if __name__ == "__main__":
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
 
-    doit((1,r))
+    #doit((2,r))
 
     args = []
     #for f in (u, g, r, i , z):
     for f in (r,):
-        for pModel in np.arange(1, 3):
+        for pModel in np.arange(1, 15):
             args.append((pModel, f))
     results = pool.map(doit, args)
     import pdb; pdb.set_trace()
