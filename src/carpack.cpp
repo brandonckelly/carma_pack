@@ -13,6 +13,9 @@
 #include <complex>
 #include <iostream>
 
+// Armadillo includes
+#include <armadillo>
+
 // Boost includes
 #include <boost/math/special_functions/binomial.hpp>
 
@@ -34,7 +37,7 @@ extern RandomGenerator RandGen;
 // time data vector is strictly increasing, and sets the prior parameters
 // do the default values.
 
-CAR1::CAR1(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, double temperature) : 
+CAR1::CAR1(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, double temperature) : 
 Parameter<arma::vec>(track, name, temperature)
 {
 	// Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
@@ -42,21 +45,22 @@ Parameter<arma::vec>(track, name, temperature)
 	// Set the degrees of freedom for the prior on the measurement error scaling parameter
 	measerr_dof_ = 100;
 	
-    y_ = y - arma::mean(y); // center the time series
-    time_ = time;
-    yerr_ = yerr;
-	int ndata = time.n_rows;
+    y_  = arma::conv_to<arma::vec>::from(y);
+    y_ -= arma::mean(y_); // center the time series
+    time_ = arma::conv_to<arma::vec>::from(time);
+    yerr_ = arma::conv_to<arma::vec>::from(yerr);
+	int ndata = time_.n_rows;
 	
-	dt_ = time(arma::span(1,ndata-1)) - time(arma::span(0,ndata-2));
+	dt_ = time_(arma::span(1,ndata-1)) - time_(arma::span(0,ndata-2));
 	// Make sure the time vector is strictly increasing
 	if (dt_.min() < 0) {
 		std::cout << "Time vector is not sorted in increasing order. Sorting the data vectors..." 
 		<< std::endl;
 		// Sort the time values such that dt > 0
 		arma::uvec sorted_indices = arma::sort_index(time_);
-		time_ = time.elem(sorted_indices);
+		time_ = time_.elem(sorted_indices);
 		y_ = y_.elem(sorted_indices);
-		yerr_ = yerr.elem(sorted_indices);
+		yerr_ = yerr_.elem(sorted_indices);
 		dt_ = time_.rows(1,ndata-1) - time_.rows(0,ndata-2);
 	}
 	// Make sure there are no duplicate values of time
@@ -69,7 +73,7 @@ Parameter<arma::vec>(track, name, temperature)
 		time_ = time_.elem(unique_values);
 		y_ = y_.elem(unique_values);
 		yerr_ = yerr_.elem(unique_values);
-		ndata = time.n_elem;
+		ndata = time_.n_elem;
 		dt_.set_size(ndata-1);
 		dt_ = time_.rows(1,time_.n_elem-1) - time_.rows(0,time_.n_elem-2);
 	}
@@ -229,6 +233,13 @@ double CAR1::LogPrior(arma::vec car1_value)
     return logprior;
 }
 
+// Return the log-prior for a CAR(1) process
+double CAR1::getLogPrior(std::vector<double> car1_value)
+{
+    arma::vec armaVec = arma::conv_to<arma::vec>::from(car1_value);
+    return LogPrior(armaVec);
+}
+
 // Method of CAR1 to compute the log-posterior as a function of the 
 // parameter vector
 double CAR1::LogDensity(arma::vec car1_value)
@@ -261,6 +272,12 @@ double CAR1::LogDensity(arma::vec car1_value)
     
 	return logpost;
 }
+double CAR1::getLogDensity(std::vector<double> car1_value)
+{
+    arma::vec armaVec = arma::conv_to<arma::vec>::from(car1_value);
+    return LogDensity(armaVec);
+}
+
 
 // Return the Kalman Filter Mean
 arma::vec CAR1::GetKalmanMean()
@@ -508,6 +525,15 @@ double CARp::LogDensity(arma::vec theta)
     return logpost;
 }
 
+// Calculate the logarithm of the posterior
+double CARp::getLogDensity(std::vector<double> theta)
+{
+    arma::vec armaVec = arma::conv_to<arma::vec>::from(theta);
+    return LogDensity(armaVec);
+}
+
+
+
 // Calculate the variance of the CAR(p) process
 double CARp::Variance(arma::cx_vec alpha_roots, double sigma)
 {
@@ -551,7 +577,7 @@ void CARp::PrintInfo()
  ******************************************************************/
 
 // Constructor
-CARMA::CARMA(bool track, std::string name, arma::vec time, arma::vec y, arma::vec yerr, int p, double temperature) :
+CARMA::CARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p, double temperature) :
 	CAR1(track, name, time, y, yerr, temperature), p_(p) 
 {
 	value_.set_size(p_+2);
@@ -948,6 +974,12 @@ double CARMA::LogDensity(arma::vec car_value) {
     
 	return logpost;
 }
+
+// Calculate the logarithm of the posterior
+double CARMA::getLogDensity(std::vector<double> car_value) {
+    arma::vec armaVec = arma::conv_to<arma::vec>::from(car_value);
+    return LogDensity(armaVec);
+}    
 
 // Set the value of kappa, the prescribed moving average term.
 void CARMA::SetKappa(double kappa) 
