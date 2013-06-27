@@ -17,6 +17,9 @@
 #include <fstream>
 #include <vector>
 #include <utility>
+#include <numeric>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 // Include the MCMC sampler header files
 #include <random.hpp>
 #include <proposals.hpp>
@@ -28,17 +31,22 @@
 #include "include/carmcmc.hpp"
 
 // Run the MCMC sampler for a CAR(p) process
-std::pair<std::vector<arma::vec>, std::vector<double> > 
-RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
-                      arma::vec yerr, int p, int nwalkers, int thin)
+boost::shared_ptr<CAR1>
+RunEnsembleCarSampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y,
+                      std::vector<double> yerr, int p, int nwalkers, int thin)
 {
     // Instantiate MCMC Sampler object for CAR process
 	Sampler CarModel(sample_size, burnin, thin);
 	
 	// Construct the parameter ensemble
     Ensemble<CAR1> CarEnsemble;
-    
-	double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
+
+    double sum = std::accumulate(y.begin(), y.end(), 0.0);
+    double mean = sum / y.size();
+    double sq_sum = std::inner_product(y.begin(), y.end(), y.begin(), 0.0);
+    double var = (sq_sum / y.size() - mean * mean);
+
+	double max_stdev = 10.0 * std::sqrt(var); // For prior: maximum standard-deviation of CAR(1) process
     
     // Set the temperature ladder. The logarithms of the temperatures are on a linear grid
     double max_temperature = 100.0;
@@ -51,10 +59,10 @@ RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
 		// Add this walker to the ensemble
 		if (p == 1) {
 			// Doing a CAR(1) model
-			CarEnsemble.AddObject(new CAR1(false, "CAR(1) Parameters", time, y, yerr, temp_ladder(i)));
+            CarEnsemble.AddObject(new CAR1(false, "CAR(1) Parameters", time, y, yerr, temp_ladder(i)));
 		} else {
 			// Doing a CAR(p) model
-			CarEnsemble.AddObject(new CARp(false, "CAR(p) Parameters", time, y, yerr, p, temp_ladder(i)));
+            CarEnsemble.AddObject(new CARp(false, "CAR(p) Parameters", time, y, yerr, p, temp_ladder(i)));
 		}
 		
 		// Set the prior parameters
@@ -72,7 +80,7 @@ RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
 	arma::mat prop_covar(2+p,2+p);
 	prop_covar.eye();
 	prop_covar.diag() = prop_covar.diag() * 0.01 * 0.01;
-    prop_covar(0,0) = 2.0 * arma::var(y) * arma::var(y) / y.n_elem;
+    prop_covar(0,0) = 2.0 * var * var / y.size();
     
 	// Instantiate base proposal object
     StudentProposal RAMProp(8.0, 1.0);
@@ -100,9 +108,6 @@ RunEnsembleCarSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
     // output file provided by the user.
     
 	CarModel.Run();
-    
-    std::vector<arma::vec> car_samples = CarEnsemble[0].GetSamples();
-    std::vector<double> car_likes = CarEnsemble[0].GetLogLikes();
-
-    return std::make_pair(car_samples, car_likes);
+    boost::shared_ptr<CAR1> retObject = boost::make_shared<CAR1>(CarEnsemble[0]);
+    return retObject;
 }

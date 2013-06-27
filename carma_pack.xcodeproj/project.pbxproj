@@ -80,7 +80,6 @@
 		DFBDE8551778CD3E00762288 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		DFBDE8561778CD3E00762288 /* README.rst */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.rst; sourceTree = "<group>"; };
 		DFBDE8571778CD3E00762288 /* setup.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = setup.py; sourceTree = "<group>"; };
-		DFBDE8581778CD3E00762288 /* setup_bkelly.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = setup_bkelly.py; sourceTree = "<group>"; };
 		DFBDE85A1778CD3E00762288 /* carma_pack.table */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = carma_pack.table; sourceTree = "<group>"; };
 		DFBDE8651778CE6200762288 /* libyamcmcpp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libyamcmcpp.a; path = ../../lib/libyamcmcpp.a; sourceTree = "<group>"; };
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -155,7 +154,6 @@
 				DFBDE8551778CD3E00762288 /* Makefile */,
 				DFBDE8561778CD3E00762288 /* README.rst */,
 				DFBDE8571778CD3E00762288 /* setup.py */,
-				DFBDE8581778CD3E00762288 /* setup_bkelly.py */,
 				DFBDE8591778CD3E00762288 /* ups */,
 			);
 			path = src;
