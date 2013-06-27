@@ -13,6 +13,8 @@
 		556E3D3E1766A39F00C3A045 /* libarmadillo.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */; };
 		556E3D3F1766A39F00C3A045 /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */; };
 		556E3D401766A39F00C3A045 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764A17349F49006CB328 /* libboost_system.dylib */; };
+		DF4DAD12177CF6900007879A /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
+		DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
 		DFA8DA9617712B3600C76A3E /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = DFA8DA9517712B3600C76A3E /* Makefile */; };
 		DFBDE85C1778CD3E00762288 /* boost_python_wrapper.o in Frameworks */ = {isa = PBXBuildFile; fileRef = DFBDE8411778CD3E00762288 /* boost_python_wrapper.o */; };
 		DFBDE85D1778CD3E00762288 /* carmcmc.o in Frameworks */ = {isa = PBXBuildFile; fileRef = DFBDE8421778CD3E00762288 /* carmcmc.o */; };
@@ -54,6 +56,8 @@
 		555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.dylib; path = /usr/local/lib/libarmadillo.dylib; sourceTree = "<absolute>"; };
 		556E3D301766895F00C3A045 /* carma_unit_tests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_unit_tests; sourceTree = BUILT_PRODUCTS_DIR; };
 		556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carma_unit_tests.cpp; path = tests/carma_unit_tests.cpp; sourceTree = "<group>"; };
+		DF4DAD10177CF6900007879A /* kfilter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kfilter.cpp; sourceTree = "<group>"; };
+		DF4DAD14177CF6BE0007879A /* kfilter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = kfilter.hpp; sourceTree = "<group>"; };
 		DFA8DA9517712B3600C76A3E /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = "<group>"; };
 		DFA8DA9917712B6900C76A3E /* car1_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car1_test.dat; sourceTree = "<group>"; };
 		DFA8DA9A17712B6900C76A3E /* car5_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car5_test.dat; sourceTree = "<group>"; };
@@ -80,7 +84,6 @@
 		DFBDE8551778CD3E00762288 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		DFBDE8561778CD3E00762288 /* README.rst */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.rst; sourceTree = "<group>"; };
 		DFBDE8571778CD3E00762288 /* setup.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = setup.py; sourceTree = "<group>"; };
-		DFBDE8581778CD3E00762288 /* setup_bkelly.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = setup_bkelly.py; sourceTree = "<group>"; };
 		DFBDE85A1778CD3E00762288 /* carma_pack.table */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = carma_pack.table; sourceTree = "<group>"; };
 		DFBDE8651778CE6200762288 /* libyamcmcpp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libyamcmcpp.a; path = ../../lib/libyamcmcpp.a; sourceTree = "<group>"; };
 		DFD8B80F172B290C006D6BAB /* carma_pack */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_pack; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -155,8 +158,8 @@
 				DFBDE8551778CD3E00762288 /* Makefile */,
 				DFBDE8561778CD3E00762288 /* README.rst */,
 				DFBDE8571778CD3E00762288 /* setup.py */,
-				DFBDE8581778CD3E00762288 /* setup_bkelly.py */,
 				DFBDE8591778CD3E00762288 /* ups */,
+				DF4DAD10177CF6900007879A /* kfilter.cpp */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -221,6 +224,7 @@
 		DFBDE8521778CD3E00762288 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				DF4DAD14177CF6BE0007879A /* kfilter.hpp */,
 				DFBDE8531778CD3E00762288 /* carmcmc.hpp */,
 				DFBDE8541778CD3E00762288 /* carpack.hpp */,
 			);
@@ -339,6 +343,7 @@
 				556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */,
 				DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */,
 				DFBDE8641778CD6700762288 /* carpack.cpp in Sources */,
+				DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -350,6 +355,7 @@
 				DFBDE8601778CD3E00762288 /* carmcmc.cpp in Sources */,
 				DFBDE8611778CD3E00762288 /* carpack.cpp in Sources */,
 				DFBDE8621778CD3E00762288 /* Makefile in Sources */,
+				DF4DAD12177CF6900007879A /* kfilter.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
