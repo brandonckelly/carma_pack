@@ -19,115 +19,10 @@
 #include <steps.hpp>
 #include <parameters.hpp>
 
-/* 
- Abstract base class for the Kalman Filter.
- */
-
-template <class OmegaType>
-class KalmanFilter {
-public:
-    // Constructor
-    KalmanFilter(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, OmegaType omega) :
-    time_(time), y_(y), yerr_(yerr), sigsqr_(sigsqr), omega_(omega) {};
-    
-    // Methods to set and get the data
-    void SetTime(arma::vec& time) {
-        time_ = time;
-    }
-    arma::vec GetTime() {
-        return time_;
-    }
-    void SetTimeSeries(arma::vec& y) {
-        y_ = y;
-    }
-    arma::vec GetTimeSeries() {
-        return y_;
-    }
-    void SetTimeSeriesErr(arma::vec& yerr) {
-        yerr_ = yerr;
-    }
-    arma::vec GetTimeSeriesErr() {
-        return yerr_;
-    }
-    
-    // Methods to set and get the parameter values
-    void SetSigsqr(double sigsqr) {
-        sigsqr_ = sigsqr;
-    }
-    double GetSigsqr() {
-        return sigsqr_;
-    }
-    void SetOmega(OmegaType omega) {
-        omega_ = omega;
-    }
-    OmegaType GetOmega() {
-        return omega_;
-    }
-    
-    // Methods to get the kalman filter mean and variance
-    arma::vec GetMean() {
-        return mean_;
-    }
-    arma::vec GetVariance() {
-        return var_;
-    }
-    
-    // Methods to perform the Kalman Filter operations
-    virtual void Reset() = 0;
-    virtual void Update() = 0;
-    virtual void Filter() = 0;
-    virtual std::pair<double, double> Predict() = 0;
-    virtual arma::vec Simulate() = 0;
-
-protected:
-    // Data
-    arma::vec& time_;
-    arma::vec& y_;
-    arma::vec& yerr_;
-    // Kalman mean and variance
-    arma::vec& mean_;
-    arma::vec& var_;
-    // The Kalman Filter parameters
-    double sigsqr_;
-    OmegaType omega_;
-};
-
 /*
- Class to perform the Kalman Filter and related operations for a zero-mean CAR(1) process (see below).
- This class will calculate the Kalman Filter, needed to calculate the log-likelihood in the CAR1
- parameter class. It will also provide interpolated, extrapolated, and simulated values given a 
- CAR(1) model and a measured time series.
- */
-
-class KalmanFilter1 : public KalmanFilter<double> {};
-
-/*
- Same as KalmanFilter1 but for a CARMA(p,q) process
- */
-
-class KalmanFilterp : public KalmanFilter<arma::vec> {
-public:
-    // Constructor
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec omega, arma::vec ma_terms) :
-    KalmanFilter(time, y, yerr, sigsqr, omega), ma_terms_(ma_terms) {};
-    
-    // Set and get and moving average terms
-    void SetMA(arma::vec ma_terms) {
-        ma_terms_ = ma_terms;
-    }
-    arma::vec GetMA() {
-        return ma_terms_;
-    }
-    
-private:
-    // parameters 
-    arma::cx_vec ar_roots_; // ar_roots are derived from the values of omega_
-    arma::vec ma_terms_; // moving average terms
-};
-
-/*
- First-order continuous time autoregressive process (CAR(1)) class. Note that this is the same
- as an Ornstein-Uhlenbeck process. A CAR(1) process, Y(t), is defined as
+ First-order continuous time autoregressive process (CAR(1)) class, for input into
+ MYMCMC. Note that this is the same same as a Ornstein-Uhlenbeck process. A CAR(1) 
+ process, Y(t), is defined as
  
  dY(t) = -omega * (Y(t) - mu) * dt + sigma * dW(t),
  
@@ -154,7 +49,7 @@ class CAR1 : public Parameter<arma::vec> {
 	
 public:
 	// Constructor //
-	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0);
+	CAR1(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, double temperature=1.0);
 
 	virtual arma::vec StartingValue();
 	virtual std::string StringValue();
@@ -192,7 +87,10 @@ public:
 	// Compute the log-posterior
     virtual double LogPrior(arma::vec car1_value);
 	virtual double LogDensity(arma::vec car1_value);
-    
+
+    virtual double getLogPrior(std::vector<double> car1_value);
+	virtual double getLogDensity(std::vector<double> car1_value);
+
 protected:
 	// Data vectors
 	arma::vec time_;
@@ -219,7 +117,7 @@ protected:
 class CARp : public CAR1 {
 public:
     // Constructor
-    CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
+    CARp(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p, double temperature=1.0):
     CAR1(track, name, time, y, yerr, temperature), p_(p)
 	{ 
 		value_.set_size(p_+2);
@@ -233,6 +131,7 @@ public:
 	
 	// Calculate the logarithm of the posterior
 	double LogDensity(arma::vec theta);
+	double getLogDensity(std::vector<double> theta);
     
     // Calculate the variance of the CAR(p) process
     double Variance(arma::cx_vec alpha_roots, double sigma);
@@ -254,7 +153,7 @@ class CARMA : public CAR1 {
 	
 public:
 	// Constructor //
-	CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0);
+	CARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p, double temperature=1.0);
 
 	// Return the starting value and set log_posterior_
 	arma::vec StartingValue();
@@ -270,6 +169,7 @@ public:
 	
 	// Calculate the logarithm of the posterior
 	double LogDensity(arma::vec car_value);
+	double getLogDensity(std::vector<double> car_value);
     
     // Calculate the variance of the CAR(p) process
     double Variance(arma::cx_vec alpha_roots, double sigma);
