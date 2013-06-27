@@ -153,13 +153,13 @@
 				DFBDE8471778CD3E00762288 /* carmcmc */,
 				DFBDE84C1778CD3E00762288 /* carmcmc.cpp */,
 				DFBDE84D1778CD3E00762288 /* carpack.cpp */,
+				DF4DAD10177CF6900007879A /* kfilter.cpp */,
 				DFBDE84E1778CD3E00762288 /* examples */,
 				DFBDE8521778CD3E00762288 /* include */,
 				DFBDE8551778CD3E00762288 /* Makefile */,
 				DFBDE8561778CD3E00762288 /* README.rst */,
 				DFBDE8571778CD3E00762288 /* setup.py */,
 				DFBDE8591778CD3E00762288 /* ups */,
-				DF4DAD10177CF6900007879A /* kfilter.cpp */,
 			);
 			path = src;
 			sourceTree = "<group>";

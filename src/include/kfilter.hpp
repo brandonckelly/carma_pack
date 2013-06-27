@@ -21,7 +21,13 @@ class KalmanFilter {
 public:
     // Constructor
     KalmanFilter(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, OmegaType omega) :
-    time_(time), y_(y), yerr_(yerr), sigsqr_(sigsqr), omega_(omega) {};
+    time_(time), y_(y), yerr_(yerr), sigsqr_(sigsqr), omega_(omega)
+    {
+        dt_ = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time.n_elem-2));
+        mean_.set_size(time.n_elem);
+        var_.set_size(time.n_elem);
+        Filter();
+    }
     
     // Methods to set and get the data
     void SetTime(arma::vec& time) {
@@ -65,21 +71,32 @@ public:
         return var_;
     }
     
-    // Methods to perform the Kalman Filter operations
+    /* 
+     Methods to perform the Kalman Filter operations 
+     */
     virtual void Reset() = 0;
     virtual void Update() = 0;
-    virtual void Filter() = 0;
-    virtual std::pair<double, double> Predict() = 0;
-    virtual arma::vec Simulate() = 0;
+    
+    void Filter() {
+        // Run the Kalman Filter
+        Reset();
+        for (int i=1; i<time_.n_elem; i++) {
+            Update();
+        }
+    }
+    
+    virtual std::pair<double, double> Predict(double time) = 0;
+    virtual arma::vec Simulate(arma::vec time) = 0;
     
 protected:
     // Data
     arma::vec& time_;
+    arma::vec dt_;
     arma::vec& y_;
     arma::vec& yerr_;
     // Kalman mean and variance
-    arma::vec& mean_;
-    arma::vec& var_;
+    arma::vec mean_;
+    arma::vec var_;
     // The Kalman Filter parameters
     double sigsqr_;
     OmegaType omega_;
@@ -98,9 +115,8 @@ public:
     // Methods to perform the Kalman Filter operations
     virtual void Reset();
     virtual void Update();
-    virtual void Filter();
-    virtual std::pair<double, double> Predict();
-    virtual arma::vec Simulate();
+    virtual std::pair<double, double> Predict(double time);
+    virtual arma::vec Simulate(arma::vec time);
 };
 
 /*
@@ -111,7 +127,10 @@ class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructor
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec omega, arma::vec ma_terms) :
-    KalmanFilter(time, y, yerr, sigsqr, omega), ma_terms_(ma_terms) {};
+    KalmanFilter(time, y, yerr, sigsqr, omega), ma_terms_(ma_terms)
+    {
+        ar_roots_ = ARRoots(omega_);
+    }
     
     // Set and get and moving average terms
     void SetMA(arma::vec ma_terms) {
@@ -120,12 +139,14 @@ public:
     arma::vec GetMA() {
         return ma_terms_;
     }
+    // Compute the roots of the AR(p) polynomial from the PSD parameters, omega
+    arma::cx_vec ARRoots(arma::vec omega);
+    
     // Methods to perform the Kalman Filter operations
     virtual void Reset();
     virtual void Update();
-    virtual void Filter();
-    virtual std::pair<double, double> Predict();
-    virtual arma::vec Simulate();
+    virtual std::pair<double, double> Predict(double time);
+    virtual arma::vec Simulate(arma::vec time);
     
 private:
     // parameters
