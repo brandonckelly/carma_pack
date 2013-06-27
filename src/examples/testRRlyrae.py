@@ -34,21 +34,13 @@ def doit(args):
     nThin      = 1
     nWalkers   = 10
 
-    # Should not have to do this...
-    xv         = carmcmc.vecD()
-    xv.extend(x)
-    yv         = carmcmc.vecD()
-    yv.extend(y)
-    dyv        = carmcmc.vecD()
-    dyv.extend(dy)
-
-    import pdb; pdb.set_trace()
-    sampler = carmcmc.run_mcmc(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
-
+    logpost, params = carmcmc.run_mcmc(nSample, nBurnin, x, y, dy, pModel, nWalkers, nThin)
     if pModel == 1:
-        return carmcmc.CarSample1(x, y, dy, sampler)
+        sample = carmcmc.CarSample1(x, y, dy, logpost=logpost, trace=params)
     else:
-        return carmcmc.CarSample(x, y, dy, sampler)
+        sample = carmcmc.CarSample(x, y, dy, logpost=logpost, trace=params)
+    
+    return sample
     
 
 if __name__ == "__main__":
@@ -56,8 +48,6 @@ if __name__ == "__main__":
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
-
-    doit((1,r))
 
     args = []
     #for f in (u, g, r, i , z):
