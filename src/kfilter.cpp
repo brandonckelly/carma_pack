@@ -105,5 +105,38 @@ arma::vec KalmanFilter1::Simulate(arma::vec time) {
         double ysigma = sqrt(ypredict.second);
         ysimulated(i) = RandGen.normal(ymean, ysigma);
     }
+    return ysimulated;
 }
 
+// Calculate the roots of the AR(p) polynomial from the PSD parameters
+arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
+    arma::cx_vec ar_roots;
+    
+    return ar_roots;
+}
+
+// Reset the Kalman Filter for a CARMA(p,q) process
+void KalmanFilterp::Reset() {
+    
+}
+
+// Perform one iteration of the Kalman Filter for a CARMA(p,q) process to update it
+void KalmanFilterp::Update() {
+    
+}
+
+// Predict the time series at the input time given the measured time series, assuming a CARMA(p,q) process
+std::pair<double, double> KalmanFilterp::Predict(double time) {
+    
+    std::pair<double, double> ypredict;
+    
+    return ypredict;
+}
+
+// Simulate a CARMA(p,q) process at the input time values given the measured time series
+arma::vec KalmanFilterp::Simulate(arma::vec time) {
+    
+    arma::vec ysimulated;
+    
+    return ysimulated;
+}
