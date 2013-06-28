@@ -29,8 +29,8 @@ def doit(args):
     pModel   = int(args[0])
     x, y, dy = args[1]
 
-    nSample    = 1000000
-    nBurnin    = 100000
+    nSample    = 100000
+    nBurnin    = 10000
     nThin      = 1
     nWalkers   = 10
 
@@ -60,7 +60,8 @@ if __name__ == "__main__":
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
 
-    #doit((2,r))
+    samplep = doit((2,r))
+    import pdb; pdb.set_trace()
 
     args = []
     #for f in (u, g, r, i , z):
