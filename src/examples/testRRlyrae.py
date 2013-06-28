@@ -29,8 +29,8 @@ def doit(args):
     pModel   = int(args[0])
     x, y, dy = args[1]
 
-    nSample    = 100000
-    nBurnin    = 10000
+    nSample    = 1000000
+    nBurnin    = 100000
     nThin      = 1
     nWalkers   = 10
 
@@ -51,7 +51,7 @@ def doit(args):
         
     dic = samplep.DIC()
     print "DIC", pModel, dic
-    return dic
+    return samplep
     
 
 if __name__ == "__main__":
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     args = []
     #for f in (u, g, r, i , z):
     for f in (r,):
-        for pModel in np.arange(1, 15):
+        for pModel in np.arange(1, 13):
             args.append((pModel, f))
     results = pool.map(doit, args)
     import pdb; pdb.set_trace()
