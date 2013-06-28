@@ -29,30 +29,44 @@ def doit(args):
     pModel   = int(args[0])
     x, y, dy = args[1]
 
-    nSample    = 10000
-    nBurnin    = 1000
+    nSample    = 100000
+    nBurnin    = 10000
     nThin      = 1
     nWalkers   = 10
 
-    logpost, params = carmcmc.run_mcmc(nSample, nBurnin, x, y, dy, pModel, nWalkers, nThin)
+    # Should not have to do this...
+    xv         = carmcmc.vecD()
+    xv.extend(x)
+    yv         = carmcmc.vecD()
+    yv.extend(y)
+    dyv        = carmcmc.vecD()
+    dyv.extend(dy)
+
     if pModel == 1:
-        sample = carmcmc.CarSample1(x, y, dy, logpost=logpost, trace=params)
+        sampler = carmcmc.run_mcmc1(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
+        samplep = carmcmc.CarSample1(x, y, dy, sampler)
     else:
-        sample = carmcmc.CarSample(x, y, dy, logpost=logpost, trace=params)
-    
-    return sample
+        sampler = carmcmc.run_mcmcp(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
+        samplep = carmcmc.CarSample(x, y, dy, sampler)
+        
+    dic = samplep.DIC()
+    print "DIC", pModel, dic
+    return samplep
     
 
 if __name__ == "__main__":
-    u, g, r, i, z = loadData("/astro/users/acbecker/SDSS/RRLyrae/CAR/1640797.txt")
+    u, g, r, i, z = loadData("examples/1640797.txt")
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
 
+    samplep = doit((2,r))
+    import pdb; pdb.set_trace()
+
     args = []
     #for f in (u, g, r, i , z):
     for f in (r,):
-        for pModel in np.arange(1, 3):
+        for pModel in np.arange(1, 13):
             args.append((pModel, f))
     results = pool.map(doit, args)
     import pdb; pdb.set_trace()
