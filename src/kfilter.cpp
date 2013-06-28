@@ -137,18 +137,90 @@ arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
 // Reset the Kalman Filter for a CARMA(p,q) process
 void KalmanFilterp::Reset() {
     
+    // Initialize the matrix of Eigenvectors. We will work with the state vector
+	// in the space spanned by the Eigenvectors because in this space the state
+	// transition matrix is diagonal, so the calculation of the matrix exponential
+	// is fast.
+    arma::cx_mat EigenMat(p_,p_);
+	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);
+	EigenMat.row(1) = ar_roots_.st();
+	for (int i=2; i<p_; i++) {
+		EigenMat.row(i) = strans(arma::pow(ar_roots_, i));
+	}
+    
+	// Input vector under original state space representation
+	arma::cx_vec Rvector = arma::zeros<arma::cx_vec>(p_);
+	Rvector(p_-1) = 1.0;
+    
+	// Transform the input vector to the rotated state space representation.
+	// The notation R and J comes from Belcher et al. (1994).
+	arma::cx_vec Jvector(p_);
+	Jvector = arma::solve(EigenMat, Rvector);
+	
+	// Transform the moving average coefficients to the space spanned by EigenMat.
+
+    rotated_ma_coefs_ = ma_coefs_ * EigenMat;
+	
+	// Calculate the stationary covariance matrix of the state vector.
+	for (int i=0; i<p_; i++) {
+		for (int j=i; j<p_; j++) {
+			// Only fill in upper triangle of StateVar because of symmetry
+			StateVar_(i,j) = -sigsqr_ * Jvector(i) * std::conj(Jvector(j)) /
+            (ar_roots_(i) + std::conj(ar_roots_(j)));
+		}
+	}
+	StateVar_ = arma::symmatu(StateVar_); // StateVar is symmetric
+	PredictionVar_ = StateVar_; // One-step state prediction error
+	
+	state_vector_.zeros(); // Initial state is set to zero
+	
+	// Initialize the Kalman mean and variance. These are the forecasted value
+	// for the measured time series values and its variance, conditional on the
+	// previous measurements
+	mean_(0) = 0.0;
+    var_(0) = std::real( arma::accu(PredictionVar_) );
+    var_(0) += yerr_(0) * yerr_(0); // Add in measurement error contribution
+
+	double innovation_ = y_(0); // The innovation
+    current_index_ = 1;
 }
 
 // Perform one iteration of the Kalman Filter for a CARMA(p,q) process to update it
 void KalmanFilterp::Update() {
+    // First compute the Kalman Gain
+    kalman_gain_ = arma::sum(PredictionVar_, 1) * rotated_ma_coefs_.t() / var_(current_index_-1);
     
+    // Now update the state vector
+    state_vector_ += kalman_gain_ * innovation_;
+    
+    // Update the state one-step prediction error variance
+    PredictionVar_ -= var_(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
+    
+    // Predict the next state
+    rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
+    state_vector_ = rho_ % state_vector_;
+    state_vector_ = state_vector_ % rho_;
+    
+    // Update the predicted state variance matrix
+    PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
+    
+    // Now predict the observation and its variance.
+    mean_(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * state_vector_) );
+    
+    var_(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
+    var_(current_index_) += yerr_(current_index_) * yerr_(current_index_); // Add in measurement error contribution
+    
+    // Finally, update the innovation
+    innovation_ = y_(current_index_) - mean_(current_index_);
+    current_index_++;
 }
 
 // Predict the time series at the input time given the measured time series, assuming a CARMA(p,q) process
 std::pair<double, double> KalmanFilterp::Predict(double time) {
     
-    std::pair<double, double> ypredict;
     
+    
+    std::pair<double, double> ypredict;
     return ypredict;
 }
 

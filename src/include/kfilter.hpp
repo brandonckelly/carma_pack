@@ -26,7 +26,6 @@ public:
         dt_ = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time.n_elem-2));
         mean_.set_size(time.n_elem);
         var_.set_size(time.n_elem);
-        Filter();
     }
     
     // Methods to set and get the data
@@ -112,6 +111,10 @@ protected:
 
 class KalmanFilter1 : public KalmanFilter<double> {
 public:
+    // Constructor
+    KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, double omega) :
+        KalmanFilter(time, y, yerr, sigsqr, omega) {}
+    
     // Methods to perform the Kalman Filter operations
     virtual void Reset();
     virtual void Update();
@@ -126,18 +129,26 @@ public:
 class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructor
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec omega, arma::vec ma_terms) :
-    KalmanFilter(time, y, yerr, sigsqr, omega), ma_terms_(ma_terms)
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
+        KalmanFilter(time, y, yerr, sigsqr, omega), ma_coefs_(ma_coefs)
     {
         ar_roots_ = ARRoots(omega_);
+        
+        p_ = omega_.n_elem;
+        state_vector_.set_size(p_);
+        StateVar_.set_size(p_,p_);
+        PredictionVar_.set_size(p_,p_);
+        
+        q_ = ma_coefs_.n_elem;
+        rotated_ma_coefs_.set_size(q_);
     }
     
     // Set and get and moving average terms
-    void SetMA(arma::vec ma_terms) {
-        ma_terms_ = ma_terms;
+    void SetMA(arma::vec ma_coefs) {
+        ma_coefs_ = ma_coefs.st();
     }
     arma::vec GetMA() {
-        return ma_terms_;
+        return ma_coefs_.st();
     }
     // Compute the roots of the AR(p) polynomial from the PSD parameters, omega
     arma::cx_vec ARRoots(arma::vec omega);
@@ -151,7 +162,16 @@ public:
 private:
     // parameters
     arma::cx_vec ar_roots_; // ar_roots are derived from the values of omega_
-    arma::vec ma_terms_; // moving average terms
+    arma::rowvec ma_coefs_; // moving average terms
+    unsigned int p_, q_; // the orders of the CARMA process
+    // quantities updated in the kalman filter
+    arma::cx_vec state_vector_; // current value of the rotated state vector
+    arma::cx_mat StateVar_; // stationary covariance matrix of the rotated state vector
+    arma::cx_vec rotated_ma_coefs_; // rotated moving average coefficients
+    arma::cx_mat PredictionVar_; // covariance matrix of the predicted rotated state vector
+    arma::cx_vec kalman_gain_;
+    arma::cx_vec rho_;
+    double innovation_;
 };
 
 
