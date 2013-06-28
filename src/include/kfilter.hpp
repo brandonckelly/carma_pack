@@ -116,10 +116,10 @@ public:
         KalmanFilter(time, y, yerr, sigsqr, omega) {}
     
     // Methods to perform the Kalman Filter operations
-    virtual void Reset();
-    virtual void Update();
-    virtual std::pair<double, double> Predict(double time);
-    virtual arma::vec Simulate(arma::vec time);
+    void Reset();
+    void Update();
+    std::pair<double, double> Predict(double time);
+    arma::vec Simulate(arma::vec time);
 };
 
 /*
@@ -138,6 +138,10 @@ public:
         state_vector_.set_size(p_);
         StateVar_.set_size(p_,p_);
         PredictionVar_.set_size(p_,p_);
+        kalman_gain_.set_size(p_,p_);
+        rho_.set_size(p_,p_);
+        state_const_.set_size(p_);
+        state_slope_.set_size(p_);
         
         q_ = ma_coefs_.n_elem;
         rotated_ma_coefs_.set_size(q_);
@@ -154,17 +158,21 @@ public:
     arma::cx_vec ARRoots(arma::vec omega);
     
     // Methods to perform the Kalman Filter operations
-    virtual void Reset();
-    virtual void Update();
-    virtual std::pair<double, double> Predict(double time);
-    virtual arma::vec Simulate(arma::vec time);
+    void Reset();
+    void Update();
+    std::pair<double, double> Predict(double time);
+    arma::vec Simulate(arma::vec time);
+    
+    // Methods needed for interpolation and backcasting
+    void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
+    void UpdateCoefs();
     
 private:
     // parameters
     arma::cx_vec ar_roots_; // ar_roots are derived from the values of omega_
     arma::rowvec ma_coefs_; // moving average terms
     unsigned int p_, q_; // the orders of the CARMA process
-    // quantities updated in the kalman filter
+    // quantities defining the current state of the kalman filter
     arma::cx_vec state_vector_; // current value of the rotated state vector
     arma::cx_mat StateVar_; // stationary covariance matrix of the rotated state vector
     arma::cx_vec rotated_ma_coefs_; // rotated moving average coefficients
@@ -172,6 +180,11 @@ private:
     arma::cx_vec kalman_gain_;
     arma::cx_vec rho_;
     double innovation_;
+    // linear coefficients needed for doing interpolation or backcasting
+    arma::cx_vec state_const_;
+    arma::cx_vec state_slope_;
+    double yconst_, yslope_;
+    
 };
 
 
