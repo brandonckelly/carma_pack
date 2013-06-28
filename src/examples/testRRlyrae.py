@@ -55,7 +55,7 @@ def doit(args):
     
 
 if __name__ == "__main__":
-    u, g, r, i, z = loadData("/astro/users/acbecker/SDSS/RRLyrae/CAR/1640797.txt")
+    u, g, r, i, z = loadData("examples/1640797.txt")
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
