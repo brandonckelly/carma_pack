@@ -308,12 +308,31 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
     var_[itime] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
+    current_index_ = itime + 1;
 }
 
 // Update the coefficients need for computing the Kalman Filter at future times as a function of the
 // time series value at some earlier time
 void KalmanFilterp::UpdateCoefs() {
     
+    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_[current_index_-1];
+    // update the coefficients for predicting the state vector at coefs(i|i-1) --> coefs(i|i)
+    state_const_ += kalman_gain_ * (y_[current_index_-1] - yconst_);
+    state_slope_ -= kalman_gain_ * yslope_;
+    // update the state one-step prediction error variance
+    PredictionVar_ -= var_[current_index_-1] * (kalman_gain_ * kalman_gain_.t());
+    // compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
+    rho_ = arma::exp(ar_roots_ * dt_[current_index_-1]);
+    state_const_ = rho_ % state_const_;
+    state_slope_ = rho_ % state_slope_;
+    // update the predicted state covariance matrix
+    PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
+    // compute the coefficients for the linear filter at time[ipredict], and compute the variance in the predicted
+    // y[ipredict]
+    yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
+    yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
+    var_[current_index_] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
+    current_index_++;
 }
 
 // Simulate a CARMA(p,q) process at the input time values given the measured time series
