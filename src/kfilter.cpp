@@ -6,7 +6,14 @@
 //  Copyright (c) 2013 Brandon Kelly. All rights reserved.
 //
 
+#include <random.hpp>
 #include "include/kfilter.hpp"
+
+// Global random number generator object, instantiated in random.cpp
+extern boost::random::mt19937 rng;
+
+// Object containing some common random number generators.
+extern RandomGenerator RandGen;
 
 // Reset the Kalman Filter for a CAR(1) process
 void KalmanFilter1::Reset() {
@@ -87,3 +94,16 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     std::pair<double, double> ypredict(ypredict_mean, ypredict_var);
     return ypredict;
 }
+
+// Return a simulated time series conditional on the measured time series, assuming the CAR(1) model.
+arma::vec KalmanFilter1::Simulate(arma::vec time) {
+    unsigned int ntime = time.n_elem;
+    arma::vec ysimulated(ntime);
+    for (int i; i<ntime; i++) {
+        std::pair<double, double> ypredict = Predict(time(i));
+        double ymean = ypredict.first;
+        double ysigma = sqrt(ypredict.second);
+        ysimulated(i) = RandGen.normal(ymean, ysigma);
+    }
+}
+
