@@ -99,7 +99,7 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
 arma::vec KalmanFilter1::Simulate(arma::vec time) {
     unsigned int ntime = time.n_elem;
     arma::vec ysimulated(ntime);
-    for (int i; i<ntime; i++) {
+    for (int i=0; i<ntime; i++) {
         std::pair<double, double> ypredict = Predict(time(i));
         double ymean = ypredict.first;
         double ysigma = sqrt(ypredict.second);
@@ -110,7 +110,26 @@ arma::vec KalmanFilter1::Simulate(arma::vec time) {
 
 // Calculate the roots of the AR(p) polynomial from the PSD parameters
 arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
+    
     arma::cx_vec ar_roots;
+    int p = omega.n_elem;
+    
+    // Construct the complex vector of roots of the characteristic polynomial:
+    // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
+    for (int i=0; i<p/2; i++) {
+        double lorentz_cent = omega(2*i); // PSD is a sum of Lorentzian functions
+        double lorentz_width = omega(2*i+1);
+        ar_roots(2*i) = std::complex<double> (-lorentz_width,lorentz_cent);
+        ar_roots(2*i+1) = std::conj(ar_roots(2*i));
+    }
+	
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional low-frequency component
+        double lorentz_width = omega(p+1);
+        ar_roots(p-1) = std::complex<double> (-lorentz_width, 0.0);
+    }
+    
+    ar_roots *= 2.0 * arma::datum::pi;
     
     return ar_roots;
 }
