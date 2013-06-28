@@ -338,7 +338,34 @@ void KalmanFilterp::UpdateCoefs() {
 // Simulate a CARMA(p,q) process at the input time values given the measured time series
 arma::vec KalmanFilterp::Simulate(arma::vec time) {
     
-    arma::vec ysimulated;
+    // first save old values since we will overwrite them later
+    arma::vec time0 = time_;
+    arma::vec y0 = y_;
+    arma::vec yerr0 = yerr_;
+    
+    arma::vec ysimulated(time.n_elem);
+    
+    time = arma::sort(time);
+    unsigned int insert_idx = 0;
+    for (int i=0; i<time.n_elem; i++) {
+        // first simulate the value at time(i)
+        std::pair<double, double> ypredict = Predict(time(i));
+        ysimulated(i) = RandGen.normal(ypredict.first, sqrt(ypredict.second));
+        // find the index where time_[insert_idx-1] < time(i) < time_[insert_idx]
+        while (time_(insert_idx) < time(i)) {
+            insert_idx++;
+        }
+        // insert the simulated value into the measured time series array. these values are used in subsequent
+        // calls to Predict(time(i)).
+        time_.insert_rows(insert_idx, time(i));
+        y_.insert_rows(insert_idx, ysimulated(i));
+        yerr_.insert_rows(insert_idx, 0.0);
+    }
+        
+    // restore values of measured time series
+    time_ = time0;
+    y_ = y0;
+    yerr_ = yerr0;
     
     return ysimulated;
 }
