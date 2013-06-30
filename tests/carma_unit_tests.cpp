@@ -10,6 +10,7 @@
 #include <catch.hpp>
 #include "carmcmc.hpp"
 #include "carpack.hpp"
+#include "kfilter.hpp"
 #include <armadillo>
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
