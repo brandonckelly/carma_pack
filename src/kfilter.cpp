@@ -41,6 +41,8 @@ void KalmanFilter1::Update() {
     
     // add in contribution to variance from measurement errors
     var_(current_index_) += yerr_(current_index_) * yerr_(current_index_);
+    
+    current_index_++;
 }
 
 // Return the predicted value and its variance at time assuming a CAR(1) process
@@ -110,9 +112,9 @@ arma::vec KalmanFilter1::Simulate(arma::vec time) {
 
 // Calculate the roots of the AR(p) polynomial from the PSD parameters
 arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
-    
-    arma::cx_vec ar_roots;
+
     int p = omega.n_elem;
+    arma::cx_vec ar_roots(p);
     
     // Construct the complex vector of roots of the characteristic polynomial:
     // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
@@ -125,7 +127,7 @@ arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
 	
     if ((p % 2) == 1) {
         // p is odd, so add in additional low-frequency component
-        double lorentz_width = omega(p+1);
+        double lorentz_width = omega(p-1);
         ar_roots(p-1) = std::complex<double> (-lorentz_width, 0.0);
     }
     
@@ -199,7 +201,6 @@ void KalmanFilterp::Update() {
     // Predict the next state
     rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
     state_vector_ = rho_ % state_vector_;
-    state_vector_ = state_vector_ % rho_;
     
     // Update the predicted state variance matrix
     PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;

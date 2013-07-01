@@ -11,6 +11,7 @@
 
 #include <armadillo>
 #include <utility>
+#include <boost/assert.hpp>
 
 /*
  Abstract base class for the Kalman Filter of a CARMA(p,q) process.
@@ -53,8 +54,8 @@ public:
         }
         
         // Set the size of the Kalman Filter mean and variance vectors
-        mean_.set_size(time.n_elem);
-        var_.set_size(time.n_elem);
+        mean_.zeros(time.n_elem);
+        var_.zeros(time.n_elem);
     }
     
     // Methods to set and get the data
@@ -159,21 +160,23 @@ class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructor
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
-        KalmanFilter(time, y, yerr, sigsqr, omega), ma_coefs_(ma_coefs)
+        KalmanFilter(time, y, yerr, sigsqr, omega)
     {
+        SetMA(ma_coefs);
         ar_roots_ = ARRoots(omega_);
         
         p_ = omega_.n_elem;
-        state_vector_.set_size(p_);
-        StateVar_.set_size(p_,p_);
-        PredictionVar_.set_size(p_,p_);
-        kalman_gain_.set_size(p_,p_);
-        rho_.set_size(p_,p_);
-        state_const_.set_size(p_);
-        state_slope_.set_size(p_);
+        state_vector_.zeros(p_);
+        StateVar_.zeros(p_,p_);
+        PredictionVar_.zeros(p_,p_);
+        kalman_gain_.zeros(p_);
+        rho_.zeros(p_);
+        state_const_.zeros(p_);
+        state_slope_.zeros(p_);
         
-        q_ = ma_coefs_.n_elem;
-        rotated_ma_coefs_.set_size(q_);
+        int q = ma_coefs_.n_elem;
+        BOOST_ASSERT_MSG(q == p_, "ma_coefs must be same size as omega");
+        rotated_ma_coefs_.zeros(p_);
     }
     
     // Set and get and moving average terms
@@ -200,11 +203,11 @@ private:
     // parameters
     arma::cx_vec ar_roots_; // ar_roots are derived from the values of omega_
     arma::rowvec ma_coefs_; // moving average terms
-    unsigned int p_, q_; // the orders of the CARMA process
+    unsigned int p_; // the orders of the CARMA process
     // quantities defining the current state of the kalman filter
     arma::cx_vec state_vector_; // current value of the rotated state vector
     arma::cx_mat StateVar_; // stationary covariance matrix of the rotated state vector
-    arma::cx_vec rotated_ma_coefs_; // rotated moving average coefficients
+    arma::cx_rowvec rotated_ma_coefs_; // rotated moving average coefficients
     arma::cx_mat PredictionVar_; // covariance matrix of the predicted rotated state vector
     arma::cx_vec kalman_gain_;
     arma::cx_vec rho_;
