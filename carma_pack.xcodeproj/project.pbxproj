@@ -48,11 +48,8 @@
 		DFBDE8431778CD3E00762288 /* carpack.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; path = carpack.o; sourceTree = "<group>"; };
 		DFBDE8441778CD3E00762288 /* libcarmcmc.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libcarmcmc.a; sourceTree = "<group>"; };
 		DFBDE8451778CD3E00762288 /* carma_pack.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; path = carma_pack.1; sourceTree = "<group>"; };
-		DFBDE8461778CD3E00762288 /* carma_pack.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = carma_pack.pyc; sourceTree = "<group>"; };
 		DFBDE8481778CD3E00762288 /* __init__.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = __init__.py; sourceTree = "<group>"; };
-		DFBDE8491778CD3E00762288 /* __init__.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = __init__.pyc; sourceTree = "<group>"; };
 		DFBDE84A1778CD3E00762288 /* carma_pack.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = carma_pack.py; sourceTree = "<group>"; };
-		DFBDE84B1778CD3E00762288 /* carma_pack.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = carma_pack.pyc; sourceTree = "<group>"; };
 		DFBDE84C1778CD3E00762288 /* carmcmc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = carmcmc.cpp; sourceTree = "<group>"; };
 		DFBDE84D1778CD3E00762288 /* carpack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = carpack.cpp; sourceTree = "<group>"; };
 		DFBDE84F1778CD3E00762288 /* car4_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car4_test.dat; sourceTree = "<group>"; };
@@ -111,7 +108,6 @@
 				DFBDE83B1778CD3E00762288 /* boost_python_wrapper.cpp */,
 				DFBDE83C1778CD3E00762288 /* build */,
 				DFBDE8451778CD3E00762288 /* carma_pack.1 */,
-				DFBDE8461778CD3E00762288 /* carma_pack.pyc */,
 				DFBDE8471778CD3E00762288 /* carmcmc */,
 				DFBDE84C1778CD3E00762288 /* carmcmc.cpp */,
 				DFBDE84D1778CD3E00762288 /* carpack.cpp */,
@@ -166,9 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				DFBDE8481778CD3E00762288 /* __init__.py */,
-				DFBDE8491778CD3E00762288 /* __init__.pyc */,
 				DFBDE84A1778CD3E00762288 /* carma_pack.py */,
-				DFBDE84B1778CD3E00762288 /* carma_pack.pyc */,
 			);
 			path = carmcmc;
 			sourceTree = "<group>";

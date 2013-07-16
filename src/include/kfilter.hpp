@@ -116,7 +116,10 @@ public:
     
     virtual std::pair<double, double> Predict(double time) = 0;
     virtual arma::vec Simulate(arma::vec time) = 0;
-    
+    // Methods needed for interpolation and backcasting
+    virtual void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar) = 0;
+    virtual void UpdateCoefs() = 0;
+
 protected:
     // Data
     arma::vec& time_;
@@ -130,6 +133,8 @@ protected:
     double sigsqr_;
     OmegaType omega_;
     unsigned int current_index_;
+    // linear coefficients needed for doing interpolation or backcasting
+    double yconst_, yslope_;
 };
 
 /*
@@ -149,6 +154,8 @@ public:
     void Reset();
     void Update();
     std::pair<double, double> Predict(double time);
+    void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
+    void UpdateCoefs();
     arma::vec Simulate(arma::vec time);
 };
 
@@ -194,8 +201,6 @@ public:
     void Update();
     std::pair<double, double> Predict(double time);
     arma::vec Simulate(arma::vec time);
-    
-    // Methods needed for interpolation and backcasting
     void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
     void UpdateCoefs();
     
@@ -214,9 +219,7 @@ private:
     double innovation_;
     // linear coefficients needed for doing interpolation or backcasting
     arma::cx_vec state_const_;
-    arma::cx_vec state_slope_;
-    double yconst_, yslope_;
-    
+    arma::cx_vec state_slope_;    
 };
 
 

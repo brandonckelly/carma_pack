@@ -45,56 +45,96 @@ void KalmanFilter1::Update() {
     current_index_++;
 }
 
+// Initialize the coefficients used for interpolation and backcasting assuming a CAR(1) process
+void KalmanFilter1::InitializeCoefs(double time, unsigned int itime, double ymean, double yvar) {
+    yconst_ = 0.0;
+    yslope_ = exp(-std::abs(time_(itime) - time) * omega_);
+    current_index_ = itime + 1;
+}
+
+// Update the coefficients used for interpolation and backcasting, assuming a CAR(1) process
+void KalmanFilter1::UpdateCoefs() {
+    double rho = exp(-1.0 * dt_(current_index_-1) * omega_);
+    double previous_var = var_(current_index_-1) - yerr_(current_index_-1) * yerr_(current_index_-1);
+    double var_ratio = previous_var / var_(current_index_-1);
+    
+    yslope_ *= rho * (1.0 - var_ratio);
+    yconst_ = yconst_ * rho * (1.0 - var_ratio) + rho * var_ratio * y_[current_index_-1];
+    var_(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
+        rho * rho * previous_var * (1.0 - var_ratio) + yerr_(current_index_) * yerr_(current_index_);
+}
+
 // Return the predicted value and its variance at time assuming a CAR(1) process
 std::pair<double, double> KalmanFilter1::Predict(double time) {
     double rho, var_ratio, previous_var;
-    double back_mean, back_var, forward_mean, forward_var;
-    unsigned int ny = y_.n_elem;
+    double ypredict_mean, ypredict_var, yprecision;
     
-    if (time < time_(0)) {
-        // backcast the value of the time series
-        double dt = std::abs(time_(0) - time);
-        back_mean = 0.0;
-        back_var = sigsqr_ / (2.0 * omega_);
-        rho = exp(-dt * omega_);
-        forward_mean = y_(0) / rho;
-        double rhosqr = rho * rho;
-        forward_var = (back_var * (1.0 - rhosqr) + yerr_(0) * yerr_(0)) / rhosqr;
-    } else if (time > time_(ny-1)) {
-        // forecast the value of the time series
-        double dt = std::abs(time - time_(ny-1));
-        rho = exp(-dt * omega_);
-        previous_var = var_(ny-1) - yerr_(ny-1) * yerr_(ny-1);
-        var_ratio = previous_var / var_(ny-1);
-        back_mean = rho * mean_(ny-1) + rho * var_ratio * (y_(ny-1) - mean_(ny-1));
-        back_var = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) + rho * rho * previous_var * (1.0 - var_ratio);
-        forward_mean = 0.0;
-        forward_var = 1E300;
-    } else {
-        // interpolate the value of the time series
-        double time_i = time_(0);
-        unsigned int i = 0;
-        while (time > time_i) {
-            // find the index where time_ > time for the first time
-            i++;
-            time_i = time_(i);
+    unsigned int ipredict = 0;
+    while (time > time_(ipredict)) {
+        // find the index where time_ > time for the first time
+        ipredict++;
+        if (ipredict == time_.n_elem) {
+            // time is greater than last element of time_, so do forecasting
+            break;
         }
-        double dt = std::abs(time - time_(i-1));
-        rho = exp(-dt * omega_);
-        double rhosqr = rho * rho;
-        previous_var = var_(i-1) - yerr_(i-1) * yerr_(i-1);
-        var_ratio = previous_var / var_(i-1);
-        back_mean = rho * mean_(i-1) + rho * var_ratio * (y_(i-1) - mean_(i-1));
-        back_var = sigsqr_ / (2.0 * omega_) * (1.0 - rhosqr) + rhosqr * previous_var * (1.0 - var_ratio);
-        dt = time_i - time;
-        rho = exp(-dt * omega_);
-        forward_mean = y_(i) / rho;
-        forward_var = var_(i) / rhosqr;
     }
     
-    double ypredict_var = 1.0 / (1.0 / back_var + 1.0 / forward_var);
-    double ypredict_mean = ypredict_var * (back_mean / back_var + forward_mean / forward_var);
+    // Run the Kalman filter up to the point time_[ipredict-1]
+    Reset();
+    for (int i=1; i<ipredict; i++) {
+        Update();
+    }
+        
+    if (ipredict == 0) {
+        // backcasting, so initialize the conditional mean and variance to the stationary values
+        ypredict_mean = 0.0;
+        ypredict_var = sigsqr_ / (2.0 * omega_);
+    } else {
+        // predict the value of the time series at time, given the earlier values
+        double dt = time - time_[ipredict-1];
+        rho = exp(-dt * omega_);
+        previous_var = var_(ipredict-1) - yerr_(ipredict-1) * yerr_(ipredict-1);
+        var_ratio = previous_var / var_(ipredict-1);
+		
+        // Update the Kalman filter mean
+        mean_(current_index_) = rho * mean_(current_index_-1) +
+        rho * var_ratio * (y_(current_index_-1) - mean_(current_index_-1));
+		
+        // Update the Kalman filter variance
+        var_(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
+        rho * rho * previous_var * (1.0 - var_ratio);
+        
+        // initialize the conditional mean and variance
+        ypredict_mean = rho * mean_(ipredict-1) + rho * var_ratio * (y_(ipredict-1) - mean_(ipredict-1));
+        ypredict_var = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) + rho * rho * previous_var * (1.0 - var_ratio);
+    }
     
+    if (ipredict == time_.n_elem) {
+        // Forecasting, so we're done: no need to run interpolation steps
+        std::pair<double, double> ypredict(ypredict_mean, ypredict_var);
+        return ypredict;
+    }
+    
+    yprecision = 1.0 / ypredict_var;
+    
+    // Either backcasting or interpolating, so need to calculate coefficients of linear filter as a function of
+    // the predicted time series value, then update the running conditional mean and variance of the predicted
+    // time series value
+    
+    InitializeCoefs(time, ipredict, ypredict_mean, ypredict_var);
+    
+    yprecision += yslope_ * yslope_ / var_(ipredict);
+    ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var_(ipredict);
+    
+    for (int i=ipredict+1; i<time_.n_elem; i++) {
+        UpdateCoefs();
+        yprecision += yslope_ * yslope_ / var_(i);
+        ypredict_mean += yslope_ * (y_(i) - yconst_) / var_(i);
+    }
+    
+    ypredict_var = 1.0 / yprecision;
+    ypredict_mean *= ypredict_var;
+
     std::pair<double, double> ypredict(ypredict_mean, ypredict_var);
     return ypredict;
 }
@@ -273,13 +313,13 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
     
     InitializeCoefs(time, ipredict, ypredict_mean, ypredict_var);
 
-    yprecision += yslope_ * yslope_ / var_[ipredict];
-    ypredict_mean += yslope_ * (y_[ipredict] - yconst_) / var_[ipredict];
+    yprecision += yslope_ * yslope_ / var_(ipredict);
+    ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var_(ipredict);
     
     for (int i=ipredict+1; i<time_.n_elem; i++) {
         UpdateCoefs();
-        yprecision += yslope_ * yslope_ / var_[ipredict];
-        ypredict_mean += yslope_ * (y_[ipredict] - yconst_) / var_[ipredict];
+        yprecision += yslope_ * yslope_ / var_(i);
+        ypredict_mean += yslope_ * (y_(i) - yconst_) / var_(i);
     }
     
     ypredict_var = 1.0 / yprecision;
@@ -310,7 +350,8 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     // y[ipredict]
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
-    var_[itime] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
+    var_[itime] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+        + yerr_[itime] * yerr_[itime];
     current_index_ = itime + 1;
 }
 
@@ -334,7 +375,8 @@ void KalmanFilterp::UpdateCoefs() {
     // y[ipredict]
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
-    var_[current_index_] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
+    var_[current_index_] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+        + yerr_[current_index_] * yerr_[current_index_];
     current_index_++;
 }
 
