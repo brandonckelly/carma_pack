@@ -53,15 +53,16 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     
     if (time < time_(0)) {
         // backcast the value of the time series
-        double dt = time_(0) - time;
+        double dt = std::abs(time_(0) - time);
         back_mean = 0.0;
         back_var = sigsqr_ / (2.0 * omega_);
         rho = exp(-dt * omega_);
         forward_mean = y_(0) / rho;
-        forward_var = var_(0) / rho / rho;
+        double rhosqr = rho * rho;
+        forward_var = (back_var * (1.0 - rhosqr) + yerr_(0) * yerr_(0)) / rhosqr;
     } else if (time > time_(ny-1)) {
         // forecast the value of the time series
-        double dt = time - time_(ny-1);
+        double dt = std::abs(time - time_(ny-1));
         rho = exp(-dt * omega_);
         previous_var = var_(ny-1) - yerr_(ny-1) * yerr_(ny-1);
         var_ratio = previous_var / var_(ny-1);
@@ -78,16 +79,17 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
             i++;
             time_i = time_(i);
         }
-        double dt = time - time_(i-1);
+        double dt = std::abs(time - time_(i-1));
         rho = exp(-dt * omega_);
+        double rhosqr = rho * rho;
         previous_var = var_(i-1) - yerr_(i-1) * yerr_(i-1);
         var_ratio = previous_var / var_(i-1);
         back_mean = rho * mean_(i-1) + rho * var_ratio * (y_(i-1) - mean_(i-1));
-        back_var = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) + rho * rho * previous_var * (1.0 - var_ratio);
+        back_var = sigsqr_ / (2.0 * omega_) * (1.0 - rhosqr) + rhosqr * previous_var * (1.0 - var_ratio);
         dt = time_i - time;
         rho = exp(-dt * omega_);
         forward_mean = y_(i) / rho;
-        forward_var = var_(i) / rho / rho;
+        forward_var = var_(i) / rhosqr;
     }
     
     double ypredict_var = 1.0 / (1.0 / back_var + 1.0 / forward_var);

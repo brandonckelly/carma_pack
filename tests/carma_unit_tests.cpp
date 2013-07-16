@@ -171,6 +171,114 @@ TEST_CASE("KalmanFilter1/Filter", "Test the Kalman Filter for a CAR(1) process")
     REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
 }
 
+TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1) process") {
+    // first grab the simulated Gaussian CAR(1) data set
+    arma::mat car1_data;
+    car1_data.load(car1file, arma::raw_ascii);
+    
+    arma::vec time = car1_data.col(0);
+    arma::vec y = car1_data.col(1);
+    arma::vec yerr = car1_data.col(2);
+    int ny = y.n_elem;
+    
+    // CAR(1) process parameters
+    double tau = 100.0;
+    double omega = 1.0 / tau;
+    double sigmay = 2.3;
+    double sigma = sigmay * sqrt(2.0 / tau);
+    double sigsqr = sigma * sigma;
+    
+    KalmanFilter1 Kfilter1(time, y, yerr, sigsqr, omega);
+    Kfilter1.Filter();
+    
+    // first test forecasting
+    double tpredict = time(ny-1) + 0.1 * tau;
+    std::pair<double, double> kpredict = Kfilter1.Predict(tpredict);
+    double pmean = kpredict.first;
+    double pvar = kpredict.second;
+    
+    // construct covariance matrix of (tpredict,time)
+    arma::mat covar(ny+1,ny+1);
+    for (int i=0; i<ny+1; i++) {
+        for (int j=0; j<ny+1; j++) {
+            double timei, timej;
+            if (i == 0) {
+                timei = tpredict;
+            } else {
+                timei = time(i-1);
+            }
+            if (j == 0) {
+                timej = tpredict;
+            } else {
+                timej = time(j-1);
+            }
+            double dt = std::abs(timei - timej);
+            covar(i,j) = sigmay * sigmay * std::exp(-dt / tau);
+            if (i == j && i > 0) {
+                // add contribution from measurement errors
+                covar(i,j) += yerr(i-1) * yerr(i-1);
+            }
+        }
+    }
+    
+    covar = arma::symmatl(covar);
+    
+    // calculate prediction mean and variance the slow way
+    double pmean_slow, pvar_slow;
+    arma::mat subvar_inv = arma::inv(arma::sympd(covar.submat(1, 1, ny, ny)));
+    arma::rowvec subcov = covar.submat(0,1,0,ny);
+    pmean_slow = arma::as_scalar(subcov * subvar_inv * y);
+    pvar_slow = covar(0,0) - arma::as_scalar(subcov * subvar_inv * subcov.t());
+    
+    // make sure predicted mean and variance computed from the kalman filter is equal to that
+    // computed the slow way from the properties of the normal distribution
+    double frac_diff = std::abs(pmean_slow - pmean) / std::abs(pmean_slow);
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
+    REQUIRE(frac_diff < 1e-8);
+    
+    // now test backcasting
+    tpredict = time(0) - 0.1 * tau;
+    kpredict = Kfilter1.Predict(tpredict);
+    pmean = kpredict.first;
+    pvar = kpredict.second;
+    
+    covar(0,arma::span(1,ny)) = sigmay * sigmay * exp(-arma::abs(tpredict - time.t()) / tau);
+    covar(arma::span(1,ny), 0) = sigmay * sigmay * exp(-arma::abs(tpredict - time) / tau);
+    covar = arma::symmatu(covar);
+    subcov = covar.submat(0,1,0,ny);
+    pmean_slow = arma::as_scalar(subcov * subvar_inv * y);
+    pvar_slow = covar(0,0) - arma::as_scalar(subcov * subvar_inv * subcov.t());
+    
+    // make sure predicted mean and variance computed from the kalman filter is equal to that
+    // computed the slow way from the properties of the normal distribution
+    frac_diff = std::abs(pmean_slow - pmean) / std::abs(pmean_slow);
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
+    REQUIRE(frac_diff < 1e-8);
+
+    // finally, test interpolation
+    tpredict = arma::mean(time);
+    kpredict = Kfilter1.Predict(tpredict);
+    pmean = kpredict.first;
+    pvar = kpredict.second;
+    
+    covar(0,arma::span(1,ny)) = sigmay * sigmay * exp(-arma::abs(tpredict - time) / tau);
+    covar(arma::span(1,ny), 0) = sigmay * sigmay * exp(-arma::abs(tpredict - time) / tau);
+    covar = arma::symmatu(covar);
+    subcov = covar.submat(0,1,0,ny);
+    pmean_slow = arma::as_scalar(subcov * subvar_inv * y);
+    pvar_slow = covar(0,0) - arma::as_scalar(subcov * subvar_inv * subcov.t());
+    
+    // make sure predicted mean and variance computed from the kalman filter is equal to that
+    // computed the slow way from the properties of the normal distribution
+    frac_diff = std::abs(pmean_slow - pmean) / std::abs(pmean_slow);
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
+    REQUIRE(frac_diff < 1e-8);
+}
+
+
 TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process") {
     // first grab the simulated Gaussian CAR(5) data set
     arma::mat car5_data;
