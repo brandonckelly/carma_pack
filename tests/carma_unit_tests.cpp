@@ -258,47 +258,13 @@ TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1
     frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
     REQUIRE(frac_diff < 1e-8);
 
-    // finally, test interpolation
-    /*
-    int ipredict = 950;
-    yerr(ipredict-1) = 0.0;
-    Kfilter1.SetTimeSeriesErr(yerr);
-    Kfilter1.Filter();
-    arma::vec kmean0 = Kfilter1.GetMean();
-    tpredict = time(ipredict-1);
-    Kfilter1.Reset();
-    for (int i=1; i<ipredict; i++) {
-        Kfilter1.Update();
-    }
-    
-    Kfilter1.InitializeCoefs(tpredict, ipredict, 0.0, 0.0);
-    
-    double yslope = Kfilter1.GetSlope();
-    double yconst = Kfilter1.GetConst();
-    double linmean = yconst + yslope * y(ipredict-1);
-    std::cout << "(Filter, Linear): " << kmean0(ipredict) << ", " << linmean << std::endl;
-        
-    for (int i=ipredict+1; i<time.n_elem; i++) {
-        Kfilter1.UpdateCoefs();
-        yslope = Kfilter1.GetSlope();
-        yconst = Kfilter1.GetConst();
-        linmean = yconst + yslope * y(ipredict-1);
-        std::cout << "(Filter, Linear): " << kmean0(i) << ", " << linmean << std::endl;
-    }
-
-    
-    */
-    
+    // finally, test interpolation    
     tpredict = arma::mean(time);
     Kfilter1.Reset();
     kpredict = Kfilter1.Predict(tpredict);
     pmean = kpredict.first;
     pvar = kpredict.second;
-    
-    
-    
-    /////TODO: compare values of kmean with those calculated from the linear filter using a measured value of y
-    
+        
     covar(0,arma::span(1,ny)) = sigmay * sigmay * exp(-arma::abs(tpredict - time.t()) / tau);
     covar(arma::span(1,ny), 0) = sigmay * sigmay * exp(-arma::abs(tpredict - time) / tau);
     covar = arma::symmatu(covar);
