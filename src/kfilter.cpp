@@ -20,6 +20,8 @@ void KalmanFilter1::Reset() {
     
     mean_(0) = 0.0;
     var_(0) = sigsqr_ / (2.0 * omega_) + yerr_(0) * yerr_(0);
+    yconst_ = 0.0;
+    yslope_ = 0.0;
     current_index_ = 1;
 }
 
@@ -49,6 +51,7 @@ void KalmanFilter1::Update() {
 void KalmanFilter1::InitializeCoefs(double time, unsigned int itime, double ymean, double yvar) {
     yconst_ = 0.0;
     yslope_ = exp(-std::abs(time_(itime) - time) * omega_);
+    var_[itime] = sigsqr_ / (2.0 * omega_) * (1.0 - yslope_ * yslope_) + yerr_(itime) * yerr_(itime);
     current_index_ = itime + 1;
 }
 
@@ -62,6 +65,7 @@ void KalmanFilter1::UpdateCoefs() {
     yconst_ = yconst_ * rho * (1.0 - var_ratio) + rho * var_ratio * y_[current_index_-1];
     var_(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
         rho * rho * previous_var * (1.0 - var_ratio) + yerr_(current_index_) * yerr_(current_index_);
+    current_index_++;
 }
 
 // Return the predicted value and its variance at time assuming a CAR(1) process
@@ -78,7 +82,7 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
             break;
         }
     }
-    
+        
     // Run the Kalman filter up to the point time_[ipredict-1]
     Reset();
     for (int i=1; i<ipredict; i++) {
@@ -95,15 +99,6 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
         rho = exp(-dt * omega_);
         previous_var = var_(ipredict-1) - yerr_(ipredict-1) * yerr_(ipredict-1);
         var_ratio = previous_var / var_(ipredict-1);
-		
-        // Update the Kalman filter mean
-        mean_(current_index_) = rho * mean_(current_index_-1) +
-        rho * var_ratio * (y_(current_index_-1) - mean_(current_index_-1));
-		
-        // Update the Kalman filter variance
-        var_(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
-        rho * rho * previous_var * (1.0 - var_ratio);
-        
         // initialize the conditional mean and variance
         ypredict_mean = rho * mean_(ipredict-1) + rho * var_ratio * (y_(ipredict-1) - mean_(ipredict-1));
         ypredict_var = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) + rho * rho * previous_var * (1.0 - var_ratio);
@@ -116,13 +111,13 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     }
     
     yprecision = 1.0 / ypredict_var;
+    ypredict_mean *= yprecision;
     
     // Either backcasting or interpolating, so need to calculate coefficients of linear filter as a function of
     // the predicted time series value, then update the running conditional mean and variance of the predicted
     // time series value
     
-    InitializeCoefs(time, ipredict, ypredict_mean, ypredict_var);
-    
+    InitializeCoefs(time, ipredict, 0.0, 0.0);
     yprecision += yslope_ * yslope_ / var_(ipredict);
     ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var_(ipredict);
     
@@ -306,6 +301,7 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
     }
 
     yprecision = 1.0 / ypredict_var;
+    ypredict_mean *= yprecision;
 
     // Either backcasting or interpolating, so need to calculate coefficients of linear filter as a function of
     // the predicted time series value, then update the running conditional mean and variance of the predicted

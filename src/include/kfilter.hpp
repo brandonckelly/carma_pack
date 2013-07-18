@@ -100,6 +100,9 @@ public:
         return var_;
     }
     
+    double GetConst() { return yconst_; }
+    double GetSlope() { return yslope_; }
+    
     /* 
      Methods to perform the Kalman Filter operations 
      */
