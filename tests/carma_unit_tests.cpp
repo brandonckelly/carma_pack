@@ -179,7 +179,6 @@ TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1
     arma::vec time = car1_data.col(0);
     arma::vec y = car1_data.col(1);
     arma::vec yerr = car1_data.col(2);
-    yerr.zeros();
     int ny = y.n_elem;
     
     // CAR(1) process parameters
@@ -280,7 +279,6 @@ TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1
     REQUIRE(frac_diff < 1e-8);
 }
 
-
 TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process") {
     // first grab the simulated Gaussian CAR(5) data set
     arma::mat car5_data;
@@ -315,7 +313,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process")
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
     CARp car5_process(true, "CAR(5)", time, y, yerr, p);
-    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, 1.0);
+    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
     // First test that the Kalman Filter is correctly initialized after reseting it
@@ -383,6 +381,138 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process")
     chisqr_cdf = boost::math::cdf(chisqr, max_asqr * ny);
     max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
     REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
+}
+
+TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR(5) process") {
+    // first grab the simulated Gaussian CAR(5) data set
+    arma::mat car5_data;
+    car5_data.load(car5file, arma::raw_ascii);
+    
+    arma::vec time = car5_data.col(0);
+    arma::vec y = car5_data.col(1);
+    arma::vec yerr = car5_data.col(2);
+    int ny = y.n_elem;
+    
+    // CAR(5) process parameters
+    double qpo_width[3] = {0.01, 0.01, 0.002};
+    double qpo_cent[2] = {0.2, 0.02};
+    double sigmay = 2.3;
+    int p = 5;
+    
+    // Create the parameter vector, omega
+	arma::vec omega(p);
+    for (int i=0; i<p/2; i++) {
+        omega(2*i) = qpo_cent[i];
+        omega(1+2*i) = qpo_width[i];
+    }
+    // p is odd, so add in additional value of lorentz_width
+    omega(p-1) = qpo_width[p/2];
+    
+    // construct the moving average coefficients, right now just assume q = 1
+    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
+    ma_coefs(0) = 1.0;
+    
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
+    Kfilter.Filter();
+    
+    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
+    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
+    CARp car5_process(true, "CAR(5)", time, y, yerr, p);
+    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, ma_coefs, 1.0);
+    Kfilter.SetSigsqr(sigsqr);
+    
+    // first test forecasting
+    double tpredict = time(ny-1) + 0.05 * (time(ny-1) - time(0));
+    std::pair<double, double> kpredict = Kfilter.Predict(tpredict);
+    double pmean = kpredict.first;
+    double pvar = kpredict.second;
+    
+    // construct covariance matrix of (tpredict,time)
+    arma::mat covar(ny+1,ny+1);
+    for (int i=0; i<ny+1; i++) {
+        for (int j=0; j<ny+1; j++) {
+            double timei, timej;
+            if (i == 0) {
+                timei = tpredict;
+            } else {
+                timei = time(i-1);
+            }
+            if (j == 0) {
+                timej = tpredict;
+            } else {
+                timej = time(j-1);
+            }
+            double dt = std::abs(timei - timej);
+            covar(i,j) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+            if (i == j && i > 0) {
+                // add contribution from measurement errors
+                covar(i,j) += yerr(i-1) * yerr(i-1);
+            }
+        }
+    }
+    
+    covar = arma::symmatl(covar);
+    
+    // calculate prediction mean and variance the slow way
+    double pmean_slow, pvar_slow;
+    arma::mat subvar_inv = arma::inv(arma::sympd(covar.submat(1, 1, ny, ny)));
+    arma::rowvec subcov = covar.submat(0,1,0,ny);
+    pmean_slow = arma::as_scalar(subcov * subvar_inv * y);
+    pvar_slow = covar(0,0) - arma::as_scalar(subcov * subvar_inv * subcov.t());
+    
+    // make sure predicted mean and variance computed from the kalman filter is equal to that
+    // computed the slow way from the properties of the normal distribution
+    double frac_diff = std::abs(pmean_slow - pmean) / std::abs(pmean_slow);
+    REQUIRE(frac_diff < 1e-6);
+    frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
+    REQUIRE(frac_diff < 1e-6);
+    
+    // now test backcasting
+    tpredict = time(0) - 0.01 * (time(ny-1) - time(0));
+    kpredict = Kfilter.Predict(tpredict);
+    pmean = kpredict.first;
+    pvar = kpredict.second;
+    
+    for (int i=1; i<ny+1; i++) {
+        double dt = std::abs(tpredict - time(i-1));
+        covar(0,i) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+        covar(i,0) = covar(0,i);
+    }
+    covar = arma::symmatu(covar);
+    subcov = covar.submat(0,1,0,ny);
+    pmean_slow = arma::as_scalar(subcov * subvar_inv * y);
+    pvar_slow = covar(0,0) - arma::as_scalar(subcov * subvar_inv * subcov.t());
+    
+    // make sure predicted mean and variance computed from the kalman filter is equal to that
+    // computed the slow way from the properties of the normal distribution
+    frac_diff = std::abs(pmean_slow - pmean) / std::abs(pmean_slow);
+    REQUIRE(frac_diff < 1e-6);
+    frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
+    REQUIRE(frac_diff < 1e-6);
+    
+    // finally, test interpolation
+    tpredict = 166.0;
+    Kfilter.Reset();
+    kpredict = Kfilter.Predict(tpredict);
+    pmean = kpredict.first;
+    pvar = kpredict.second;
+    
+    for (int i=1; i<ny+1; i++) {
+        double dt = std::abs(tpredict - time(i-1));
+        covar(0,i) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+        covar(i,0) = covar(0,i);
+    }
+    covar = arma::symmatu(covar);
+    subcov = covar.submat(0,1,0,ny);
+    pmean_slow = arma::as_scalar(subcov * subvar_inv * y);
+    pvar_slow = covar(0,0) - arma::as_scalar(subcov * subvar_inv * subcov.t());
+    
+    // make sure predicted mean and variance computed from the kalman filter is equal to that
+    // computed the slow way from the properties of the normal distribution
+    frac_diff = std::abs(pmean_slow - pmean) / std::abs(pmean_slow);
+    REQUIRE(frac_diff < 1e-6);
+    frac_diff = std::abs(pvar_slow - pvar) / std::abs(pvar_slow);
+    REQUIRE(frac_diff < 1e-6);
 }
 
 TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogPost(theta) after running MCMC sampler") {
@@ -612,7 +742,10 @@ TEST_CASE("CAR5/carp_variance", "Test the CARp::Variance method") {
     
     CARp car5_process(true, "CAR(5)", time, y, ysig, p);
     
-    double model_var = car5_process.Variance(alpha_roots, sigma);
+    arma::vec ma_coefs = arma::zeros(p);
+    ma_coefs(0) = 1.0;
+    
+    double model_var = car5_process.Variance(alpha_roots, ma_coefs, sigma);
     double model_var0 = 218432.09642016294; // known variance, computed from python module carma_pack
     double frac_diff = std::abs(model_var - model_var0) / std::abs(model_var0);
     REQUIRE(frac_diff < 1e-8);

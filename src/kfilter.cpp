@@ -283,10 +283,9 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
         kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_(ipredict-1);
         state_vector_ += kalman_gain_ * innovation_;
         PredictionVar_ -= var_(ipredict-1) * (kalman_gain_ * kalman_gain_.t());
-        double dt = time - time_[ipredict-1];
+        double dt = std::abs(time - time_(ipredict-1));
         rho_ = arma::exp(ar_roots_ * dt);
         state_vector_ = rho_ % state_vector_;
-        state_vector_ = state_vector_ % rho_;
         PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
         
         // initialize the conditional mean and variance
@@ -307,7 +306,7 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
     // the predicted time series value, then update the running conditional mean and variance of the predicted
     // time series value
     
-    InitializeCoefs(time, ipredict, ypredict_mean, ypredict_var);
+    InitializeCoefs(time, ipredict, ypredict_mean / yprecision, ypredict_var);
 
     yprecision += yslope_ * yslope_ / var_(ipredict);
     ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var_(ipredict);
@@ -336,7 +335,7 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     // update the state one-step prediction error variance
     PredictionVar_ -= yvar * (kalman_gain_ * kalman_gain_.t());
     // coefs(time_predict|time_predict) --> coefs(time[i+1]|time_predict)
-    double dt = time_[itime] - time;
+    double dt = std::abs(time_(itime) - time);
     rho_ = arma::exp(ar_roots_ * dt);
     state_const_ = rho_ % state_const_;
     state_slope_ = rho_ % state_slope_;
@@ -347,7 +346,7 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
     var_[itime] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
-        + yerr_[itime] * yerr_[itime];
+        + yerr_(itime) * yerr_(itime);
     current_index_ = itime + 1;
 }
 

@@ -117,6 +117,8 @@ public:
     CAR1(track, name, time, y, yerr, temperature), p_(p)
 	{ 
 		value_.set_size(p_+2);
+        ma_coefs = arma::zeros(p);
+        ma_coefs(0) = 1.0;
 	}
     
     // Return the starting value and set log_posterior_
@@ -129,13 +131,14 @@ public:
 	double LogDensity(arma::vec theta);
     
     // Calculate the variance of the CAR(p) process
-    double Variance(arma::cx_vec alpha_roots, double sigma);
+    double Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma, double dt=0.0);
 	
 	// Print out useful info
 	void PrintInfo();
 	
 private:
     int p_; // Order of the CAR(p) process
+    arma::vec ma_coefs;
 };
 
 /* 

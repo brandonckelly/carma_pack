@@ -390,7 +390,7 @@ void CARp::KalmanFilter(arma::vec theta)
     arma::cx_rowvec rotated_ma_terms = EigenMat.row(0);
     
 	// Get the amplitude of the driving noise
-	double normalized_variance = Variance(alpha_roots, 1.0);
+	double normalized_variance = Variance(alpha_roots, ma_coefs, 1.0);
     double ysigma = theta(0); // The model standard deviation for the time series
 	double sigma = ysigma / sqrt(normalized_variance);
 	
@@ -509,9 +509,11 @@ double CARp::LogDensity(arma::vec theta)
 }
 
 // Calculate the variance of the CAR(p) process
-double CARp::Variance(arma::cx_vec alpha_roots, double sigma)
+double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma, double dt)
 {
     std::complex<double> car_var(0.0,0.0);
+    std::complex<double> denom(0.0,0.0);
+    std::complex<double> numer(0.0,0.0);
     
 	// Calculate the variance of a CAR(p) process
 	for (int k=0; k<alpha_roots.n_elem; k++) {
@@ -524,8 +526,18 @@ double CARp::Variance(arma::cx_vec alpha_roots, double sigma)
                 (std::conj(alpha_roots(l)) + alpha_roots(k));
 			}
 		}
-		
-		car_var += 1.0 / (-2.0 * std::real(alpha_roots(k)) * denom_product);
+        denom = -2.0 * std::real(alpha_roots(k)) * denom_product;
+        
+        int q = ma_coefs.n_elem;
+        std::complex<double> ma_sum1(0.0,0.0);
+        std::complex<double> ma_sum2(0.0,0.0);
+        for (int l=0; l<q; l++) {
+            ma_sum1 += ma_coefs(l) * std::pow(alpha_roots(k),l);
+            ma_sum2 += ma_coefs(l) * std::pow(-alpha_roots(k),l);
+        }
+        numer = ma_sum1 * ma_sum2 * std::exp(alpha_roots(k) * dt);
+        
+        car_var += numer / denom;
 	}
 	
 	// Variance is real-valued, so only return the real part of CARMA_var.
