@@ -13,6 +13,13 @@
 #include <utility>
 #include <boost/assert.hpp>
 
+// Global random number generator object, instantiated in random.cpp
+extern boost::random::mt19937 rng;
+
+// Object containing some common random number generators.
+extern RandomGenerator RandGen;
+
+
 /*
  Abstract base class for the Kalman Filter of a CARMA(p,q) process.
  */
@@ -108,7 +115,8 @@ public:
      */
     virtual void Reset() = 0;
     virtual void Update() = 0;
-    
+    virtual std::pair<double, double> Predict(double time) = 0;
+
     void Filter() {
         // Run the Kalman Filter
         Reset();
@@ -117,8 +125,58 @@ public:
         }
     }
     
-    virtual std::pair<double, double> Predict(double time) = 0;
-    virtual arma::vec Simulate(arma::vec time) = 0;
+    // simulate a CARMA process, conditional on the measured time series
+    arma::vec Simulate(arma::vec time) {
+        // first save old values since we will overwrite them later
+        arma::vec time0 = time_;
+        arma::vec y0 = y_;
+        arma::vec yerr0 = yerr_;
+        
+        arma::vec ysimulated(time.n_elem);
+        
+        time = arma::sort(time);
+        unsigned int insert_idx = 0;
+        arma::vec tinsert(1);
+        arma::vec dt_insert(1);
+        arma::vec yinsert(1);
+        arma::vec yerr_insert(1);
+        yerr_insert(0) = 0.0;
+        for (int i=0; i<time.n_elem; i++) {
+            insert_idx = 0;
+            // first simulate the value at time(i)
+            std::pair<double, double> ypredict = this->Predict(time(i));
+            ysimulated(i) = RandGen.normal(ypredict.first, sqrt(ypredict.second));
+            // find the index where time_[insert_idx-1] < time(i) < time_[insert_idx]
+            while (time_(insert_idx) < time(i)) {
+                insert_idx++;
+                if (insert_idx == (time_.n_elem)) {
+                    break;
+                }
+            }
+            // insert the simulated value into the measured time series array. these values are used in subsequent
+            // calls to Predict(time(i)).
+            tinsert(0) = time(i);
+            time_.insert_rows(insert_idx, tinsert);
+            dt_ = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
+            yinsert(0) = ysimulated(i);
+            y_.insert_rows(insert_idx, yinsert);
+            yerr_.insert_rows(insert_idx, yerr_insert);
+            mean_.zeros(time_.n_elem);
+            var_.zeros(time_.n_elem);
+        }
+        
+        // restore values of measured time series
+        time_ = time0;
+        dt_ = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
+        y_ = y0;
+        yerr_ = yerr0;
+        // restore the original sizes of the kalman mean and variance arrays
+        mean_.zeros(time_.n_elem);
+        var_.zeros(time_.n_elem);
+        
+        return ysimulated;
+    }
+    
     // Methods needed for interpolation and backcasting
     virtual void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar) = 0;
     virtual void UpdateCoefs() = 0;
@@ -159,7 +217,6 @@ public:
     std::pair<double, double> Predict(double time);
     void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
     void UpdateCoefs();
-    arma::vec Simulate(arma::vec time);
 };
 
 /*
@@ -203,7 +260,6 @@ public:
     void Reset();
     void Update();
     std::pair<double, double> Predict(double time);
-    arma::vec Simulate(arma::vec time);
     void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
     void UpdateCoefs();
     

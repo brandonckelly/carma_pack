@@ -134,19 +134,6 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     return ypredict;
 }
 
-// Return a simulated time series conditional on the measured time series, assuming the CAR(1) model.
-arma::vec KalmanFilter1::Simulate(arma::vec time) {
-    unsigned int ntime = time.n_elem;
-    arma::vec ysimulated(ntime);
-    for (int i=0; i<ntime; i++) {
-        std::pair<double, double> ypredict = Predict(time(i));
-        double ymean = ypredict.first;
-        double ysigma = sqrt(ypredict.second);
-        ysimulated(i) = RandGen.normal(ymean, ysigma);
-    }
-    return ysimulated;
-}
-
 // Calculate the roots of the AR(p) polynomial from the PSD parameters
 arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
 
@@ -345,7 +332,7 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     // y[ipredict]
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
-    var_[itime] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+    var_(itime) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
         + yerr_(itime) * yerr_(itime);
     current_index_ = itime + 1;
 }
@@ -354,14 +341,14 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
 // time series value at some earlier time
 void KalmanFilterp::UpdateCoefs() {
     
-    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_[current_index_-1];
+    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_(current_index_-1);
     // update the coefficients for predicting the state vector at coefs(i|i-1) --> coefs(i|i)
-    state_const_ += kalman_gain_ * (y_[current_index_-1] - yconst_);
+    state_const_ += kalman_gain_ * (y_(current_index_-1) - yconst_);
     state_slope_ -= kalman_gain_ * yslope_;
     // update the state one-step prediction error variance
-    PredictionVar_ -= var_[current_index_-1] * (kalman_gain_ * kalman_gain_.t());
+    PredictionVar_ -= var_(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
     // compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
-    rho_ = arma::exp(ar_roots_ * dt_[current_index_-1]);
+    rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
     state_const_ = rho_ % state_const_;
     state_slope_ = rho_ % state_slope_;
     // update the predicted state covariance matrix
@@ -370,42 +357,7 @@ void KalmanFilterp::UpdateCoefs() {
     // y[ipredict]
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
-    var_[current_index_] = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
-        + yerr_[current_index_] * yerr_[current_index_];
+    var_(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+        + yerr_(current_index_) * yerr_(current_index_);
     current_index_++;
-}
-
-// Simulate a CARMA(p,q) process at the input time values given the measured time series
-arma::vec KalmanFilterp::Simulate(arma::vec time) {
-    
-    // first save old values since we will overwrite them later
-    arma::vec time0 = time_;
-    arma::vec y0 = y_;
-    arma::vec yerr0 = yerr_;
-    
-    arma::vec ysimulated(time.n_elem);
-    
-    time = arma::sort(time);
-    unsigned int insert_idx = 0;
-    for (int i=0; i<time.n_elem; i++) {
-        // first simulate the value at time(i)
-        std::pair<double, double> ypredict = Predict(time(i));
-        ysimulated(i) = RandGen.normal(ypredict.first, sqrt(ypredict.second));
-        // find the index where time_[insert_idx-1] < time(i) < time_[insert_idx]
-        while (time_(insert_idx) < time(i)) {
-            insert_idx++;
-        }
-        // insert the simulated value into the measured time series array. these values are used in subsequent
-        // calls to Predict(time(i)).
-        time_.insert_rows(insert_idx, time(i));
-        y_.insert_rows(insert_idx, ysimulated(i));
-        yerr_.insert_rows(insert_idx, 0.0);
-    }
-        
-    // restore values of measured time series
-    time_ = time0;
-    y_ = y0;
-    yerr_ = yerr0;
-    
-    return ysimulated;
 }

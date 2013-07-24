@@ -515,6 +515,116 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR(5
     REQUIRE(frac_diff < 1e-6);
 }
 
+TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) process.") {
+    // first grab the simulated Gaussian CAR(5) data set
+    arma::mat car5_data;
+    car5_data.load(car5file, arma::raw_ascii);
+    
+    arma::vec time = car5_data.col(0);
+    arma::vec y = car5_data.col(1);
+    arma::vec yerr = car5_data.col(2);
+    
+    int ny = y.n_elem;
+    
+    // CAR(5) process parameters
+    double qpo_width[3] = {0.01, 0.01, 0.002};
+    double qpo_cent[2] = {0.2, 0.02};
+    double sigmay = 2.3;
+    int p = 5;
+    
+    // Create the parameter vector, omega
+	arma::vec omega(p);
+    for (int i=0; i<p/2; i++) {
+        omega(2*i) = qpo_cent[i];
+        omega(1+2*i) = qpo_width[i];
+    }
+    // p is odd, so add in additional value of lorentz_width
+    omega(p-1) = qpo_width[p/2];
+    
+    // construct the moving average coefficients, right now just assume q = 1
+    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
+    ma_coefs(0) = 1.0;
+    
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
+    Kfilter.Filter();
+    
+    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
+    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
+    CARp car5_process(true, "CAR(5)", time, y, yerr, p);
+    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, ma_coefs, 1.0);
+    Kfilter.SetSigsqr(sigsqr);
+    
+    // simulate the time series using the Kalman Filter
+    double tsim_max = time(ny-1) + 0.05 * (time(ny-1) - time(0));
+    double tsim_min = time(0) - 0.05 * (time(ny-1) - time(0));
+    int nsim = 200;
+    arma::vec tsim = arma::linspace<arma::vec>(tsim_min, tsim_max, nsim);
+        
+    arma::vec ysim = Kfilter.Simulate(tsim);
+    
+    // construct covariance matrix of (tpredict,time)
+    arma::mat covar(ny+nsim,ny+nsim);
+    arma::vec tcombined = time;
+    tcombined.insert_rows(0, tsim);
+    
+    for (int i=0; i<ny+nsim; i++) {
+        for (int j=0; j<ny+nsim; j++) {
+            double dt = std::abs(tcombined(i) - tcombined(j));
+            covar(i,j) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+            if ((i == j) && (i >= nsim)) {
+                // add contribution from measurement errors to the diagonal
+                covar(i,j) += yerr(i-nsim) * yerr(i-nsim);
+            }
+        }
+    }
+    covar = arma::symmatl(covar);
+    
+    // compute the conditional mean and variance of the simulated time series
+    // directly from the properties of the multivariate gaussian distribution
+    arma::vec cmean(nsim);
+    arma::mat cvar(nsim,nsim);
+    arma::mat subvar_inv = arma::inv(arma::sympd(covar.submat(nsim, nsim, ny+nsim-1, ny+nsim-1)));
+    arma::mat subcov = covar.submat(0,nsim,nsim-1,ny+nsim-1);
+    arma::mat simvar = covar.submat(0,0,nsim-1,nsim-1);
+    cmean = subcov * subvar_inv * y;
+    cvar = simvar - subcov * subvar_inv * subcov.t();
+    
+    // standardize the simulated time series
+    arma::mat cvar_chol = arma::chol(cvar);
+    arma::vec sresid = cvar_chol.t().i() * (ysim - cmean);
+    
+    // Test that the standardized residuals are consistent with having a standard normal distribution using
+    // the Anderson-Darling test statistic
+    arma::vec sorted_sresid = arma::sort(sresid);
+    boost::math::normal snorm;
+    arma::vec snorm_cdf(nsim);
+    for (int i=0; i<nsim; i++) {
+        // compute the standard normal CDF of the standardized residuals
+        snorm_cdf(i) = boost::math::cdf(snorm, sorted_sresid(i));
+    }
+    
+    double AD_sum = 0.0;
+    for (int i=0; i<nsim; i++) {
+        // compute the Anderson-Darling statistic
+        AD_sum += (2.0 * (i+1) - 1) / nsim * (log(snorm_cdf(i)) + log(1.0 - snorm_cdf(nsim-1-i)));
+    }
+    double AD_stat = -nsim - AD_sum;
+    REQUIRE(AD_stat < 3.857); // critical value for 1% significance level
+    
+    // Now test that the autocorrelation function of the standardized residuals is consistent with a white noise process
+    int maxlag = 100;
+    arma::vec acorr_sresid = autocorr(sresid, maxlag);
+    double acorr_95bound = 1.96 / sqrt(nsim); // find number of autocorr values outside of 95% confidence interval
+    int out_of_bounds = arma::accu(arma::abs(acorr_sresid) > acorr_95bound);
+    REQUIRE(out_of_bounds < 11); // 99% significance level for binomial distribution with n = 100 and p = 0.05
+    
+    double max_asqr = arma::max(acorr_sresid % acorr_sresid);
+    boost::math::chi_squared chisqr(1); // square of ACF has a chi-squared distribution with two DOF
+    double chisqr_cdf = boost::math::cdf(chisqr, max_asqr * nsim);
+    double max_asqr_cdf = std::pow(chisqr_cdf, maxlag); // CDF of maximum of maxlag random variables having a chi-square distribution
+    REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%    
+}
+
 TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogPost(theta) after running MCMC sampler") {
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
