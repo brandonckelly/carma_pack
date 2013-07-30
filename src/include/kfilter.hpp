@@ -27,9 +27,13 @@ extern RandomGenerator RandGen;
 template <class OmegaType>
 class KalmanFilter {
 public:
+    // Kalman mean and variance
+    arma::vec mean;
+    arma::vec var;
+
     // Constructor
-    KalmanFilter(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, OmegaType omega) :
-    time_(time), y_(y), yerr_(yerr), sigsqr_(sigsqr), omega_(omega)
+    KalmanFilter(arma::vec& time, arma::vec& y, arma::vec& yerr) :
+    time_(time), y_(y), yerr_(yerr)
     {
         int ndata = time_.n_elem;
         dt_ = time_(arma::span(1,ndata-1)) - time_(arma::span(0,ndata-2));
@@ -61,8 +65,8 @@ public:
         }
         
         // Set the size of the Kalman Filter mean and variance vectors
-        mean_.zeros(time.n_elem);
-        var_.zeros(time.n_elem);
+        mean.zeros(time.n_elem);
+        var.zeros(time.n_elem);
     }
     
     // Methods to set and get the data
@@ -92,21 +96,14 @@ public:
     double GetSigsqr() {
         return sigsqr_;
     }
-    void SetOmega(OmegaType omega) {
+    virtual void SetOmega(OmegaType omega) {
         omega_ = omega;
     }
     OmegaType GetOmega() {
         return omega_;
     }
-    
-    // Methods to get the kalman filter mean and variance
-    arma::vec GetMean() {
-        return mean_;
-    }
-    arma::vec GetVariance() {
-        return var_;
-    }
-    
+    virtual void SetMA(OmegaType ma_coefs) {}
+        
     double GetConst() { return yconst_; }
     double GetSlope() { return yslope_; }
     
@@ -161,8 +158,8 @@ public:
             yinsert(0) = ysimulated(i);
             y_.insert_rows(insert_idx, yinsert);
             yerr_.insert_rows(insert_idx, yerr_insert);
-            mean_.zeros(time_.n_elem);
-            var_.zeros(time_.n_elem);
+            mean.zeros(time_.n_elem);
+            var.zeros(time_.n_elem);
         }
         
         // restore values of measured time series
@@ -171,8 +168,8 @@ public:
         y_ = y0;
         yerr_ = yerr0;
         // restore the original sizes of the kalman mean and variance arrays
-        mean_.zeros(time_.n_elem);
-        var_.zeros(time_.n_elem);
+        mean.zeros(time_.n_elem);
+        var.zeros(time_.n_elem);
         
         return ysimulated;
     }
@@ -187,9 +184,6 @@ protected:
     arma::vec dt_;
     arma::vec& y_;
     arma::vec& yerr_;
-    // Kalman mean and variance
-    arma::vec mean_;
-    arma::vec var_;
     // The Kalman Filter parameters
     double sigsqr_;
     OmegaType omega_;
@@ -207,9 +201,14 @@ protected:
 
 class KalmanFilter1 : public KalmanFilter<double> {
 public:
-    // Constructor
+    // Constructors
+    KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter(time, y, yerr) {}
     KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, double omega) :
-        KalmanFilter(time, y, yerr, sigsqr, omega) {}
+        KalmanFilter(time, y, yerr)
+    {
+        sigsqr_ = sigsqr;
+        omega_ = omega;
+    }
     
     // Methods to perform the Kalman Filter operations
     void Reset();
@@ -225,10 +224,13 @@ public:
 
 class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
-    // Constructor
+    // Constructors
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter(time, y, yerr) {}
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
-        KalmanFilter(time, y, yerr, sigsqr, omega)
+        KalmanFilter(time, y, yerr)
     {
+        sigsqr_ = sigsqr;
+        omega_ = omega;
         SetMA(ma_coefs);
         ar_roots_ = ARRoots(omega_);
         
@@ -255,6 +257,13 @@ public:
     }
     // Compute the roots of the AR(p) polynomial from the PSD parameters, omega
     arma::cx_vec ARRoots(arma::vec omega);
+    
+    // set the AR parameters
+    void SetOmega(arma::vec omega) {
+        omega_ = omega;
+        ar_roots_ = ARRoots(omega);
+    }
+
     
     // Methods to perform the Kalman Filter operations
     void Reset();

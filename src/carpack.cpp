@@ -29,87 +29,6 @@ extern RandomGenerator RandGen;
 						METHODS OF CAR1 CLASS
  *******************************************************************/
 
-// CAR1 constructor. In addition to the standard parameter constructor,
-// this constructor initializes the data vectors, makes sure that the
-// time data vector is strictly increasing, and sets the prior parameters
-// do the default values.
-
-CAR1::CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature) : 
-Parameter<arma::vec>(track, name, temperature)
-{
-	// Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
-	value_.set_size(3);
-	// Set the degrees of freedom for the prior on the measurement error scaling parameter
-	measerr_dof_ = 100;
-	
-    y_ = y - arma::mean(y); // center the time series
-    time_ = time;
-    yerr_ = yerr;
-	int ndata = time.n_rows;
-	
-	dt_ = time(arma::span(1,ndata-1)) - time(arma::span(0,ndata-2));
-	// Make sure the time vector is strictly increasing
-	if (dt_.min() < 0) {
-		std::cout << "Time vector is not sorted in increasing order. Sorting the data vectors..." 
-		<< std::endl;
-		// Sort the time values such that dt > 0
-		arma::uvec sorted_indices = arma::sort_index(time_);
-		time_ = time.elem(sorted_indices);
-		y_ = y_.elem(sorted_indices);
-		yerr_ = yerr.elem(sorted_indices);
-		dt_ = time_.rows(1,ndata-1) - time_.rows(0,ndata-2);
-	}
-	// Make sure there are no duplicate values of time
-	if (dt_.min() == 0) {
-		std::cout << "Found duplicate values of time, removing them..." << std::endl;
-		// Find the unique values of time
-		arma::uvec unique_values = 1 + arma::find(dt_ != 0);
-		// Add extra row in to keep time(0), y(0), yerr(0)
-		unique_values.insert_rows(0, arma::zeros<arma::uvec>(1));
-		time_ = time_.elem(unique_values);
-		y_ = y_.elem(unique_values);
-		yerr_ = yerr_.elem(unique_values);
-		ndata = time.n_elem;
-		dt_.set_size(ndata-1);
-		dt_ = time_.rows(1,time_.n_elem-1) - time_.rows(0,time_.n_elem-2);
-	}
-
-	// Set the size of the Kalman filter vectors
-	kalman_mean_.set_size(ndata);
-	kalman_var_.set_size(ndata);
-}
-
-// Method of CAR1 class to set the bounds on the uniform prior.
-//
-// The prior on the parameters is uniform on log(omega) and the CAR(1)
-// process standard deviation, subject to the following constraints:
-//
-//	omega < 1 / min(dt)
-//  CAR(1) standard deviation < max_stdev
-//
-// where CAR1_stdev = sigma / sqrt(2 * omega). Therefore, the upper bound
-// on CAR1_stdev implies an upper bound on the factor sigma / sqrt(omega), 
-// and thus a lower bound on omega|sigma. The default value of max_stdev=6.9
-// was chosen because it is assumed that the time series should not show
-// a dispersion greater than 3 orders of magnitude.
-
-void CAR1::SetPrior(double max_stdev)
-{
-	max_stdev_ = max_stdev;
-	max_freq_ = 10.0 / dt_.min();
-	min_freq_ = 1.0 / (10.0 * (time_.max() - time_.min()));
-}
-
-// Method of CAR1 class to print the prior parameters.
-void CAR1::PrintPrior()
-{
-	std::cout << "Maximum Standard Deviation: " << max_stdev_ << std::endl;
-	std::cout << "Maximum Frequency: " << max_freq_ << std::endl;
-	std::cout << "Minimum Frequency: " << min_freq_ << std::endl;
-	std::cout << "Degrees of freedom for measurement error scaling parameter: " <<
-	measerr_dof_ << std::endl;
-}
-
 // Method of CAR1 class to generate the starting values of the
 // parameters theta = (mu, sigma, measerr_scale, log(omega)).
 
@@ -140,138 +59,32 @@ arma::vec CAR1::StartingValue()
 	
 	arma::vec theta(3);
 	
-	theta << sigma << measerr_scale << log_omega_start << arma::endr;
+	theta << car1_stdev_start << measerr_scale << log_omega_start << arma::endr;
 	
 	// Initialize the Kalman filter
-	KalmanFilter(theta);
+    Kfilter_.SetOmega(exp(log_omega_start));
+    Kfilter_.SetSigsqr(sigma * sigma);
+    arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+    Kfilter_.SetTimeSeriesErr(proposed_yerr);
+    Kfilter_.Filter();
 	
 	return theta;
 }
 
-// Method of CAR1 class to return the value of the parameter vector
-// as a string
-std::string CAR1::StringValue()
+bool CAR1::CheckPriorBounds(arma::vec theta)
 {
-	std::stringstream ss;
+    double ysigma = theta(0);
+    double measerr_scale = theta(1);
+    double omega = exp(theta(2));
     
-    ss << log_posterior_;
-    for (int i=0; i<value_.n_elem; i++) {
-        ss << " " << value_(i);
-    }
-
-	//(theta_.t()).raw_print(ss);
-
-	std::string theta_str = ss.str();
-	return theta_str;
-}
-
-// Method of CAR1 class to save a new parameter vector. Also
-// save the values of the log-posterior.
-void CAR1::Save(arma::vec new_car1)
-{
-	// new_car1 ---> value_
-	value_ = new_car1;
-	
-	double measerr_scale = value_(1);
-	
-	// Update the log-posterior using this new value of theta.
-	//
-	// IMPORTANT: This assumes that the Kalman filter was calculated
-	// using the value of new_car1.
-	//
-	log_posterior_ = 0.0;
-	for (int i=0; i<time_.n_elem; i++) {
-		log_posterior_ += -0.5 * log(kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
+    bool prior_satisfied = true;
+    if ( (omega > max_freq_) || (omega < min_freq_) ||
+        (car1_stdev > max_stdev_) || (car1_stdev < 0) ||
+        (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
+		// prior bounds not satisfied
+		prior_satisfied = false;
 	}
-	
-	log_posterior_ += LogPrior(new_car1);
-}
-
-// Method of CAR1 to compute the Kalman filter. This is needed for the likelihood 
-// calculation, and is useful for assessing the quality of the fit.
-void CAR1::KalmanFilter(arma::vec car1_value)
-{
-	// The CAR(1) parameters
-	double sigma = car1_value(0); // Amplitude of driving noise
-	double measerr_scale = car1_value(1); // Scaling parameter for measurement errors
-	double omega = exp(car1_value(2)); // Damping frequency of time series
-	
-	kalman_mean_(0) = 0.0;
-	kalman_var_(0) = sigma * sigma / (2.0 * omega);
-	
-	// TODO: SEE IF I CAN SPEED THIS UP USING ITERATORS
-	double rho, var_ratio;
-	for (int i=1; i<time_.n_elem; i++) 
-	{
-		rho = exp(-1.0 * omega * dt_(i-1));
-		var_ratio = kalman_var_(i-1) / (kalman_var_(i-1) + measerr_scale * yerr_(i-1) * yerr_(i-1));
-		
-		// Update the Kalman filter mean
-		kalman_mean_(i) = rho * kalman_mean_(i-1)
-			+ rho * var_ratio * (y_(i-1) - kalman_mean_(i-1));
-		
-		// Update the Kalman filter variance
-		kalman_var_(i) = kalman_var_(0) * (1.0 - rho * rho)
-			+ rho * rho * kalman_var_(i-1) * (1.0 - var_ratio);
-	}
-    kalman_var_ += measerr_scale * yerr_ % yerr_; // add in contribution to variance from measurement errors
-}
-
-// Return the log-prior for a CAR(1) process
-double CAR1::LogPrior(arma::vec car1_value)
-{
-    double measerr_scale = car1_value(1);
-    
-    double logprior = -0.5 * measerr_dof_ / measerr_scale -
-     (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-    
-    return logprior;
-}
-
-// Method of CAR1 to compute the log-posterior as a function of the 
-// parameter vector
-double CAR1::LogDensity(arma::vec car1_value)
-{
-	double omega = exp(car1_value(2));
-	double car1_stdev = car1_value(0) / sqrt(2.0 * omega);
-	double measerr_scale = car1_value(1);
-	double logpost = 0.0;
-	
-	// Run the Kalman filter
-	KalmanFilter(car1_value);
-	
-	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
-	for (int i=0; i<time_.n_elem; i++) {
-		logpost += -0.5 * log(kalman_var_(i)) -
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
-	}
-	
-	// Prior bounds satisfied?
-	if ( (omega > max_freq_) || (omega < min_freq_) || 
-		 (car1_stdev > max_stdev_) || (car1_stdev < 0) ||
-		 (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
-		// Value of either omega or model standard deviation are above the
-		// prior bounds, so set logpost to be negative infinity
-		logpost = -1.0 * arma::datum::inf;
-        return logpost;
-	}
-	
-    logpost += LogPrior(car1_value);
-    
-	return logpost;
-}
-
-// Return the Kalman Filter Mean
-arma::vec CAR1::GetKalmanMean()
-{
-	return kalman_mean_;
-}
-
-// Return the Kalman Filter Variance
-arma::vec CAR1::GetKalmanVariance()
-{
-	return kalman_var_;
+    return prior_satisfied;
 }
 
 /********************************************************************
@@ -315,7 +128,7 @@ arma::vec CARp::StartingValue()
         // around measured standard deviation of the time series
         
         double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
-        
+        double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0)
         // Get initial value of the measurement error scaling parameter by
         // drawing from its prior.
         
@@ -334,8 +147,14 @@ arma::vec CARp::StartingValue()
             theta(p_+1) = log(lorentz_width(p_/2));
         }
         
-        // Initialize the Kalman filter
-        KalmanFilter(theta);
+        // set the Kalman filter parameters
+        pKFilter_->SetSigsqr(sigsqr);
+        pKFilter_->SetOmega(ExtractAR(theta));
+        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+        Kfilter_.SetTimeSeriesErr(proposed_yerr);
+        
+        // run the kalman filter
+        pKFilter_->Filter();
         
         double logpost = LogDensity(theta);
         good_initials = arma::is_finite(logpost);
@@ -344,168 +163,36 @@ arma::vec CARp::StartingValue()
     return theta;
 }
 
-// Calculate the kalman filter mean and variance
-void CARp::KalmanFilter(arma::vec theta)
+// check prior bounds
+bool CARp::CheckPriorBounds(arma::vec theta)
 {
-    // Construct the complex vector of roots of the characteristic polynomial:
-    // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
-    arma::cx_vec alpha_roots(p_);
-    for (int i=0; i<p_/2; i++) {
-        double lorentz_cent = exp(theta(2+2*i));
-        double lorentz_width = exp(theta(3+2*i));
-        alpha_roots(2*i) = std::complex<double> (-lorentz_width,lorentz_cent);
-        alpha_roots(2*i+1) = std::conj(alpha_roots(2*i));
-    }
-	
-    if ((p_ % 2) == 1) {
-        // p is odd, so add in additional low-frequency component
-        double lorentz_width = exp(theta(p_+1));
-        alpha_roots(p_-1) = std::complex<double> (-lorentz_width, 0.0); 
-    }
-    
-    alpha_roots *= 2.0 * arma::datum::pi;
-    
-	// Initialize the matrix of Eigenvectors. We will work with the state vector
-	// in the space spanned by the Eigenvectors because in this space the state
-	// transition matrix is diagonal, so the calculation of the matrix exponential
-	// is fast.
-	arma::cx_mat EigenMat(p_,p_);
-	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);
-	EigenMat.row(1) = alpha_roots.st();
-	for (int i=2; i<p_; i++) {
-		EigenMat.row(i) = strans(arma::pow(alpha_roots, i));
-	}
-    
-	// Input vector under original state space representation
-	arma::cx_vec Rvector = arma::zeros<arma::cx_vec>(p_);
-	Rvector(p_-1) = 1.0;
-    
-	// Transform the input vector to the rotated state space representation. 
-	// The notation R and J comes from Belcher et al. (1994).
-	arma::cx_vec Jvector(p_);
-	Jvector = arma::solve(EigenMat, Rvector);
-	
-	// Transform the moving average coefficients to the space spanned by EigenMat.
-    // For a CAR(p) model this is just a row vector of ones.
-    arma::cx_rowvec rotated_ma_terms = EigenMat.row(0);
-    
-	// Get the amplitude of the driving noise
-	double normalized_variance = Variance(alpha_roots, ma_coefs, 1.0);
-    double ysigma = theta(0); // The model standard deviation for the time series
-	double sigma = ysigma / sqrt(normalized_variance);
-	
-	// Calculate the stationary covariance matrix of the state vector.
-	arma::cx_mat StateVar(p_,p_);
-	for (int i=0; i<p_; i++) {
-		for (int j=i; j<p_; j++) {
-			// Only fill in upper triangle of StateVar because of symmetry
-			StateVar(i,j) = -sigma * sigma * Jvector(i) * std::conj(Jvector(j)) / 
-            (alpha_roots(i) + std::conj(alpha_roots(j)));
-		}
-	}
-	StateVar = arma::symmatu(StateVar); // StateVar is symmetric
-	arma::cx_mat PredictionVar = StateVar; // One-step state prediction error
-	
-	arma::cx_vec state_vector(p_);
-	state_vector.zeros(); // Initial state is set to zero
-	
-    
-	// Initialize the Kalman mean and variance. These are the forecasted value
-	// for the measured time series values and its variance, conditional on the
-	// previous measurements
-	kalman_mean_(0) = 0.0;
-    kalman_var_(0) = std::real( arma::accu(PredictionVar) );
-    
-	// Get the scaling parameter for the measurement error variance
-	double measerr_scale = theta(1);
-	
-	double innovation = y_(0); // The innovations
-	kalman_var_(0) += measerr_scale * yerr_(0) * yerr_(0); // Add in measurement error contribution
-    
-	// Run the Kalman Filter
-	// 
-	// CAN I MAKE THIS FASTER USING ITERATORS?
-	//
-	arma::cx_vec kalman_gain(p_);
-	arma::cx_vec state_transition(p_);
-	
-	for (int i=1; i<time_.n_elem; i++) {
-		// First compute the Kalman Gain
-		kalman_gain = arma::sum(PredictionVar, 1) / kalman_var_(i-1);
-        
-		// Now update the state vector
-		state_vector += kalman_gain * innovation;
-
-		// Update the state one-step prediction error variance
-		PredictionVar -= kalman_var_(i-1) * (kalman_gain * kalman_gain.t());
-        
-		// Predict the next state
-		state_transition = arma::exp(alpha_roots * dt_(i-1));
-		state_vector = state_vector % state_transition;
-
-		// Update the predicted state variance matrix
-		PredictionVar = (state_transition * state_transition.t()) % (PredictionVar - StateVar) 
-        + StateVar;
-        
-		// Now predict the observation and its variance. Note that for a CARMA(p,q) model we need to include
-        // the rotated MA terms here, which we currently ignore because they are just a vector of ones.
-        kalman_mean_(i) = std::real( arma::accu(state_vector) );
-
-        kalman_var_(i) = std::real( arma::accu(PredictionVar) );
-		kalman_var_(i) += measerr_scale * yerr_(i) * yerr_(i); // Add in measurement error contribution
-        
-		// Finally, update the innovation
-		innovation = y_(i) - kalman_mean_(i);
-	}
-}
-
-// Calculate the logarithm of the posterior
-double CARp::LogDensity(arma::vec theta)
-{
- 
-    double logpost = 0.0;
-    
-    // Run the Kalman filter
-    KalmanFilter(theta);
-    
-    // Calculate the log-likelihood
     double ysigma = theta(0);
-	double measerr_scale = theta(1);
+    double measerr_scale = theta(1);
+    arma::vec lorentz_params = ExtractAR(theta);
     
-    // TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
-    for (int i=0; i<time_.n_elem; i++) {
-        logpost += -0.5 * log(kalman_var_(i)) -
-        0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / kalman_var_(i);
-    }
-	
-    // Prior bounds satisfied?
-
-    arma::vec lorentz_params = arma::exp(theta(arma::span(2,theta.n_elem-1)));
     // Find the set of Frequencies satisfying the prior bounds
     arma::uvec valid_frequencies1 = arma::find(lorentz_params < max_freq_);
 	arma::uvec valid_frequencies2 = arma::find(lorentz_params > min_freq_);
     
-    if ( (valid_frequencies1.n_elem != lorentz_params.n_elem) || 
-		 (valid_frequencies2.n_elem != lorentz_params.n_elem) ||
-		 (ysigma > max_stdev_) || (ysigma < 0) || 
-         (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
-        // Value of either the frequencies or the model standard deviation are outside
-        // of the prior bounds, so set logpost to be negative infinity
-        return logpost = -1.0 * arma::datum::inf;
+    bool prior_satisfied = true
+    
+    if ( (valid_frequencies1.n_elem != lorentz_params.n_elem) ||
+        (valid_frequencies2.n_elem != lorentz_params.n_elem) ||
+        (ysigma > max_stdev_) || (ysigma < 0) ||
+        (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
+        // Value are outside of prior bounds
+        prior_satisfied = false;
     }
 	// Make sure the Lorentzian centroids are still in decreasing order
 	for (int i=1; i<p_/2; i++) {
 		double lorentz_cent_difference = exp(theta(2+2*(i-1))) - exp(theta(2+2*i));
 		if (lorentz_cent_difference < 0) {
 			// Lorentzians are not in decreasing order, reject this proposal
-			return logpost = -1.0 * arma::datum::inf;
+			prior_satisfied = false;
 		}
     }
     
-    // Add the log-prior to the log-likelihood
-    logpost += LogPrior(theta);
-    
-    return logpost;
+    return prior_satisfied;
 }
 
 // Calculate the variance of the CAR(p) process

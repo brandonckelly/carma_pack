@@ -18,6 +18,7 @@
 #include <samplers.hpp>
 #include <steps.hpp>
 #include <parameters.hpp>
+#include "kfilter.hpp"
 
 /*
  First-order continuous time autoregressive process (CAR(1)) class. Note that this is the same
@@ -44,110 +45,223 @@
  omega is fixed to be 1 / min(dt), where dt is the vector of time steps. 
 */
 
-class CAR1 : public Parameter<arma::vec> {
-	
+// TODO: need to add abstract base class
+template <class OmegaType>
+class CARMA_Base : public Parameter<arma::vec> {
 public:
-	// Constructor //
-	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0);
+    // Constructor
+    CARMA_Base(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr,
+               double temperature=1.0)  :
+    Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
+    {
+        // Set the degrees of freedom for the prior on the measurement error scaling parameter
+        measerr_dof_ = 8;
+        
+        y_ = y - arma::mean(y); // center the time series
+        time_ = time;
+        yerr_ = yerr;
+        int ndata = time.n_rows;
+        
+        // default prior bounds on the standard deviation of the time series
+        SetPrior(10.0 * sqrt(arma::var(y_)));
+    }
+    
+    virtual arma::vec StartingValue() = 0;
+    std::string StringValue()
+    {
+        std::stringstream ss;
+        
+        ss << log_posterior_;
+        for (int i=0; i<value_.n_elem; i++) {
+            ss << " " << value_(i);
+        }
+                
+        std::string theta_str = ss.str();
+        return theta_str;
+    }
 
-	virtual arma::vec StartingValue();
-	virtual std::string StringValue();
-	
-    void Save(arma::vec new_value);
+    
+    void Save(arma::vec& new_value)
+    {
+        // new carma value ---> value_
+        value_ = new_value;
+        
+        double measerr_scale = value_(1);
+        
+        // Update the log-posterior using this new value of theta.
+        //
+        // IMPORTANT: This assumes that the Kalman filter was calculated
+        // using the value of new_value.
+        //
+        log_posterior_ = 0.0;
+        for (int i=0; i<time_.n_elem; i++) {
+            log_posterior_ += -0.5 * log(pKFilter_->var(i)) - 0.5 * (y_(i) - pKFilter_->mean(i)) *
+            (y_(i) - pKFilter_->mean(i)) / pKFilter_->var(i);
+        }
+        log_posterior_ += LogPrior(new_value);
 
-    // Methods to get the data vectors //
-    arma::vec GetTime() {
-        return time_;
     }
     
-    arma::vec GetTimeSeries() {
-        return y_;
+    // extract the lorentzian parameters from the CARMA parameter vector
+    virtual OmegaType ExtractAR(arma::vec theta) = 0;
+    // extract the moving-average parameters from the CARMA parameter vector
+    virtual OmegaType ExtractMA(arma::vec theta) = 0;
+    
+    // compute the log-prior of the CARMA parameters
+    virtual double LogPrior(arma::vec theta)
+    {
+        double measerr_scale = theta(1);
+        
+        double logprior = -0.5 * measerr_dof_ / measerr_scale -
+        (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
+        
+        return logprior;
     }
     
-    arma::vec GetTimeSeriesErr() {
-        return yerr_;
+    // compute the log-posterior
+    double LogDensity(arma::vec theta)
+    {
+        OmegaType omega = ExtractAR(theta);
+        OmegaType ma_coefs = ExtractMA(theta);
+        double yvar = theta(0) * theta(0);
+        double measerr_scale = theta(1);
+        
+        // Run the Kalman filter
+        pKFilter_->SetSigsqr(yvar);
+        pKFilter_->SetOmega(omega);
+        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+        pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        pKFilter_->Filter();
+        
+        // calculate the log-likelihood
+        double logpost = 0.0;
+        for (int i=0; i<time_.n_elem; i++) {
+            logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * (y_(i) - pKFilter_->mean(i)) *
+            (y_(i) - pKFilter_->mean(i)) / pKFilter_->var(i);
+        }
+        
+        // Prior bounds satisfied?
+        bool prior_satisfied = CheckPriorBounds(theta);
+        if (!prior_satisfied) {
+            logpost = -1.0 * arma::datum::inf;
+            return logpost;
+        }
+                
+        logpost += LogPrior(theta);
+        
+        return logpost;
     }
     
-	// Methods for the Kalman filter //
-	
-	// Calculate the kalman filter mean and variance
-	virtual void KalmanFilter(arma::vec car1_value);
-	// Return the Kalman Filter Mean
-	arma::vec GetKalmanMean();
-	// Return the Kalman Filter Variance
-	arma::vec GetKalmanVariance();
-	
-	// Methods for related to the log-posterior //
-	
-	// Set the bounds on the uniform prior.
-	virtual void SetPrior(double max_stdev); 
-	virtual void PrintPrior();
-	
-	// Compute the log-posterior
-    virtual double LogPrior(arma::vec car1_value);
-	virtual double LogDensity(arma::vec car1_value);
+    bool virtual CheckPriorBounds(arma::vec theta)
+    {
+        double ysigma = theta(0);
+        double measerr_scale = theta(1);
+        bool prior_satisfied = true;
+        if ( (ysigma > max_stdev_) || (ysigma < 0) ||
+            (measerr_scale < 0.5) || (measerr_scale > 2.0) )
+        {
+            prior_satisfied = false;
+        }
+        return prior_satisfied;
+    }
     
+    // Setters and Getters
+    arma::vec GetTime() { return time_; }
+    arma::vec GetTimeSeries() { return y_; }
+    arma::vec GetTimeSeriesErr() { return yerr_; }
+    arma::vec GetKalmanMean() { return pKFilter_->mean; }
+    arma::vec GetKalmanVar() { return pKFilter_->var; }
+    boost::shared_ptr<KalmanFilter<OmegaType> > GetKalmanPtr() { return pKFilter_; }
+    
+    virtual void SetPrior(double max_stdev) // set the bounds on the uniform prior
+    {
+        max_stdev_ = max_stdev;
+        max_freq_ = 10.0 / dt_.min();
+        min_freq_ = 1.0 / (10.0 * (time_.max() - time_.min()));
+    }
+        
 protected:
-	// Data vectors
-	arma::vec time_;
-	arma::vec y_;
-	arma::vec yerr_;
-	arma::vec dt_;
-	// Vectors for the Kalman filter. Make these protected members so we don't
-	// have to initialize them every time we evaluate the likelihood function.
-	arma::vec kalman_mean_;
-	arma::vec kalman_var_;
-	
-	// Prior parameters
-	double max_stdev_; // Maximum value of the standard deviation of the CAR(1) process
+    // time series data
+    arma::vec time_;
+    arma::vec y_;
+    arma::vec yerr_;
+    arma::vec dt_;
+    // pointer to Kalman Filter object. The Kalman filter is the workhorse behind the likelihood calculations.
+    boost::shared_ptr<KalmanFilter<OmegaType> > pKFilter_;
+    // prior parameters
+    double max_stdev_; // Maximum value of the standard deviation of the CAR(1) process
 	double max_freq_; // Maximum value of omega = 1 / tau
 	double min_freq_; // Minimum value of omega = 1 / tau
 	int measerr_dof_; // Degrees of freedom for prior on measurement error scaling parameter
 };
 
+// class for a CAR(1) process
+class CAR1 : public CARMA_Base<double> {
+	
+public:
+	// Constructor //
+	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0) :
+    CARMA_Base(track, name, time, y, yerr, temperature), pKFilter_(new KalmanFilter1(time, y, yerr)) {
+        // Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
+        value_.set_size(3);
+    }
+    
+    // extract the AR parameters from the parameter vector
+    double ExtractAR(arma::vec theta) { return exp(theta(0)); }
+    double ExtractMA(arma::vec theta) { return 0.0; }
+    
+    // generate starting values of the CAR(1) parameters
+	arma::vec StartingValue();
+
+	// Set the bounds on the uniform prior.
+    bool CheckPriorBounds(arma::vec theta);
+};
+
 /*
  Continuous time autoregressive process of order p.
- 
 */
 
-class CARp : public CAR1 {
+class CARp : public CARMA_Base<arma::vec> {
 public:
     // Constructor
     CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
-    CAR1(track, name, time, y, yerr, temperature), p_(p)
+    CAR1(track, name, time, y, yerr, temperature), p_(p), pKFilter_(new KalmanFilterp(time, y, yerr))
 	{ 
 		value_.set_size(p_+2);
-        ma_coefs = arma::zeros(p);
-        ma_coefs(0) = 1.0;
+        ma_coefs_ = arma::zeros(p);
+        ma_coefs_(0) = 1.0;
+        pKFilter_->SetMA(ma_coefs_);
 	}
     
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
-	
-	// Calculate the kalman filter mean and variance
-	void KalmanFilter(arma::vec theta);
-	
-	// Calculate the logarithm of the posterior
-	double LogDensity(arma::vec theta);
+
+    // extract the lorentzian parameters from the CARMA parameter vector
+    arma::vec ExtractAR(arma::vec theta) {
+        return arma::exp(theta(arma::span(2,theta.n_elem-1)));
+    }
+    // extract the moving-average parameters from the CARMA parameter vector
+    arma::vec ExtractMA(arma::vec theta) { return ma_coefs_; }
     
     // Calculate the variance of the CAR(p) process
     double Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma, double dt=0.0);
 	
+    // Set the bounds on the uniform prior.
+    bool CheckPriorBounds(arma::vec theta);
+    
 	// Print out useful info
 	void PrintInfo();
 	
 private:
     int p_; // Order of the CAR(p) process
-    arma::vec ma_coefs;
+    arma::vec ma_coefs_;
 };
 
 /* 
- Continuous time autoregressive process of order p with a moving average term,
- defined by kappa.
- 
+ Continuous time autoregressive moving average process of order (p,q)
 */
 
-class CARMA : public CAR1 {
+class CARMA : public CARp {
 	
 public:
 	// Constructor //
