@@ -106,23 +106,23 @@ TEST_CASE("KalmanFilter1/Filter", "Test the Kalman Filter for a CAR(1) process")
     
     // First test that the Kalman Filter is correctly initialized after reseting it
     Kfilter1.Reset();
-    arma::vec kmean = Kfilter1.GetMean();
+    arma::vec kmean = Kfilter1.mean;
     REQUIRE(kmean(0) == 0.0);
-    arma::vec kvar = Kfilter1.GetVariance();
+    arma::vec kvar = Kfilter1.var;
     double kvar_expected = sigmay * sigmay + yerr(0) * yerr(0);
     REQUIRE(std::abs(kvar(0) - kvar_expected) < 1e-10);
     
     // Now test the one-step prediction
     Kfilter1.Update();
-    kmean = Kfilter1.GetMean();
-    kvar = Kfilter1.GetVariance();
+    kmean = Kfilter1.mean;
+    kvar = Kfilter1.var;
     double sresid1 = (y(1) - kmean(1)) / sqrt(kvar(1));
     REQUIRE(std::abs(sresid1) < 3.0);
     
     // Compute and grab the kalman filter
     Kfilter1.Filter();
-    kmean = Kfilter1.GetMean();
-    kvar = Kfilter1.GetVariance();
+    kmean = Kfilter1.mean;
+    kvar = Kfilter1.var;
     
     // Compute the standardized residuals of the time series
     arma::vec sresid = (y - kmean) / arma::sqrt(kvar);
@@ -318,23 +318,23 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process")
     
     // First test that the Kalman Filter is correctly initialized after reseting it
     Kfilter.Reset();
-    arma::vec kmean = Kfilter.GetMean();
+    arma::vec kmean = Kfilter.mean;
     REQUIRE(kmean(0) == 0.0);
-    arma::vec kvar = Kfilter.GetVariance();
+    arma::vec kvar = Kfilter.var;
     double kvar_expected = sigmay * sigmay + yerr(0) * yerr(0);
     REQUIRE(std::abs(kvar(0) - kvar_expected) < 1e-10);
     
     // Now test the one-step prediction
     Kfilter.Update();
-    kmean = Kfilter.GetMean();
-    kvar = Kfilter.GetVariance();
+    kmean = Kfilter.mean;
+    kvar = Kfilter.var;
     double sresid1 = (y(1) - kmean(1)) / sqrt(kvar(1));
     REQUIRE(std::abs(sresid1) < 3.0);
     
     // Compute and grab the kalman filter
     Kfilter.Filter();
-    kmean = Kfilter.GetMean();
-    kvar = Kfilter.GetVariance();
+    kmean = Kfilter.mean;
+    kvar = Kfilter.var;
     
     // Compute the standardized residuals of the time series
     arma::vec sresid = (y - kmean) / arma::sqrt(kvar);
@@ -881,7 +881,7 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     
     // run the MCMC sampler
     std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
-    mcmc_out = RunEnsembleCarSampler(sample_size, burnin, time, y, yerr, carp_order, nwalkers);
+    mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
     std::vector<arma::vec> mcmc_sample;
     mcmc_sample = mcmc_out.first;
     
@@ -930,7 +930,7 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
     
     // run the MCMC sampler
     std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
-    mcmc_out = RunEnsembleCarSampler(sample_size, burnin, time, y, yerr, carp_order, nwalkers);
+    mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
     std::vector<arma::vec> mcmc_sample;
     mcmc_sample = mcmc_out.first;
     

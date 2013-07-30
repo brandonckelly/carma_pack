@@ -62,11 +62,11 @@ arma::vec CAR1::StartingValue()
 	theta << car1_stdev_start << measerr_scale << log_omega_start << arma::endr;
 	
 	// Initialize the Kalman filter
-    Kfilter_.SetOmega(exp(log_omega_start));
-    Kfilter_.SetSigsqr(sigma * sigma);
+    pKFilter_->SetOmega(exp(log_omega_start));
+    pKFilter_->SetSigsqr(sigma * sigma);
     arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
-    Kfilter_.SetTimeSeriesErr(proposed_yerr);
-    Kfilter_.Filter();
+    pKFilter_->SetTimeSeriesErr(proposed_yerr);
+    pKFilter_->Filter();
 	
 	return theta;
 }
@@ -79,7 +79,7 @@ bool CAR1::CheckPriorBounds(arma::vec theta)
     
     bool prior_satisfied = true;
     if ( (omega > max_freq_) || (omega < min_freq_) ||
-        (car1_stdev > max_stdev_) || (car1_stdev < 0) ||
+        (ysigma > max_stdev_) || (ysigma < 0) ||
         (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
 		// prior bounds not satisfied
 		prior_satisfied = false;
@@ -90,6 +90,32 @@ bool CAR1::CheckPriorBounds(arma::vec theta)
 /********************************************************************
                         METHODS OF CARp CLASS
  *******************************************************************/
+
+// Calculate the roots of the AR(p) polynomial from the parameters
+arma::cx_vec CARp::ARRoots(arma::vec theta)
+{
+    arma::cx_vec ar_roots(p_);
+    
+    // Construct the complex vector of roots of the characteristic polynomial:
+    // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
+    for (int i=0; i<p_/2; i++) {
+        double lorentz_cent = exp(theta(2+2*i)); // PSD is a sum of Lorentzian functions
+        double lorentz_width = exp(theta(2+2*i+1));
+        ar_roots(2*i) = std::complex<double> (-lorentz_width,lorentz_cent);
+        ar_roots(2*i+1) = std::conj(ar_roots(2*i));
+    }
+	
+    if ((p_ % 2) == 1) {
+        // p is odd, so add in additional low-frequency component
+        double lorentz_width = exp(theta(2+p_-1));
+        ar_roots(p_-1) = std::complex<double> (-lorentz_width, 0.0);
+    }
+    
+    ar_roots *= 2.0 * arma::datum::pi;
+    
+    return ar_roots;
+}
+
 
 // Return the starting value and set log_posterior_
 arma::vec CARp::StartingValue()
@@ -123,12 +149,22 @@ arma::vec CARp::StartingValue()
             // value of the system frequencies
             lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
         }
-        
+
+        for (int i=0; i<p_/2; i++) {
+            theta(2+2*i) = log(lorentz_cent(i));
+            theta(3+2*i) = log(lorentz_width(i));
+        }
+        if ((p_ % 2) == 1) {
+            // p is odd, so add in additional value of lorentz_width
+            theta(p_+1) = log(lorentz_width(p_/2));
+        }
+
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
         
         double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
-        double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0)
+        arma::cx_vec alpha_roots = ARRoots(theta);
+        double sigsqr = yvar / Variance(alpha_roots, ma_coefs_, 1.0);
         // Get initial value of the measurement error scaling parameter by
         // drawing from its prior.
         
@@ -138,20 +174,12 @@ arma::vec CARp::StartingValue()
         
         theta(0) = sqrt(yvar);
         theta(1) = measerr_scale;
-        for (int i=0; i<p_/2; i++) {
-            theta(2+2*i) = log(lorentz_cent(i));
-            theta(3+2*i) = log(lorentz_width(i));
-        }
-        if ((p_ % 2) == 1) {
-            // p is odd, so add in additional value of lorentz_width
-            theta(p_+1) = log(lorentz_width(p_/2));
-        }
         
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(ExtractAR(theta));
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
-        Kfilter_.SetTimeSeriesErr(proposed_yerr);
+        pKFilter_->SetTimeSeriesErr(proposed_yerr);
         
         // run the kalman filter
         pKFilter_->Filter();
@@ -174,7 +202,7 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     arma::uvec valid_frequencies1 = arma::find(lorentz_params < max_freq_);
 	arma::uvec valid_frequencies2 = arma::find(lorentz_params > min_freq_);
     
-    bool prior_satisfied = true
+    bool prior_satisfied = true;
     
     if ( (valid_frequencies1.n_elem != lorentz_params.n_elem) ||
         (valid_frequencies2.n_elem != lorentz_params.n_elem) ||
@@ -231,94 +259,35 @@ double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma
     return sigma * sigma * car_var.real();
 }
 
-void CARp::PrintInfo()
-{	
-	std::cout << "****************** PARAMETERS **************" << std::endl;
-	std::cout << "ysigma: " << value_(0) << std::endl;
-	std::cout << "measerr scaling parameter: " << value_(1) << std::endl;
-	arma::vec lorentz_params = value_(arma::span(2,value_.n_elem-1));
-	lorentz_params.print("log(lorentz_params):");
-	std::cout << "logpost: " << log_posterior_ << std::endl;
-	std::cout << "Prior upper bound on CAR(p) standard deviation: " << max_stdev_ << std::endl;
-	std::cout << "Prior upper bound on CAR(p) frequencies: " << max_freq_ << std::endl;
-	kalman_mean_.print("kalman mean:");
-	kalman_var_.print("kalman_var:");
-}
-
 /*******************************************************************
                         METHODS OF CARMA CLASS
  ******************************************************************/
 
-// Constructor
-CARMA::CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature) :
-	CAR1(track, name, time, y, yerr, temperature), p_(p) 
+// Return the starting value and set log_posterior_
+arma::vec CARMA::StartingValue()
 {
-	value_.set_size(p_+2);
-	phi_var_.set_size(p_);
-	// tol_ = 10.0 * arma::datum::eps;
-	tol_ = 1e-6;
-	kappa_ = 1.0 / arma::median(dt_);
-	// convert kappa from angular to regular frequency
-	kappa_ = kappa_ * 2.0 * arma::datum::pi;
-	
-	// Set the moving average terms
-	ma_terms_.set_size(p_);
-	ma_terms_(0) = 1.0;
-	for (int i=1; i<p_; i++) {
-		ma_terms_(i) = boost::math::binomial_coefficient<double>(p_-1, i) / pow(kappa_,i);
-	}
-}
-
-/*
- Return the starting value and set log_posterior_. Starting values are
- calculated by randomly drawing the imaginary and real parts of the roots
- from Uniform(min_freq, max_freq), where min_freq corresponds to the
- length of the time series, and max_freq corresponds to the median time
- spacing. I do this because the PSD of the CAR(p) process can be 
- expressed as a mixture of Lorentzians, with the imaginary parts of the
- roots being the centroid frequencies, and the real parts being the
- Lorentzian widths. The starting values of phi are then calculated from
- these roots. In addition, the starting value of sigma is drawn from a 
- uniform distribution, ensuring that the variance of the CAR(p) process
- is less than the prior upper limit. The mean is just set to the mean
- of the time series.
-*/
-
-arma::vec CARMA::StartingValue() {
-	
-	double max_freq = kappa_;
-	double min_freq = 1.0 / (time_.max() - time_.min());
-	
-	arma::vec sys_freq(p_); // Imaginary part of roots of characteristic polynomial
-	arma::vec break_freq(p_); // Real part of roots
-	
-	// Roots of the characteristic polynomial :
-	//		alpha(s) = s^p + alpha_1 * s^{p-1} + ... + alpha_{p-1} * s + alpha_p
-	arma::cx_vec alpha_roots(p_);
-
-    bool roots_are_unique = false;
+    double min_freq = 1.0 / (time_.max() - time_.min());
+    // Create the parameter vector, theta
+    arma::vec theta(p_+q_+2);
     
-	do {
-		// Get initial values for phi by first getting initial values for the
-		// roots of the characteristic polynomial, and then transforming to the
-		// values of phi. If initial values of the roots result in non-unique
-		// roots within tol_, then try again.
-		
-        // Obtain initial values for Lorentzian centroids (= system frequencies) and 
+    bool good_initials = false;
+    while (!good_initials) {
+        
+        // Obtain initial values for Lorentzian centroids (= system frequencies) and
         // widths (= break frequencies)
         arma::vec lorentz_cent((p_+1)/2);
         lorentz_cent.randu();
-        lorentz_cent = log(max_freq / min_freq) * lorentz_cent + log(min_freq);
+        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
         lorentz_cent = arma::exp(lorentz_cent);
         
-        // Force system frequencies to be in descending order
+        // Force system frequencies to be in descending order to make the model identifiable
         lorentz_cent = arma::sort(lorentz_cent, 1);
-                
+        
         arma::vec lorentz_width((p_+1)/2);
         lorentz_width.randu();
-        lorentz_width = log(max_freq / min_freq) * lorentz_width + log(min_freq);
+        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
         lorentz_width = arma::exp(lorentz_width);
-                
+        
         if ((p_ % 2) == 1) {
             // p is odd, so add additional low-frequency component
             lorentz_cent(p_/2) = 0.0;
@@ -328,396 +297,224 @@ arma::vec CARMA::StartingValue() {
         }
         
         for (int i=0; i<p_/2; i++) {
-            alpha_roots(2*i) = std::complex<double> (-lorentz_width(i),lorentz_cent(i));
-            alpha_roots(2*i+1) = std::conj(alpha_roots(2*i));
+            theta(2+2*i) = log(lorentz_cent(i));
+            theta(3+2*i) = log(lorentz_width(i));
         }
+        if ((p_ % 2) == 1) {
+            // p is odd, so add in additional value of lorentz_width
+            theta(p_+1) = log(lorentz_width(p_/2));
+        }
+
+        // get initial guess for the moving average polynomial roots
+        arma::vec ma_real((q_+1)/2);
+        arma::vec ma_imag((q_+1)/2);
+        ma_real.randn();
+        ma_real = arma::exp(ma_real);
+        ma_imag.randn();
+        ma_imag = arma::exp(ma_imag);
+        if ((q_ % 2) == 1) {
+            ma_imag(q_/2) = 0.0;
+        }
+        // Order imaginary components of MA roots to be in descending order to make the model identifiable
+        ma_imag = arma::sort(ma_imag, 1);
+
+        for (int j=0; j<q_/2; j++) {
+            theta(2+p_+2*j) = log(ma_imag(j));
+            theta(3+p_+2*j) = log(ma_real(j));
+        }
+        if ((q_ % 2) == 1) {
+            theta(q_+p_+1) = log(ma_real(q_/2));
+        }
+        
+        // compute the coefficients of the MA polynomial
+        arma::vec ma_coefs = ExtractMA(theta);
+        
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        
+        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        arma::cx_vec alpha_roots = ARRoots(theta);
+        double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0);
+        
+        // Get initial value of the measurement error scaling parameter by
+        // drawing from its prior.
+        
+        double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
+        measerr_scale = std::min(measerr_scale, 1.99);
+        measerr_scale = std::max(measerr_scale, 0.51);
+        
+        theta(0) = sqrt(yvar);
+        theta(1) = measerr_scale;
+        
+        // set the Kalman filter parameters
+        pKFilter_->SetSigsqr(sigsqr);
+        pKFilter_->SetOmega(ExtractAR(theta));
+        pKFilter_->SetMA(ma_coefs);
+        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+        pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        
+        // run the kalman filter
+        pKFilter_->Filter();
+        
+        double logpost = LogDensity(theta);
+        good_initials = arma::is_finite(logpost);
+    } // continue loop until the starting values give us a finite posterior
+    
+    return theta;
+}
+
+// extract the moving-average coefficients from the CARMA parameter vector
+arma::vec CARMA::ExtractMA(arma::vec theta)
+{
+    arma::cx_vec ma_roots(q_);
+    
+    // Construct the complex vector of roots of the MA polynomial
+    for (int i=0; i<p_/2; i++) {
+        double ma_imag = exp(theta(2+p_+2*i));
+        double ma_real = exp(theta(2+p_+2*i+1));
+        ma_roots(2*i) = std::complex<double> (-ma_real,ma_imag);
+        ma_roots(2*i+1) = std::conj(ma_roots(2*i));
+    }
+	
+    if ((q_ % 2) == 1) {
+        // p is odd, so add in additional low-frequency component
+        double ma_real = theta(q_+p_+1);
+        ma_roots(q_-1) = std::complex<double> (-ma_real, 0.0);
+    }
+    // compute the coefficients of the MA polynomial
+    arma::vec ma_coefs = polycoefs(ma_roots);
+    ma_coefs = arma::flipud(ma_coefs);
+    ma_coefs = ma_coefs / ma_coefs(0);
+    ma_coefs.resize(p_);
+    for (int j=q_; j<p_; j++) {
+        ma_coefs(j) = 0.0;
+    }
+}
+
+// Set the bounds on the uniform prior.
+bool CARMA::CheckPriorBounds(arma::vec theta)
+{
+    bool prior_satisfied = CARp::CheckPriorBounds(theta);
+
+    // Make sure the imaginary components of MA roots are still in decreasing order
+	for (int i=1; i<q_/2; i++) {
+		double ma_imag_difference = exp(theta(2+p_+2*(i-1))) - exp(theta(2+p_+2*i));
+		if (ma_imag_difference < 0) {
+			prior_satisfied = false;
+		}
+    }
+    return prior_satisfied;
+}
+
+
+/*******************************************************************
+                        METHODS OF ZCARMA CLASS
+ *******************************************************************/
+
+arma::vec ZCARMA::StartingValue()
+{
+    double min_freq = 1.0 / (time_.max() - time_.min());
+    // Create the parameter vector, theta
+    arma::vec theta(p_+3);
+    
+    bool good_initials = false;
+    while (!good_initials) {
+        
+        // Obtain initial values for Lorentzian centroids (= system frequencies) and
+        // widths (= break frequencies)
+        arma::vec lorentz_cent((p_+1)/2);
+        lorentz_cent.randu();
+        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
+        lorentz_cent = arma::exp(lorentz_cent);
+        
+        // Force system frequencies to be in descending order to make the model identifiable
+        lorentz_cent = arma::sort(lorentz_cent, 1);
+        
+        arma::vec lorentz_width((p_+1)/2);
+        lorentz_width.randu();
+        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
+        lorentz_width = arma::exp(lorentz_width);
         
         if ((p_ % 2) == 1) {
-            // p is odd, so add in additional low-frequency component
-            alpha_roots(p_-1) = std::complex<double> (-lorentz_width(p_/2), 0.0); 
+            // p is odd, so add additional low-frequency component
+            lorentz_cent(p_/2) = 0.0;
+            // make initial break frequency of low-frequency component less than minimum
+            // value of the system frequencies
+            lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
         }
         
-        alpha_roots *= 2.0 * arma::datum::pi;
-        
-		// Check that roots are unique within specified tolerance
-        roots_are_unique = unique_roots(alpha_roots, tol_);
-        
-	} while (!roots_are_unique); // Repeat until we have unique roots
-	
-    // Transform the roots of alpha(s) to the roots of z^p * phi(1/z)
-    arma::cx_vec phi_roots = (1.0 + alpha_roots / kappa_) / (1.0 - alpha_roots / kappa_);
-
-    // Now that we have the roots of the polynomial z^p * phi(1/z), calculate the
-    // coefficients {phi_j ; j = 1,...,p}
-    arma::vec phi(p_+1);
-    phi = polycoefs(phi_roots);
-    
-    // Remove coefficient for constant term in phi(1/z), since it is fixed to one
-    // and therefore not a free parameter
-    phi.shed_row(0);
-
-	// Initialize the standard deviation of the CARMA(p) process
-	// by drawing from its prior
-	double carma_stdev_start = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
-	carma_stdev_start = sqrt(carma_stdev_start);
-	
-	// Get initial value of the measurement error scaling parameter by
-	// drawing from its prior.
-	
-	double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
-    measerr_scale = std::min(measerr_scale, 1.99);
-    measerr_scale = std::max(measerr_scale, 0.51);
-	
-
-    // Create the parameter vector, theta
-	arma::vec theta(p_+2);
-	
-    theta(0) = carma_stdev_start;
-    theta(1) = measerr_scale;
-    theta(arma::span(2,p_+1)) = phi;
-    
-	// Initialize the Kalman filter
-	KalmanFilter(theta(0), measerr_scale, alpha_roots);
-	
-    if (temperature_ == 1.0) {
-        std::cout << "Kappa: " << kappa_ << std::endl;
-    }
-    
-	return theta;
-}
-
-// Method of CARMA class to save a new parameter vector and its
-// log-posterior.
-void CARMA::Save(arma::vec new_car)
-{
-	// new_car ---> value_
-	value_ = new_car;
-    double measerr_scale = value_(1);
-	
-    
-	// Update the log-posterior using this new value of theta.
-	//
-	// IMPORTANT: This assumes that the Kalman filter was calculated
-	// using the value of new_car.
-	//
-	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
-	log_posterior_ = 0.0;
-	for (int i=0; i<time_.n_elem; i++) {
-		log_posterior_ += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
-	}
-
-    // Compute the prior on the measurement error scaling parameter. This is a scaled
-	// inverse chi-square distribution with scaling parameter 1.0.
-	double logprior = -0.5 * measerr_dof_ / measerr_scale - 
-    (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-	arma::vec phi = value_(arma::span(2,value_.n_elem-1));
-
-	// Add in the prior on phi to the log-likelihood
-	log_posterior_ += -0.5 * arma::sum(phi % phi / phi_var_) + logprior;
-	log_posterior_ = log_posterior_;
-}
-
-// Calculate the kalman filter mean and variance
-void CARMA::KalmanFilter(double ysigma, double measerr_scale, arma::cx_vec alpha_roots) {
-    
-	// Initialize the matrix of Eigenvectors. We will work with the state vector
-	// in the space spanned by the Eigenvectors because in this space the state
-	// transition matrix is diagonal, so we calculation of the matrix exponential
-	// is fast.
-	arma::cx_mat EigenMat(p_,p_);
-	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);
-	EigenMat.row(1) = alpha_roots.st();
-	for (int i=2; i<p_; i++) {
-		EigenMat.row(i) = strans(arma::pow(alpha_roots, i));
-	}
-
-	// Input vector under original state space representation
-	arma::cx_vec Rvector = arma::zeros<arma::cx_vec>(p_);
-	Rvector(p_-1) = 1.0;
-    
-	// Transform the input vector to the rotated state space representation. 
-	// The notation R and J comes from Belcher et al. (1994).
-	arma::cx_vec Jvector(p_);
-	Jvector = arma::solve(EigenMat, Rvector);
-    
-	// Transform the moving average coefficients to the space spanned by EigenMat
-    arma::cx_rowvec rotated_ma_terms = ma_terms_.t() * EigenMat;
-    
-	// Get the amplitude of the driving noise
-	double normalized_variance = Variance(alpha_roots, 1.0);
-	double sigma = ysigma / sqrt(normalized_variance);
-	
-	// Calculate the stationary covariance matrix of the state vector.
-	arma::cx_mat StateVar(p_,p_);
-	for (int i=0; i<p_; i++) {
-		for (int j=i; j<p_; j++) {
-			// Only fill in upper triangle of StateVar because of symmetry
-			StateVar(i,j) = -sigma * sigma * Jvector(i) * std::conj(Jvector(j)) / 
-				(alpha_roots(i) + std::conj(alpha_roots(j)));
-		}
-	}
-	StateVar = arma::symmatu(StateVar); // StateVar is symmetric
-	arma::cx_mat PredictionVar = StateVar; // One-step state prediction error
-	
-	arma::cx_vec state_vector(p_);
-	state_vector.zeros(); // Initial state is set to zero
-	
-    
-	// Initialize the Kalman mean and variance. These are the forecasted value
-	// for the measured time series values and its variance, conditional on the
-	// previous measurements
-	kalman_mean_(0) = 0.0;
-	kalman_var_(0) = std::real( arma::as_scalar(rotated_ma_terms * PredictionVar * 
-                                                rotated_ma_terms.t()) );
-	
-	double innovation = y_(0); // The innovations
-	kalman_var_(0) += measerr_scale * yerr_(0) * yerr_(0); // Add in measurement error contribution
-		
-	// Run the Kalman Filter
-	// 
-	// CAN I MAKE THIS FASTER USING ITERATORS?
-	//
-	arma::cx_vec kalman_gain(p_);
-	arma::cx_vec state_transition(p_);
-    
-	for (int i=1; i<time_.n_elem; i++) {
-		
-		// First compute the Kalman Gain
-		kalman_gain = PredictionVar * rotated_ma_terms.t() / kalman_var_(i-1);
-        
-		// Now update the state vector
-		state_vector += kalman_gain * innovation;
-        
-		// Update the state one-step prediction error variance
-		PredictionVar -= kalman_var_(i-1) * (kalman_gain * kalman_gain.t());
-        
-		// Predict the next state
-		state_transition = arma::exp(alpha_roots * dt_(i-1));
-		state_vector = state_vector % state_transition;
-        
-		// Update the predicted state variance matrix
-		PredictionVar = (state_transition * state_transition.t()) % (PredictionVar - StateVar) 
-			+ StateVar;
-        
-		// Now predict the observation and its variance
-		kalman_mean_(i) = std::real( arma::as_scalar(rotated_ma_terms * state_vector) );
-        
-		kalman_var_(i) = std::real( arma::as_scalar(rotated_ma_terms * PredictionVar * 
-													rotated_ma_terms.t()) );
-		kalman_var_(i) += measerr_scale * yerr_(i) * yerr_(i); // Add in measurement error contribution
-        
-		// Finally, update the innovation
-		innovation = y_(i) - kalman_mean_(i);
-	}
-}
-
-// Set the prior parameters.
-void CARMA::SetPrior(double max_stdev, arma::vec phi_var) {
-	// Prior on standard deviation of CAR(p) process is uniform and bounded
-	// from above by max_stdev
-	max_stdev_ = max_stdev;
-	
-	// Prior is phi|phi_var ~ N(0,phi_var)
-	phi_var_ = phi_var;
-}
-
-// Calculate the logarithm of the posterior
-double CARMA::LogDensity(arma::vec car_value) {
-
-    arma::vec phi = car_value(arma::span(2,car_value.n_elem-1));
-	
-	// First get roots of equation z^p * phi(1/z), where
-	//		z^p * phi(1/z) = z^p + phi_1 * z^{p-1} + ... + phi_{p-1} * z + phi_p
-	arma::cx_vec phi_roots(p_);
-	
-	bool use_toms493 = false;
-    bool success = false;
-	if (use_toms493) {
-		// Use Jenkins-Traub TOMS493 algorithm to find the roots. The C++ code for this
-		// is a port from the original Fortran routine, so that's why the funny syntax...
-		double op[101], zeroi[100], zeror[100];
-		op[0] = 1.0; // Highest order term has coefficient equal to unity
-		for (int i=1; i<p_+1; i++) {
-			// Fill in the non-zero coefficients
-			op[i] = phi(i-1);
-		}
-		
-		int p_copy = p_;
-		
-		//bool success = rpoly_ak1(op, &p_copy, zeror, zeroi); // Find the roots
-		if (!success) {
-			// Roots finding algorithm failed to converge, so force rejection of this
-			// proposal by setting log-posterior to negative infinity
-			std::cout << "bad roots" << std::endl;
-			phi.print("phi:");
-			for (int i=0; i<p_+2; i++) {
-				std::cout << op[i] << " ";
-			}
-			std::cout << std::endl;
-			//exit(1);
-			return -1.0 * arma::datum::inf;
-		}
-		
-		for (int i=0; i<p_; i++) {
-			// Save the roots to the phi_roots complex vector.
-			phi_roots(i) = std::complex<double>(zeror[i],zeroi[i]);
-		}
-	} else {
-		// Use Laguerre's method to find the roots. The C++ code for this is
-		// adapted from the Numerical Recipes routine.
-		
-        arma::cx_vec phi_coefs(p_+1);
-        
-		phi_coefs(p_) = std::complex<double>(1.0,0.0);
-		for (int i=0; i<p_; i++) {
-			// polyroots() takes coefficients in ascending order, opposite compared to phi
-			phi_coefs(i) = std::complex<double>(phi(p_-i-1),0.0);
-		}
-        
-        //bool success = polyroots(phi_coefs, phi_roots, true);
-        
-        if (!success) {
-            // Root finding algorithm failed, set log-posterior to negative infinity
-            std::cout << "bad roots" << std::endl;
-            phi.print("phi:");
-            return -1.0 * arma::datum::inf;
+        for (int i=0; i<p_/2; i++) {
+            theta(2+2*i) = log(lorentz_cent(i));
+            theta(3+2*i) = log(lorentz_width(i));
         }
-	}
-	
-	// Convert roots of phi(1/z) to roots of alpha(s), where
-	//		alpha(s) = s^p + alpha_1 * s^{p-1} + ... + alpha_{p-1} * s + alpha_p
-	arma::cx_vec alpha_roots = -kappa_ * (1.0 - phi_roots) / (1.0 + phi_roots);
-
-	// Check for uniqueness and stationarity
-	bool roots_are_ok = unique_roots(alpha_roots, tol_);
+        if ((p_ % 2) == 1) {
+            // p is odd, so add in additional value of lorentz_width
+            theta(p_+1) = log(lorentz_width(p_/2));
+        }
+        
+        // get initial guess for the moving average polynomial coefficients, parameterized by kappa
+        double kappa = kappa_low_ + (kappa_high_ - kappa_low_) * RandGen.uniform();
+        theta(2+p_) = logit(kappa);
+        
+        // compute the coefficients of the MA polynomial
+        arma::vec ma_coefs = ExtractMA(theta);
+        
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        
+        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        arma::cx_vec alpha_roots = ARRoots(theta);
+        double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0);
+        
+        // Get initial value of the measurement error scaling parameter by
+        // drawing from its prior.
+        
+        double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
+        measerr_scale = std::min(measerr_scale, 1.99);
+        measerr_scale = std::max(measerr_scale, 0.51);
+        
+        theta(0) = sqrt(yvar);
+        theta(1) = measerr_scale;
+        
+        // set the Kalman filter parameters
+        pKFilter_->SetSigsqr(sigsqr);
+        pKFilter_->SetOmega(ExtractAR(theta));
+        pKFilter_->SetMA(ma_coefs);
+        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+        pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        
+        // run the kalman filter
+        pKFilter_->Filter();
+        
+        double logpost = LogDensity(theta);
+        good_initials = arma::is_finite(logpost);
+    } // continue loop until the starting values give us a finite posterior
     
-	if (roots_are_ok) {
-		// Make sure all roots have positive real parts for stationarity
-		for (int i=0; i<alpha_roots.n_elem; i++) {
-			if (std::real(alpha_roots(i)) >= 0) {
-				// Root has a non-negative real part, CAR(p) process is not stationary
-				roots_are_ok = false;
-			}
-		}
-	}
-	
-	if (!roots_are_ok) {
-		// CAR(p) process is not stationary or we cannot use the Kalman filter,
-		// so reject this value of phi by forcing the log-posterior to be equal
-		// to negative infinity
-		return -1.0 * arma::datum::inf;
-	}
-	
-	// Prior bounds satisfied?
-	if ( (car_value(0) < 0) || (car_value(0) > max_stdev_) ||
-         (car_value(1) < 0.50) || (car_value(1) > 2.0)) {
-		// Value of model standard deviation are above the prior bounds, so set 
-		// logpost to be negative infinity.
-		return -1.0 * arma::datum::inf;
-	}
-	
-	// Calculate the Kalman Filter
-	
-	double ysigma = car_value(0); // The standard deviation of the CARMA(p) process
-	double measerr_scale = car_value(1); // The scaling factor for the measurement errors
-	
-	KalmanFilter(ysigma, measerr_scale, alpha_roots);
-	
-	// Calculate the log-likelihood
-	
-	// TODO: SEE IF I CAN GET A SPEED INCREASE USING ITERATORS
-	
-	double logpost = 0.0;
-	for (int i=0; i<time_.n_elem; i++) {
-		logpost += -0.5 * log(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i)) - 
-		0.5 * (y_(i) - kalman_mean_(i)) * (y_(i) - kalman_mean_(i)) / 
-		(measerr_scale * yerr_(i) * yerr_(i) + kalman_var_(i));
-	}
-    
-    // Compute the prior on the measurement error scaling parameter. This is a scaled
-	// inverse chi-square distribution with scaling parameter 1.0.
-	double logprior = -0.5 * measerr_dof_ / measerr_scale - 
-    (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
-	
-	// Add in the prior on phi to the log-likelihood
-	logpost += -0.5 * arma::sum(phi % phi / phi_var_) + logprior;
-    
-	return logpost;
+    return theta;
 }
 
-// Set the value of kappa, the prescribed moving average term.
-void CARMA::SetKappa(double kappa) 
+// extract the moving average coefficients from the parameter vector
+arma::vec ZCARMA::ExtractMA(arma::vec theta)
 {
-    kappa_ = kappa;
-	
-	// Set the moving average terms
-	ma_terms_(0) = 1.0;
+    double kappa = inv_logit(theta(2 + p_));
+    // Set the moving average terms
+    arma::vec ma_coefs(p_);
+	ma_coefs(0) = 1.0;
 	for (int i=1; i<p_; i++) {
-		ma_terms_(i) = boost::math::binomial_coefficient<double>(p_-1, i) / pow(kappa_,i);
+		ma_coefs(i) = boost::math::binomial_coefficient<double>(p_-1, i) / pow(kappa,i);
 	}
-}
-
-// Calculate the variance of a CAR(p) process, given the roots
-// of its characteristic polynomial and driving noise amplitude
-double CARMA::Variance(arma::cx_vec alpha_roots, double sigma)
-{        	
-	std::complex<double> CARMA_var(0.0,0.0);
-
-	// Calculate the variance of a CAR(p) process
-	for (int k=0; k<alpha_roots.n_elem; k++) {
-		
-		std::complex<double> ma_sum1(0.0,0.0);
-		std::complex<double> ma_sum2(0.0,0.0);
-		std::complex<double> denom_product(1.0,0.0);
-		
-		for (int l=0; l<alpha_roots.n_elem; l++) {
-			ma_sum1 += ma_terms_(l) * std::pow(alpha_roots(k),l);
-			ma_sum2 += ma_terms_(l) * std::pow(-alpha_roots(k),l);
-			if (l != k) {
-				denom_product *= (alpha_roots(l) - alpha_roots(k)) * 
-					(std::conj(alpha_roots(l)) + alpha_roots(k));
-			}
-		}
-		
-		CARMA_var += ma_sum1 * ma_sum2 / (-2.0 * std::real(alpha_roots(k)) * denom_product);
-	}
-	
-	// Variance is real-valued, so only return the real part of CARMA_var.
-    return sigma * sigma * CARMA_var.real();
-}
-
-void CARMA::PrintInfo(bool print_data)
-{
-	if (print_data) {
-		std::cout << "*****************   DATA   *****************" << std::endl;
-		time_.print("Time:");
-		dt_.print("dt:");
-		y_.print("Y:");
-		yerr_.print("Yerr:");
-	}
-
-	std::cout << "****************** PARAMETERS **************" << std::endl;
-	std::cout << "kappa: " << kappa_ << std::endl;
-	ma_terms_.print("Moving Average Terms:");
-	std::cout << "mu: " << value_(0) << std::endl;
-	std::cout << "ysigma: " << value_(1) << std::endl;
-	arma::vec phi = value_(arma::span(2,value_.n_elem-1));
-	phi.print("phi:");
-	std::cout << "logpost: " << log_posterior_ << std::endl;
-	std::cout << "Prior upper bound on CAR(p) standard deviation: " << max_stdev_ << std::endl;
-	phi_var_.print("Prior variances for phi:");
+    return ma_coefs;
 }
 
 /*********************************************************************
                                 FUNCTIONS
  ********************************************************************/
 
+double logit(double x) { return log(x) / (1.0 - log(x)); }
+double inv_logit(double x) { return exp(x) / (1.0 + exp(x)); }
+
 // Check that all of the roots are unique to within a specified fractional
 // tolerance.
-
 bool unique_roots(arma::cx_vec roots, double tolerance)
 {
     // Initialize the smallest fractional difference

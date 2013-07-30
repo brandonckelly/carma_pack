@@ -129,6 +129,7 @@ public:
         // Run the Kalman filter
         pKFilter_->SetSigsqr(yvar);
         pKFilter_->SetOmega(omega);
+        pKFilter_->SetMA(ma_coefs);
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
         pKFilter_->Filter();
@@ -187,7 +188,7 @@ protected:
     arma::vec yerr_;
     arma::vec dt_;
     // pointer to Kalman Filter object. The Kalman filter is the workhorse behind the likelihood calculations.
-    boost::shared_ptr<KalmanFilter<OmegaType> > pKFilter_;
+    std::shared_ptr<KalmanFilter<OmegaType> > pKFilter_;
     // prior parameters
     double max_stdev_; // Maximum value of the standard deviation of the CAR(1) process
 	double max_freq_; // Maximum value of omega = 1 / tau
@@ -201,7 +202,9 @@ class CAR1 : public CARMA_Base<double> {
 public:
 	// Constructor //
 	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0) :
-    CARMA_Base(track, name, time, y, yerr, temperature), pKFilter_(new KalmanFilter1(time, y, yerr)) {
+    CARMA_Base(track, name, time, y, yerr, temperature)
+    {
+        pKFilter_ = std::make_shared<KalmanFilter1>(time, y, yerr);
         // Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
         value_.set_size(3);
     }
@@ -225,20 +228,24 @@ class CARp : public CARMA_Base<arma::vec> {
 public:
     // Constructor
     CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
-    CAR1(track, name, time, y, yerr, temperature), p_(p), pKFilter_(new KalmanFilterp(time, y, yerr))
-	{ 
+    CARMA_Base(track, name, time, y, yerr, temperature), p_(p)
+	{
+        pKFilter_ = std::make_shared<KalmanFilterp>(time, y, yerr);
 		value_.set_size(p_+2);
         ma_coefs_ = arma::zeros(p);
         ma_coefs_(0) = 1.0;
         pKFilter_->SetMA(ma_coefs_);
 	}
     
+    // calculate the roots of the AR(p) polynomial from the CAR(p) process parameters
+    arma::cx_vec ARRoots(arma::vec theta);
+    
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
 
     // extract the lorentzian parameters from the CARMA parameter vector
     arma::vec ExtractAR(arma::vec theta) {
-        return arma::exp(theta(arma::span(2,theta.n_elem-1)));
+        return arma::exp(theta(arma::span(2,p_+2)));
     }
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta) { return ma_coefs_; }
@@ -249,11 +256,9 @@ public:
     // Set the bounds on the uniform prior.
     bool CheckPriorBounds(arma::vec theta);
     
-	// Print out useful info
-	void PrintInfo();
-	
-private:
+protected:
     int p_; // Order of the CAR(p) process
+private:
     arma::vec ma_coefs_;
 };
 
@@ -261,49 +266,68 @@ private:
  Continuous time autoregressive moving average process of order (p,q)
 */
 
-class CARMA : public CARp {
-	
+class CARMA : public CARp
+{	
 public:
 	// Constructor //
-	CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0);
+	CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, int q,
+          double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature), q_(q)
+    {
+        BOOST_ASSERT_MSG(q < p, "Order of moving average polynomial must be less than order of autoregressive polynomial");
+        value_.set_size(p_+q_+2);
+    }
 
-	// Return the starting value and set log_posterior_
+    // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
     
-    // Save the value
-    void Save(arma::vec new_value);
-	
-	// Calculate the kalman filter mean and variance
-	void KalmanFilter(double sigma, double measerr_scale, arma::cx_vec alpha_roots);
-
-	// Set the bounds on the prior.
-	void SetPrior(double max_stdev, arma::vec phi_var); 
-	
-	// Calculate the logarithm of the posterior
-	double LogDensity(arma::vec car_value);
+    // extract the moving-average parameters from the CARMA parameter vector
+    arma::vec ExtractMA(arma::vec theta);
     
-    // Calculate the variance of the CAR(p) process
-    double Variance(arma::cx_vec alpha_roots, double sigma);
+    // Set the bounds on the uniform prior.
+    bool CheckPriorBounds(arma::vec theta);
     
-    // Set the value of kappa, the prescribed moving average term.
-    void SetKappa(double kappa);
-	
-	// Print out useful info
-	void PrintInfo(bool print_data=true);
-	
 private:
-	int p_; // Order of CARMA(p) process
-	double kappa_; // Width of additional moving average factor for converting between phi and alpha
-	arma::vec ma_terms_; // The moving average terms implied by the alpha --> phi transform
-	// Prior parameters
-	arma::vec phi_var_; // Vector of prior variances on phi
-	
-	double tol_; // Tolerance for testing equality of roots.
+    int q_; // order of moving average polynomial
+};
+
+/*
+ CARMA(p,p-1) model using the z-transformed parameterization (Belcher et al. 1994).
+ */
+
+class ZCARMA : public CARp
+{    
+public:
+    ZCARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p,
+           double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature)
+    {
+        value_.set_size(p_+3);
+        // set default boundaries on kappa
+        kappa_high_ = 1.0 / (dt_.min());
+        kappa_low_ = 1.0 / (time_.max() - time_.min());
+    }
+    
+    // Return the starting value and set log_posterior_
+	arma::vec StartingValue();
+    
+    // extract the moving-average parameters from the CARMA parameter vector
+    arma::vec ExtractMA(arma::vec theta);
+    
+    // Set bounds on kappa
+    void SetKappaBounds(double kappa_low, double kappa_high) {
+        kappa_low_ = kappa_low;
+        kappa_high_ = kappa_high;
+    }
+    
+private:
+    double kappa_low_, kappa_high_; // prior bounds on the kappa parameter
 };
 
 /********************************
 	FUNCTION PROTOTYPES
 ********************************/
+
+double logit(double x);
+double inv_logit(double x);
 
 // Check if all of the roots are unique within some fractional tolerance
 bool unique_roots(arma::cx_vec roots, double tolerance);

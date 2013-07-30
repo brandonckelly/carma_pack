@@ -18,8 +18,8 @@ extern RandomGenerator RandGen;
 // Reset the Kalman Filter for a CAR(1) process
 void KalmanFilter1::Reset() {
     
-    mean_(0) = 0.0;
-    var_(0) = sigsqr_ / (2.0 * omega_) + yerr_(0) * yerr_(0);
+    mean(0) = 0.0;
+    var(0) = sigsqr_ / (2.0 * omega_) + yerr_(0) * yerr_(0);
     yconst_ = 0.0;
     yslope_ = 0.0;
     current_index_ = 1;
@@ -30,19 +30,19 @@ void KalmanFilter1::Update() {
     
     double rho, var_ratio, previous_var;
     rho = exp(-1.0 * omega_ * dt_(current_index_-1));
-    previous_var = var_(current_index_-1) - yerr_(current_index_-1) * yerr_(current_index_-1);
-    var_ratio = previous_var / var_(current_index_-1);
+    previous_var = var(current_index_-1) - yerr_(current_index_-1) * yerr_(current_index_-1);
+    var_ratio = previous_var / var(current_index_-1);
 		
     // Update the Kalman filter mean
-    mean_(current_index_) = rho * mean_(current_index_-1) +
-        rho * var_ratio * (y_(current_index_-1) - mean_(current_index_-1));
+    mean(current_index_) = rho * mean(current_index_-1) +
+        rho * var_ratio * (y_(current_index_-1) - mean(current_index_-1));
 		
     // Update the Kalman filter variance
-    var_(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
+    var(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
         rho * rho * previous_var * (1.0 - var_ratio);
     
     // add in contribution to variance from measurement errors
-    var_(current_index_) += yerr_(current_index_) * yerr_(current_index_);
+    var(current_index_) += yerr_(current_index_) * yerr_(current_index_);
     
     current_index_++;
 }
@@ -51,19 +51,19 @@ void KalmanFilter1::Update() {
 void KalmanFilter1::InitializeCoefs(double time, unsigned int itime, double ymean, double yvar) {
     yconst_ = 0.0;
     yslope_ = exp(-std::abs(time_(itime) - time) * omega_);
-    var_[itime] = sigsqr_ / (2.0 * omega_) * (1.0 - yslope_ * yslope_) + yerr_(itime) * yerr_(itime);
+    var[itime] = sigsqr_ / (2.0 * omega_) * (1.0 - yslope_ * yslope_) + yerr_(itime) * yerr_(itime);
     current_index_ = itime + 1;
 }
 
 // Update the coefficients used for interpolation and backcasting, assuming a CAR(1) process
 void KalmanFilter1::UpdateCoefs() {
     double rho = exp(-1.0 * dt_(current_index_-1) * omega_);
-    double previous_var = var_(current_index_-1) - yerr_(current_index_-1) * yerr_(current_index_-1);
-    double var_ratio = previous_var / var_(current_index_-1);
+    double previous_var = var(current_index_-1) - yerr_(current_index_-1) * yerr_(current_index_-1);
+    double var_ratio = previous_var / var(current_index_-1);
     
     yslope_ *= rho * (1.0 - var_ratio);
     yconst_ = yconst_ * rho * (1.0 - var_ratio) + rho * var_ratio * y_[current_index_-1];
-    var_(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
+    var(current_index_) = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) +
         rho * rho * previous_var * (1.0 - var_ratio) + yerr_(current_index_) * yerr_(current_index_);
     current_index_++;
 }
@@ -97,10 +97,10 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
         // predict the value of the time series at time, given the earlier values
         double dt = time - time_[ipredict-1];
         rho = exp(-dt * omega_);
-        previous_var = var_(ipredict-1) - yerr_(ipredict-1) * yerr_(ipredict-1);
-        var_ratio = previous_var / var_(ipredict-1);
+        previous_var = var(ipredict-1) - yerr_(ipredict-1) * yerr_(ipredict-1);
+        var_ratio = previous_var / var(ipredict-1);
         // initialize the conditional mean and variance
-        ypredict_mean = rho * mean_(ipredict-1) + rho * var_ratio * (y_(ipredict-1) - mean_(ipredict-1));
+        ypredict_mean = rho * mean(ipredict-1) + rho * var_ratio * (y_(ipredict-1) - mean(ipredict-1));
         ypredict_var = sigsqr_ / (2.0 * omega_) * (1.0 - rho * rho) + rho * rho * previous_var * (1.0 - var_ratio);
     }
     
@@ -118,13 +118,13 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     // time series value
     
     InitializeCoefs(time, ipredict, 0.0, 0.0);
-    yprecision += yslope_ * yslope_ / var_(ipredict);
-    ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var_(ipredict);
+    yprecision += yslope_ * yslope_ / var(ipredict);
+    ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var(ipredict);
     
     for (int i=ipredict+1; i<time_.n_elem; i++) {
         UpdateCoefs();
-        yprecision += yslope_ * yslope_ / var_(i);
-        ypredict_mean += yslope_ * (y_(i) - yconst_) / var_(i);
+        yprecision += yslope_ * yslope_ / var(i);
+        ypredict_mean += yslope_ * (y_(i) - yconst_) / var(i);
     }
     
     ypredict_var = 1.0 / yprecision;
@@ -203,9 +203,9 @@ void KalmanFilterp::Reset() {
 	// Initialize the Kalman mean and variance. These are the forecasted value
 	// for the measured time series values and its variance, conditional on the
 	// previous measurements
-	mean_(0) = 0.0;
-    var_(0) = std::real( arma::as_scalar(rotated_ma_coefs_ * StateVar_ * rotated_ma_coefs_.t()) );
-    var_(0) += yerr_(0) * yerr_(0); // Add in measurement error contribution
+	mean(0) = 0.0;
+    var(0) = std::real( arma::as_scalar(rotated_ma_coefs_ * StateVar_ * rotated_ma_coefs_.t()) );
+    var(0) += yerr_(0) * yerr_(0); // Add in measurement error contribution
 
 	innovation_ = y_(0); // The innovation
     current_index_ = 1;
@@ -214,13 +214,13 @@ void KalmanFilterp::Reset() {
 // Perform one iteration of the Kalman Filter for a CARMA(p,q) process to update it
 void KalmanFilterp::Update() {
     // First compute the Kalman Gain
-    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_(current_index_-1);
+    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var(current_index_-1);
     
     // Now update the state vector
     state_vector_ += kalman_gain_ * innovation_;
     
     // Update the state one-step prediction error variance
-    PredictionVar_ -= var_(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
+    PredictionVar_ -= var(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
     
     // Predict the next state
     rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
@@ -230,13 +230,13 @@ void KalmanFilterp::Update() {
     PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
     
     // Now predict the observation and its variance.
-    mean_(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * state_vector_) );
+    mean(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * state_vector_) );
     
-    var_(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
-    var_(current_index_) += yerr_(current_index_) * yerr_(current_index_); // Add in measurement error contribution
+    var(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) );
+    var(current_index_) += yerr_(current_index_) * yerr_(current_index_); // Add in measurement error contribution
     
     // Finally, update the innovation
-    innovation_ = y_(current_index_) - mean_(current_index_);
+    innovation_ = y_(current_index_) - mean(current_index_);
     current_index_++;
 }
 
@@ -267,9 +267,9 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
         ypredict_var = std::real( arma::as_scalar(rotated_ma_coefs_ * StateVar_ * rotated_ma_coefs_.t()) );
     } else {
         // predict the value of the time series at time, given the earlier values
-        kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_(ipredict-1);
+        kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var(ipredict-1);
         state_vector_ += kalman_gain_ * innovation_;
-        PredictionVar_ -= var_(ipredict-1) * (kalman_gain_ * kalman_gain_.t());
+        PredictionVar_ -= var(ipredict-1) * (kalman_gain_ * kalman_gain_.t());
         double dt = std::abs(time - time_(ipredict-1));
         rho_ = arma::exp(ar_roots_ * dt);
         state_vector_ = rho_ % state_vector_;
@@ -295,13 +295,13 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
     
     InitializeCoefs(time, ipredict, ypredict_mean / yprecision, ypredict_var);
 
-    yprecision += yslope_ * yslope_ / var_(ipredict);
-    ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var_(ipredict);
+    yprecision += yslope_ * yslope_ / var(ipredict);
+    ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var(ipredict);
     
     for (int i=ipredict+1; i<time_.n_elem; i++) {
         UpdateCoefs();
-        yprecision += yslope_ * yslope_ / var_(i);
-        ypredict_mean += yslope_ * (y_(i) - yconst_) / var_(i);
+        yprecision += yslope_ * yslope_ / var(i);
+        ypredict_mean += yslope_ * (y_(i) - yconst_) / var(i);
     }
     
     ypredict_var = 1.0 / yprecision;
@@ -332,7 +332,7 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     // y[ipredict]
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
-    var_(itime) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+    var(itime) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
         + yerr_(itime) * yerr_(itime);
     current_index_ = itime + 1;
 }
@@ -341,12 +341,12 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
 // time series value at some earlier time
 void KalmanFilterp::UpdateCoefs() {
     
-    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var_(current_index_-1);
+    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var(current_index_-1);
     // update the coefficients for predicting the state vector at coefs(i|i-1) --> coefs(i|i)
     state_const_ += kalman_gain_ * (y_(current_index_-1) - yconst_);
     state_slope_ -= kalman_gain_ * yslope_;
     // update the state one-step prediction error variance
-    PredictionVar_ -= var_(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
+    PredictionVar_ -= var(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
     // compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
     rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
     state_const_ = rho_ % state_const_;
@@ -357,7 +357,7 @@ void KalmanFilterp::UpdateCoefs() {
     // y[ipredict]
     yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
     yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
-    var_(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+    var(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
         + yerr_(current_index_) * yerr_(current_index_);
     current_index_++;
 }
