@@ -733,18 +733,25 @@ def get_ar_roots(qpo_width, qpo_centroid):
     return -2.0 * np.pi * ar_roots
 
 
-def power_spectrum(freq, sigma, ar_coef):
+def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
     """
     Return the power spectrum for a CAR(p) process calculated at the input frequencies.
 
     :param freq: The frequencies at which to calculate the PSD.
     :param sigma: The standard deviation driving white noise.
     :param ar_coef: The CAR(p) model autoregressive coefficients.
+    :param ma_coefs: Coefficients of the moving average polynomial
 
     :rtype : A numpy array.
     """
+    try:
+        len(ma_coefs) <= len(ar_roots)
+    except ValueError:
+        "Size of ma_coefs must be less or equal to size of ar_roots."
+
+    ma_poly = np.polyval(ma_coefs, 2.0 * np.pi * 1j * freq) # Evaluate the polynomial in the PSD numerator
     ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
-    pspec = sigma ** 2 / np.abs(ar_poly) ** 2
+    pspec = sigma ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
     return pspec
 
 
@@ -758,7 +765,7 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
     :param lag: The lag at which to calculate the autocovariance function.
     """
     try:
-        len(ma_coefs) < len(ar_roots)
+        len(ma_coefs) <= len(ar_roots)
     except ValueError:
         "Size of ma_coefs must be less or equal to size of ar_roots."
 
@@ -798,7 +805,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     :rtype : A numpy array containing the simulated CAR(p) process values at time.
     """
     try:
-        len(ma_coefs) < len(ar_roots)
+        len(ma_coefs) <= len(ar_roots)
     except ValueError:
         "Size of ma_coefs must be less or equal to size of ar_roots."
 

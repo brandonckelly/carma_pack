@@ -3,6 +3,7 @@ __author__ = 'bkelly'
 
 import numpy as np
 from carmcmc.carma_pack import carma_process, get_ar_roots, carma_variance
+from scipy.misc import comb
 import matplotlib.pyplot as plt
 
 ax1 = plt.subplot(211)
@@ -38,28 +39,33 @@ plt.ylabel('CAR(1)')
 car1_data = np.vstack((time, car1, yerr))
 np.savetxt("data/car1_test.dat", car1_data.transpose(), fmt='%10.5f')
 
-###### generate a CAR(5) process
+###### generate a CARMA(5,4) process using the Belcher et al. (1994) notation, i.e., a ZCARMA(5) process
 
 plt.subplot(212, sharex=ax1)
 
+p = 5  # order of AR polynomial
 qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
 qpo_cent = np.array([1.0/5.0, 1.0/50.0])
 ar_roots = get_ar_roots(qpo_width, qpo_cent)
 
-sigsqr = sigmay ** 2 / carp_variance(1.0, ar_roots)
+# calculate moving average coefficients under z-transform of Belcher et al. (1994)
+kappa = 0.7
+ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 
-car5 = carp_process(time, sigsqr, ar_roots)
+sigsqr = sigmay ** 2 / carma_variance(1.0, ar_roots, ma_coefs)
 
-plt.plot(time, car5)
+zcarma5 = carma_process(time, sigsqr, ar_roots, ma_coefs)
 
-car5 += np.random.normal(0.0, yerr)
+plt.plot(time, zcarma5)
+
+zcarma5 += np.random.normal(0.0, yerr)
 
 # save the CAR(5) data
-car5_data = np.vstack((time, car5, yerr))
-np.savetxt("data/car5_test.dat", car5_data.transpose(), fmt='%10.5f')
+zcarma_data = np.vstack((time, zcarma5, yerr))
+np.savetxt("data/zcarma5_test.dat", zcarma_data.transpose(), fmt='%10.5f')
 
-plt.plot(time, car5, '.')
+plt.plot(time, zcarma5, '.')
 plt.xlabel("Time")
-plt.ylabel("CAR(5)")
+plt.ylabel("ZCARMA(5)")
 plt.show()
 
