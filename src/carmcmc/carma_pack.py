@@ -748,32 +748,53 @@ def power_spectrum(freq, sigma, ar_coef):
     return pspec
 
 
-def carp_variance(sigsqr, ar_roots):
+def carp_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
     """
-    Return the variance of a CAR(p) process.
+    Return the autocovariance function of a CARMA(p,q) process.
 
     :param sigsqr: The variance in the driving white noise.
-    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
+    :param ar_roots: The roots of the AR characteristic polynomial.
+    :param ma_coefs: The moving average coefficients.
+    :param lag: The lag at which to calculate the autocovariance function.
     """
-    sigma1_variance = 0.0
+    try:
+        len(ma_coefs) < len(ar_roots)
+    except ValueError:
+        "Size of ma_coefs must be less or equal to size of ar_roots."
+
+    if len(ma_coefs) < len(ar_roots):
+        # add extra zeros to end of ma_coefs
+        ma_coefs = np.array(ma_coefs).resize(len(ar_roots))
+
+    sigma1_variance = 0.0 + 0j
     p = ar_roots.size
     for k in xrange(p):
-        denom_product = -2.0 * ar_roots[k].real + 0j
+        denom_product = 1.0 + 0j
         for l in xrange(p):
             if l != k:
                 denom_product *= (ar_roots[l] - ar_roots[k]) * (np.conjugate(ar_roots[l]) + ar_roots[k])
-        sigma1_variance += 1.0 / denom_product
+
+        denom = -2.0 * denom_product * ar_roots[k].real
+
+        power = np.arange(0, ma_coefs.size)
+        ma_sum1 = np.sum(ma_coefs * ar_roots ** power)
+        ma_sum2 = np.sum(ma_coefs * (-ar_roots) ** power)
+
+        numer = ma_sum1 * ma_sum2 * np.exp(ar_roots[k] * abs(lag))
+
+        sigma1_variance += numer / denom
 
     return sigsqr * sigma1_variance.real
 
 
-def carp_process(time, sigsqr, ar_roots):
+def carp_process(time, sigsqr, ar_roots, ma_coefs=1.0):
     """
     Generate a CAR(p) process.
 
     :param time: The time values to generate the CAR(p) process at.
     :param sigsqr: The variance in the driving white noise term.
     :param ar_roots: The roots of the CAR(p) characteristic polynomial.
+    :param ma_coefs: The moving average coefficients.
     :rtype : A numpy array containing the simulated CAR(p) process values at time.
     """
     p = ar_roots.size
