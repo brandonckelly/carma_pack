@@ -55,7 +55,7 @@ public:
     Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
     {
         // Set the degrees of freedom for the prior on the measurement error scaling parameter
-        measerr_dof_ = 8;
+        measerr_dof_ = 20;
         
         y_ = y - arma::mean(y); // center the time series
         time_ = time;
@@ -87,7 +87,16 @@ public:
         // new carma value ---> value_
         value_ = new_value;
         
+        // update the parameters of the KalmanFilter object
+        OmegaType omega = ExtractAR(new_value);
+        OmegaType ma_coefs = ExtractMA(new_value);
+        double yvar = new_value(0) * new_value(0);
         double measerr_scale = value_(1);
+        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+        pKFilter_->SetSigsqr(yvar);
+        pKFilter_->SetOmega(omega);
+        pKFilter_->SetMA(ma_coefs);
+        pKFilter_->SetTimeSeriesErr(proposed_yerr);
         
         // Update the log-posterior using this new value of theta.
         //
@@ -131,6 +140,7 @@ public:
         pKFilter_->SetSigsqr(yvar);
         pKFilter_->SetOmega(omega);
         pKFilter_->SetMA(ma_coefs);
+        arma::vec current_yerr = pKFilter_->GetTimeSeriesErr();
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
         pKFilter_->Filter();
@@ -141,6 +151,13 @@ public:
             logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * (y_(i) - pKFilter_->mean(i)) *
             (y_(i) - pKFilter_->mean(i)) / pKFilter_->var(i);
         }
+        
+        // Reset the kalman filter parameters to their current values. If we end up accepting this proposal
+        // than we'll update these in the KalmanFilter object within CARMA_BASE::Save()
+        pKFilter_->SetSigsqr(value_(0) * value_(0));
+        pKFilter_->SetOmega(ExtractAR(theta));
+        pKFilter_->SetMA(ExtractMA(theta));
+        pKFilter_->SetTimeSeriesErr(current_yerr);
         
         // Prior bounds satisfied?
         bool prior_satisfied = CheckPriorBounds(theta);

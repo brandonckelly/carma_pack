@@ -783,9 +783,11 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
 
         denom = -2.0 * denom_product * ar_roots[k].real
 
-        power = np.arange(0, ma_coefs.size)
-        ma_sum1 = np.sum(ma_coefs * ar_roots ** power)
-        ma_sum2 = np.sum(ma_coefs * (-ar_roots) ** power)
+        ma_sum1 = 0.0 + 0j
+        ma_sum2 = 0.0 + 0j
+        for l in xrange(p):
+            ma_sum1 += ma_coefs[l] * ar_roots[k] ** l
+            ma_sum2 += ma_coefs[l] * (-1.0 * ar_roots[k]) ** l
 
         numer = ma_sum1 * ma_sum2 * np.exp(ar_roots[k] * abs(lag))
 

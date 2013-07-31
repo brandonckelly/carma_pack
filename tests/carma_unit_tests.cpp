@@ -13,6 +13,7 @@
 #include "kfilter.hpp"
 #include <armadillo>
 #include <boost/math/distributions/normal.hpp>
+#include <boost/math/special_functions/binomial.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
 
 // Files containing simulated CAR(1) and CAR(5) time series, used for testing
@@ -693,6 +694,10 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     REQUIRE(logpost_neq_count == 0);
 }
 
+TEST_CASE("CARMA/KalmanFilter_Parameters", "Make sure that the parameter members of the CARMA and KalmanFilter objects agree.") {
+    
+}
+
 TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when prior bounds are violated") {
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
@@ -866,18 +871,22 @@ TEST_CASE("CAR5/carp_variance", "Test the CARp::Variance method") {
     
     alpha_roots *= 2.0 * arma::datum::pi;
     
-    CARp car5_process(true, "CAR(5)", time, y, ysig, p);
+    ZCARMA carma_process(true, "CAR(5)", time, y, ysig, p);
+    double kappa = 0.7;
+    // Set the moving average terms
+    arma::vec ma_coefs(p);
+	ma_coefs(0) = 1.0;
+	for (int i=1; i<p; i++) {
+		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
+	}
     
-    arma::vec ma_coefs = arma::zeros(p);
-    ma_coefs(0) = 1.0;
-    
-    double model_var = car5_process.Variance(alpha_roots, ma_coefs, sigma);
-    double model_var0 = 218432.09642016294; // known variance, computed from python module carma_pack
+    double model_var = carma_process.Variance(alpha_roots, ma_coefs, sigma);
+    double model_var0 = 223003.230567; // known variance, computed from python module carma_pack
     double frac_diff = std::abs(model_var - model_var0) / std::abs(model_var0);
     REQUIRE(frac_diff < 1e-8);
 }
 
-TEST_CASE("./CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
+TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(1) model..." << std::endl << std::endl;
     
@@ -900,6 +909,7 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
     std::vector<arma::vec> mcmc_sample;
     mcmc_sample = mcmc_out.first;
+    std::vector<double> logpost_samples;
     
     // True CAR(1) process parameters
     double tau = 100.0;
@@ -908,6 +918,9 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     double sigma = sigmay * sqrt(2.0 / tau);
     double measerr_scale = 1.0;
     
+    std::ofstream mcmc_outfile("data/car1_mcmc.dat");
+    mcmc_outfile << "# sigma, measerr_scale, omega, logpost" << std::endl;
+    
     arma::vec omega_samples(mcmc_sample.size());
     arma::vec sigma_samples(mcmc_sample.size());
     arma::vec scale_samples(mcmc_sample.size());
@@ -915,7 +928,10 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
         sigma_samples(i) = log(mcmc_sample[i](0));
         scale_samples(i) = mcmc_sample[i](1);
         omega_samples(i) = mcmc_sample[i](2);
+        mcmc_outfile << mcmc_sample[i](0) << " " << mcmc_sample[i](1) << " "
+        << exp(mcmc_sample[i](2)) << " " << logpost_samples[i] << std::endl;
     }
+    mcmc_outfile.close();
     
     // Make sure true parameters are within 3sigma of the marginal posterior means
     double sigma_zscore = (arma::mean(sigma_samples) - log(sigma)) / arma::stddev(sigma_samples);
