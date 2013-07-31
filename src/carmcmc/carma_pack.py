@@ -748,7 +748,7 @@ def power_spectrum(freq, sigma, ar_coef):
     return pspec
 
 
-def carp_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
+def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
     """
     Return the autocovariance function of a CARMA(p,q) process.
 
@@ -787,7 +787,7 @@ def carp_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
     return sigsqr * sigma1_variance.real
 
 
-def carp_process(time, sigsqr, ar_roots, ma_coefs=1.0):
+def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     """
     Generate a CAR(p) process.
 
@@ -797,7 +797,17 @@ def carp_process(time, sigsqr, ar_roots, ma_coefs=1.0):
     :param ma_coefs: The moving average coefficients.
     :rtype : A numpy array containing the simulated CAR(p) process values at time.
     """
-    p = ar_roots.size
+    try:
+        len(ma_coefs) < len(ar_roots)
+    except ValueError:
+        "Size of ma_coefs must be less or equal to size of ar_roots."
+
+    p = len(ar_roots)
+
+    if len(ma_coefs) < p:
+        # add extra zeros to end of ma_coefs
+        ma_coefs = np.array(ma_coefs).resize(len(ar_roots))
+
     time.sort()
     # make sure process is stationary
     try:
@@ -832,7 +842,7 @@ def carp_process(time, sigsqr, ar_roots, ma_coefs=1.0):
     Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
 
     # Compute the vector of moving average coefficients in the rotated state.
-    rotated_MA_coefs = np.ones(p, dtype=complex)  # just ones for a CAR(p) model
+    rotated_MA_coefs = EigenMat.dot(ma_coefs)
 
     # Calculate the stationary covariance matrix of the state vector
     StateVar = np.empty((p, p), dtype=complex)

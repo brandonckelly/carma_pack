@@ -2,7 +2,7 @@
 __author__ = 'bkelly'
 
 import numpy as np
-from carmcmc.carma_pack import carp_process, get_ar_roots, carp_variance
+from carmcmc.carma_pack import carma_process, get_ar_roots, carma_variance
 import matplotlib.pyplot as plt
 
 ax1 = plt.subplot(211)
