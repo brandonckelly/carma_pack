@@ -45,7 +45,8 @@ arma::vec CAR1::StartingValue()
 	// a ~ Uniform(1,50) , under the constraint that 
 	// tau = 1 / omega < max(time)
 	
-	log_omega_start = -1.0 * log(arma::median(dt_) * RandGen.uniform( 1.0, 50.0 ));
+    arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
+	log_omega_start = -1.0 * log(arma::median(dt) * RandGen.uniform( 1.0, 50.0 ));
 	log_omega_start = std::min(log_omega_start, max_freq_);
 	
 	sigma = car1_stdev_start * sqrt(2.0 * exp(log_omega_start));
@@ -327,7 +328,8 @@ arma::vec CARMA::StartingValue()
         }
         
         // compute the coefficients of the MA polynomial
-        arma::vec ma_coefs = ExtractMA(theta);
+        arma::vec ma_coefs(p_);
+        ma_coefs = ExtractMA(theta);
         
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
@@ -369,7 +371,7 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
     arma::cx_vec ma_roots(q_);
     
     // Construct the complex vector of roots of the MA polynomial
-    for (int i=0; i<p_/2; i++) {
+    for (int i=0; i<q_/2; i++) {
         double ma_imag = exp(theta(2+p_+2*i));
         double ma_real = exp(theta(2+p_+2*i+1));
         ma_roots(2*i) = std::complex<double> (-ma_real,ma_imag);
@@ -386,9 +388,10 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
     ma_coefs = arma::flipud(ma_coefs);
     ma_coefs = ma_coefs / ma_coefs(0);
     ma_coefs.resize(p_);
-    for (int j=q_; j<p_; j++) {
+    for (int j=q_+1; j<p_; j++) {
         ma_coefs(j) = 0.0;
     }
+    return ma_coefs;
 }
 
 // Set the bounds on the uniform prior.

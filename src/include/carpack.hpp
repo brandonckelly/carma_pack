@@ -67,6 +67,7 @@ public:
     }
     
     virtual arma::vec StartingValue() = 0;
+    
     std::string StringValue()
     {
         std::stringstream ss;
@@ -177,7 +178,8 @@ public:
     virtual void SetPrior(double max_stdev) // set the bounds on the uniform prior
     {
         max_stdev_ = max_stdev;
-        max_freq_ = 10.0 / dt_.min();
+        arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
+        max_freq_ = 10.0 / dt.min();
         min_freq_ = 1.0 / (10.0 * (time_.max() - time_.min()));
     }
         
@@ -186,7 +188,6 @@ protected:
     arma::vec time_;
     arma::vec y_;
     arma::vec yerr_;
-    arma::vec dt_;
     // pointer to Kalman Filter object. The Kalman filter is the workhorse behind the likelihood calculations.
     std::shared_ptr<KalmanFilter<OmegaType> > pKFilter_;
     // prior parameters
@@ -245,7 +246,7 @@ public:
 
     // extract the lorentzian parameters from the CARMA parameter vector
     arma::vec ExtractAR(arma::vec theta) {
-        return arma::exp(theta(arma::span(2,p_+2)));
+        return arma::exp(theta(arma::span(2,p_+1)));
     }
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta) { return ma_coefs_; }
@@ -302,7 +303,8 @@ public:
     {
         value_.set_size(p_+3);
         // set default boundaries on kappa
-        kappa_high_ = 1.0 / (dt_.min());
+        arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
+        kappa_high_ = 1.0 / (dt.min());
         kappa_low_ = 1.0 / (time_.max() - time_.min());
     }
     

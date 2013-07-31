@@ -262,6 +262,16 @@ public:
     void SetOmega(arma::vec omega) {
         omega_ = omega;
         ar_roots_ = ARRoots(omega);
+        // resize arrays
+        p_ = omega_.n_elem;
+        state_vector_.zeros(p_);
+        StateVar_.zeros(p_,p_);
+        PredictionVar_.zeros(p_,p_);
+        kalman_gain_.zeros(p_);
+        rho_.zeros(p_);
+        state_const_.zeros(p_);
+        state_slope_.zeros(p_);
+        rotated_ma_coefs_.zeros(p_);
     }
 
     
