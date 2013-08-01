@@ -630,9 +630,11 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
     arma::vec ysig = 0.01 * arma::ones(ny);
     
     CAR1 car1_test(true, "CAR(1)", time, y, ysig);
+    KalmanFilter1 Kfilter(time, ycent, ysig);
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car1_test.SetPrior(max_stdev);
     
@@ -650,8 +652,25 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     for (int i=0; i<niter; i++) {
         RAM.DoStep();
         double logdens_stored = car1_test.GetLogDensity(); // stored value of log-posterior for current theta
-        double logdens_computed = car1_test.LogDensity(car1_test.Value()); // explicitly calculate log-posterior for current theta
-        if (std::abs(logdens_computed - logdens_stored) > 1e-10) {
+        arma::vec theta = car1_test.Value();
+        double logdens_computed = car1_test.LogDensity(theta); // explicitly calculate log-posterior for current theta
+        // calculate log-posterior manually from the kalman filter object
+        double sigsqr = 2.0 * exp(theta(2)) * theta(0) * theta(0);
+        Kfilter.SetSigsqr(sigsqr);
+        Kfilter.SetOmega(exp(theta(2)));
+        arma::vec scaled_yerr = sqrt(theta(1)) * ysig;
+        Kfilter.SetTimeSeriesErr(scaled_yerr);
+        Kfilter.Filter();
+        double logdens_kfilter = 0.0;
+        for (int j=0; j<ny; j++) {
+            logdens_kfilter += -0.5 * log(Kfilter.var(j)) -
+            0.5 * (ycent(j) - Kfilter.mean(j)) * (ycent(j) - Kfilter.mean(j)) / Kfilter.var(j);
+        }
+        double computed_diff = std::abs(logdens_computed - logdens_stored);
+        bool no_match_computed = computed_diff > 1e-10;
+        double kfilter_diff = std::abs(logdens_kfilter - logdens_stored);
+        bool no_match_kfilter = kfilter_diff > 1e-10;
+        if (no_match_computed || no_match_kfilter) {
             logpost_neq_count++; // count the number of time the two log-posterior values do not agree
         }
     }
@@ -663,10 +682,16 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
     arma::vec ysig = 0.01 * arma::ones(ny);
     int p = 5;
     
+    arma::vec ma_coefs(p);
+    ma_coefs.zeros();
+    ma_coefs(0) = 1.0;
+    
     CARp car5_test(true, "CAR(5)", time, y, ysig, p);
+    KalmanFilterp Kfilter(time, ycent, ysig);
     
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car5_test.SetPrior(max_stdev);
@@ -685,17 +710,31 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     for (int i=0; i<niter; i++) {
         RAM.DoStep();
         double logdens_stored = car5_test.GetLogDensity(); // stored value of log-posterior for current theta
-        double logdens_computed = car5_test.LogDensity(car5_test.Value()); // explicitly calculate log-posterior for current theta
-        if (std::abs(logdens_computed - logdens_stored) > 1e-10) {
+        arma::vec theta = car5_test.Value();
+        double logdens_computed = car5_test.LogDensity(theta); // explicitly calculate log-posterior for current theta
+        // calculate log-posterior manually from the kalman filter object
+        arma::vec omega = car5_test.ExtractAR(theta);
+        Kfilter.SetOmega(omega);
+        double sigsqr;
+        arma::cx_vec ar_roots = car5_test.ARRoots(theta);
+        sigsqr = theta(0) * theta(0) / car5_test.Variance(ar_roots, ma_coefs, 1.0);
+        Kfilter.SetSigsqr(sigsqr);
+        arma::vec scaled_yerr = sqrt(theta(1)) * ysig;
+        Kfilter.SetTimeSeriesErr(scaled_yerr);
+        Kfilter.Filter();
+        double logdens_kfilter = 0.0;
+        for (int j=0; j<ny; j++) {
+            logdens_kfilter += -0.5 * log(Kfilter.var(j)) -
+            0.5 * (ycent(j) - Kfilter.mean(j)) * (ycent(j) - Kfilter.mean(j)) / Kfilter.var(j);
+        }
+        bool no_match_computed = std::abs(logdens_computed - logdens_stored) > 1e-10;
+        bool no_match_kfilter = std::abs(logdens_kfilter - logdens_stored) > 1e-10;
+        if (no_match_computed || no_match_kfilter) {
             logpost_neq_count++; // count the number of time the two log-posterior values do not agree
         }
     }
     // make sure that saved logdensity is always equal to LogDensity(theta) for current thera value
     REQUIRE(logpost_neq_count == 0);
-}
-
-TEST_CASE("CARMA/KalmanFilter_Parameters", "Make sure that the parameter members of the CARMA and KalmanFilter objects agree.") {
-    
 }
 
 TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when prior bounds are violated") {

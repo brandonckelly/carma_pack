@@ -87,17 +87,6 @@ public:
         // new carma value ---> value_
         value_ = new_value;
         
-        // update the parameters of the KalmanFilter object
-        OmegaType omega = ExtractAR(new_value);
-        OmegaType ma_coefs = ExtractMA(new_value);
-        double yvar = new_value(0) * new_value(0);
-        double measerr_scale = value_(1);
-        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
-        pKFilter_->SetSigsqr(yvar);
-        pKFilter_->SetOmega(omega);
-        pKFilter_->SetMA(ma_coefs);
-        pKFilter_->SetTimeSeriesErr(proposed_yerr);
-        
         // Update the log-posterior using this new value of theta.
         //
         // IMPORTANT: This assumes that the Kalman filter was calculated
@@ -116,7 +105,9 @@ public:
     virtual OmegaType ExtractAR(arma::vec theta) = 0;
     // extract the moving-average parameters from the CARMA parameter vector
     virtual OmegaType ExtractMA(arma::vec theta) = 0;
-    
+    // extract the variance in the driving noise from the CARMA parameter vector
+    virtual double ExtractSigsqr(arma::vec theta) = 0;
+        
     // compute the log-prior of the CARMA parameters
     virtual double LogPrior(arma::vec theta)
     {
@@ -133,11 +124,11 @@ public:
     {
         OmegaType omega = ExtractAR(theta);
         OmegaType ma_coefs = ExtractMA(theta);
-        double yvar = theta(0) * theta(0);
+        double sigsqr = ExtractSigsqr(theta);
         double measerr_scale = theta(1);
         
         // Run the Kalman filter
-        pKFilter_->SetSigsqr(yvar);
+        pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(omega);
         pKFilter_->SetMA(ma_coefs);
         arma::vec current_yerr = pKFilter_->GetTimeSeriesErr();
@@ -151,13 +142,6 @@ public:
             logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * (y_(i) - pKFilter_->mean(i)) *
             (y_(i) - pKFilter_->mean(i)) / pKFilter_->var(i);
         }
-        
-        // Reset the kalman filter parameters to their current values. If we end up accepting this proposal
-        // than we'll update these in the KalmanFilter object within CARMA_BASE::Save()
-        pKFilter_->SetSigsqr(value_(0) * value_(0));
-        pKFilter_->SetOmega(ExtractAR(theta));
-        pKFilter_->SetMA(ExtractMA(theta));
-        pKFilter_->SetTimeSeriesErr(current_yerr);
         
         // Prior bounds satisfied?
         bool prior_satisfied = CheckPriorBounds(theta);
@@ -233,6 +217,11 @@ public:
     
     // generate starting values of the CAR(1) parameters
 	arma::vec StartingValue();
+    
+    // return the variance of a CAR(1) process
+    double ExtractSigsqr(arma::vec theta) {
+        return 2.0 * theta(0) * theta(0) * exp(theta(1));
+    }
 
 	// Set the bounds on the uniform prior.
     bool CheckPriorBounds(arma::vec theta);
@@ -268,6 +257,11 @@ public:
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta) { return ma_coefs_; }
     
+    double ExtractSigsqr(arma::vec theta) {
+        arma::cx_vec ar_roots = ARRoots(theta);
+        return theta(0) * theta(0) / Variance(ar_roots, ma_coefs_, 1.0);
+    }
+    
     // Calculate the variance of the CAR(p) process
     double Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma, double dt=0.0);
 	
@@ -301,6 +295,12 @@ public:
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta);
     
+    double ExtractSigsqr(arma::vec theta) {
+        arma::cx_vec ar_roots = ARRoots(theta);
+        arma::vec ma_coefs = ExtractMA(theta);
+        return theta(0) * theta(0) / Variance(ar_roots, ma_coefs, 1.0);
+    }
+    
     // Set the bounds on the uniform prior.
     bool CheckPriorBounds(arma::vec theta);
     
@@ -331,6 +331,12 @@ public:
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta);
     
+    double ExtractSigsqr(arma::vec theta) {
+        arma::cx_vec ar_roots = ARRoots(theta);
+        arma::vec ma_coefs = ExtractMA(theta);
+        return theta(0) * theta(0) / Variance(ar_roots, ma_coefs, 1.0);
+    }
+
     // Set bounds on kappa
     void SetKappaBounds(double kappa_low, double kappa_high) {
         kappa_low_ = kappa_low;
