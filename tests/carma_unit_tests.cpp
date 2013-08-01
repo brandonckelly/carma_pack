@@ -655,9 +655,9 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
         arma::vec theta = car1_test.Value();
         double logdens_computed = car1_test.LogDensity(theta); // explicitly calculate log-posterior for current theta
         // calculate log-posterior manually from the kalman filter object
-        double sigsqr = 2.0 * exp(theta(2)) * theta(0) * theta(0);
-        Kfilter.SetSigsqr(sigsqr);
-        Kfilter.SetOmega(exp(theta(2)));
+        Kfilter.SetSigsqr(car1_test.ExtractSigsqr(theta));
+        Kfilter.SetOmega(car1_test.ExtractAR(theta));
+        Kfilter.SetMA(car1_test.ExtractMA(theta));
         arma::vec scaled_yerr = sqrt(theta(1)) * ysig;
         Kfilter.SetTimeSeriesErr(scaled_yerr);
         Kfilter.Filter();
@@ -666,6 +666,7 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
             logdens_kfilter += -0.5 * log(Kfilter.var(j)) -
             0.5 * (ycent(j) - Kfilter.mean(j)) * (ycent(j) - Kfilter.mean(j)) / Kfilter.var(j);
         }
+        logdens_kfilter += car1_test.LogPrior(theta);
         double computed_diff = std::abs(logdens_computed - logdens_stored);
         bool no_match_computed = computed_diff > 1e-10;
         double kfilter_diff = std::abs(logdens_kfilter - logdens_stored);

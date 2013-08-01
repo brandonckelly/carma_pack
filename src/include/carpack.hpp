@@ -45,7 +45,6 @@
  omega is fixed to be 1 / min(dt), where dt is the vector of time steps. 
 */
 
-// TODO: need to add abstract base class
 template <class OmegaType>
 class CARMA_Base : public Parameter<arma::vec> {
 public:
@@ -206,7 +205,7 @@ public:
 	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0) :
     CARMA_Base(track, name, time, y, yerr, temperature)
     {
-        pKFilter_ = std::make_shared<KalmanFilter1>(time, y, yerr);
+        pKFilter_ = std::make_shared<KalmanFilter1>(time_, y_, yerr_);
         // Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
         value_.set_size(3);
     }
@@ -220,7 +219,7 @@ public:
     
     // return the variance of a CAR(1) process
     double ExtractSigsqr(arma::vec theta) {
-        return 2.0 * theta(0) * theta(0) * exp(theta(1));
+        return 2.0 * theta(0) * theta(0) * exp(theta(2));
     }
 
 	// Set the bounds on the uniform prior.
@@ -237,7 +236,7 @@ public:
     CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
     CARMA_Base(track, name, time, y, yerr, temperature), p_(p)
 	{
-        pKFilter_ = std::make_shared<KalmanFilterp>(time, y, yerr);
+        pKFilter_ = std::make_shared<KalmanFilterp>(time_, y_, yerr_);
 		value_.set_size(p_+2);
         ma_coefs_ = arma::zeros(p);
         ma_coefs_(0) = 1.0;
