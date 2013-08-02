@@ -691,7 +691,7 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     ma_coefs.zeros();
     ma_coefs(0) = 1.0;
     
-    CARp car5_test(true, "CAR(5)", time, y, ysig, p);
+    ZCARMA car5_test(true, "ZCARMA(5)", time, y, ysig, p);
     KalmanFilterp Kfilter(time, ycent, ysig);
     
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
@@ -699,7 +699,7 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     
     // setup Robust Adaptive Metropolis step object
     StudentProposal tUnit(8.0, 1.0);
-    arma::mat prop_covar(p+2,p+2);
+    arma::mat prop_covar(p+3,p+3);
     prop_covar.eye();
     int niter = 1000;
     double target_rate = 0.4;

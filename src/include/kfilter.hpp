@@ -180,10 +180,10 @@ public:
 
 protected:
     // Data
-    arma::vec& time_;
+    arma::vec time_;
     arma::vec dt_;
-    arma::vec& y_;
-    arma::vec& yerr_;
+    arma::vec y_;
+    arma::vec yerr_;
     // The Kalman Filter parameters
     double sigsqr_;
     OmegaType omega_;

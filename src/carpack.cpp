@@ -64,7 +64,7 @@ arma::vec CAR1::StartingValue()
 	
 	// Initialize the Kalman filter
     pKFilter_->SetOmega(exp(log_omega_start));
-    pKFilter_->SetSigsqr(ExtractSigsqr(theta));
+    pKFilter_->SetSigsqr(sigma * sigma);
     arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
     pKFilter_->SetTimeSeriesErr(proposed_yerr);
     pKFilter_->Filter();

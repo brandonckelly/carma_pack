@@ -42,7 +42,7 @@
  on Var(Y(t)) and omega. The default value of the upper bound on Var(Y(t)) was chosen
  to be 6.9 (i.e., three orders of magnitude when Y(t) is the logarithm of some quantity), 
  but this may be overriden through the use of the SetPrior method. The upper bound on
- omega is fixed to be 1 / min(dt), where dt is the vector of time steps. 
+ omega is fixed to be 1 / min(dt), where dt is the vector of time steps.
 */
 
 template <class OmegaType>
@@ -130,7 +130,6 @@ public:
         pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(omega);
         pKFilter_->SetMA(ma_coefs);
-        arma::vec current_yerr = pKFilter_->GetTimeSeriesErr();
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
         pKFilter_->Filter();
@@ -173,7 +172,7 @@ public:
     arma::vec GetTimeSeriesErr() { return yerr_; }
     arma::vec GetKalmanMean() { return pKFilter_->mean; }
     arma::vec GetKalmanVar() { return pKFilter_->var; }
-    boost::shared_ptr<KalmanFilter<OmegaType> > GetKalmanPtr() { return pKFilter_; }
+    std::shared_ptr<KalmanFilter<OmegaType> > GetKalmanPtr() { return this->pKFilter_; }
     
     virtual void SetPrior(double max_stdev) // set the bounds on the uniform prior
     {
@@ -211,8 +210,8 @@ public:
     }
     
     // extract the AR parameters from the parameter vector
-    double ExtractAR(arma::vec theta) { return exp(theta(0)); }
-    double ExtractMA(arma::vec theta) { return 0.0; }
+    double ExtractAR(arma::vec theta) { return exp(theta(2)); }
+    double ExtractMA(arma::vec theta) { return 1.0; }
     
     // generate starting values of the CAR(1) parameters
 	arma::vec StartingValue();
