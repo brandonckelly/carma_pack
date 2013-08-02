@@ -687,12 +687,9 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     arma::vec ysig = 0.01 * arma::ones(ny);
     int p = 5;
     
-    arma::vec ma_coefs(p);
-    ma_coefs.zeros();
-    ma_coefs(0) = 1.0;
-    
     ZCARMA car5_test(true, "ZCARMA(5)", time, y, ysig, p);
     KalmanFilterp Kfilter(time, ycent, ysig);
+    Kfilter.SetMA(car5_test.ExtractMA(car5_test.Value()));
     
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car5_test.SetPrior(max_stdev);
@@ -716,6 +713,8 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
         // calculate log-posterior manually from the kalman filter object
         arma::vec omega = car5_test.ExtractAR(theta);
         Kfilter.SetOmega(omega);
+        arma::vec ma_coefs = car5_test.ExtractMA(theta);
+        Kfilter.SetMA(ma_coefs);
         double sigsqr;
         arma::cx_vec ar_roots = car5_test.ARRoots(theta);
         sigsqr = theta(0) * theta(0) / car5_test.Variance(ar_roots, ma_coefs, 1.0);
@@ -728,6 +727,7 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
             logdens_kfilter += -0.5 * log(Kfilter.var(j)) -
             0.5 * (ycent(j) - Kfilter.mean(j)) * (ycent(j) - Kfilter.mean(j)) / Kfilter.var(j);
         }
+        logdens_kfilter += car5_test.LogPrior(theta);
         bool no_match_computed = std::abs(logdens_computed - logdens_stored) > 1e-10;
         bool no_match_kfilter = std::abs(logdens_kfilter - logdens_stored) > 1e-10;
         if (no_match_computed || no_match_kfilter) {
@@ -883,7 +883,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARp::LogDensity return -infinity whe
     REQUIRE(nbad_imag == 0);
 }
 
-TEST_CASE("CAR5/carp_variance", "Test the CARp::Variance method") {
+TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
     // generate some data
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
@@ -949,7 +949,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
     std::vector<arma::vec> mcmc_sample;
     mcmc_sample = mcmc_out.first;
-    std::vector<double> logpost_samples;
+    std::vector<double> logpost_samples = mcmc_out.second;
     
     // True CAR(1) process parameters
     double tau = 100.0;
@@ -974,7 +974,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     mcmc_outfile.close();
     
     // Make sure true parameters are within 3sigma of the marginal posterior means
-    double sigma_zscore = (arma::mean(sigma_samples) - log(sigma)) / arma::stddev(sigma_samples);
+    double sigma_zscore = (arma::mean(sigma_samples) - log(sigmay)) / arma::stddev(sigma_samples);
     CHECK(std::abs(sigma_zscore) < 3.0);
     double scale_zscore = (arma::mean(scale_samples) - measerr_scale) / arma::stddev(scale_samples);
     CHECK(std::abs(scale_zscore) < 3.0);
@@ -982,7 +982,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     CHECK(std::abs(omega_zscore) < 3.0);
 }
 
-TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
+TEST_CASE("CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
     
@@ -1005,6 +1005,7 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
     mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
     std::vector<arma::vec> mcmc_sample;
     mcmc_sample = mcmc_out.first;
+    std::vector<double> logpost_samples = mcmc_out.second;
     
     // True CAR(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
@@ -1024,6 +1025,9 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
     // p is odd, so add in additional value of lorentz_width
     theta(p+1) = log(qpo_width[p/2]);
 
+    std::ofstream mcmc_outfile("data/car5_mcmc.dat");
+    mcmc_outfile << "# sigma, measerr_scale, (lorentz_cent,lorentz_width), logpost" << std::endl;
+    
     arma::vec sigma_samples(mcmc_sample.size());
     arma::vec scale_samples(mcmc_sample.size());
     arma::mat ar_samples(mcmc_sample.size(),p);
@@ -1033,7 +1037,12 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
         for (int j=0; j<p; j++) {
             ar_samples(i,j) = mcmc_sample[i](j+2);
         }
+        for (int j=0; j<theta.n_elem; j++) {
+            std::cout << mcmc_sample[i](j) << " ";
+        }
+        std::cout << logpost_samples[i] << std::endl;
     }
+    mcmc_outfile.close();
     
     // Make sure true parameters are within 3sigma of the marginal posterior means
     double sigma_zscore = (arma::mean(sigma_samples) - log(sigmay)) / arma::stddev(sigma_samples);
