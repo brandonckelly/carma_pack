@@ -745,7 +745,7 @@ def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
     :rtype : A numpy array.
     """
     try:
-        len(ma_coefs) <= len(ar_roots)
+        len(ma_coefs) <= len(ar_coef)
     except ValueError:
         "Size of ma_coefs must be less or equal to size of ar_roots."
 
@@ -771,7 +771,8 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
 
     if len(ma_coefs) < len(ar_roots):
         # add extra zeros to end of ma_coefs
-        ma_coefs = np.array(ma_coefs).resize(len(ar_roots))
+        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
+        ma_coefs[1:] = 0.0
 
     sigma1_variance = 0.0 + 0j
     p = ar_roots.size
@@ -798,13 +799,13 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
 
 def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     """
-    Generate a CAR(p) process.
+    Generate a CARMA(p,q) process.
 
-    :param time: The time values to generate the CAR(p) process at.
+    :param time: The time values at which to generate the CARMA(p,q) process at.
     :param sigsqr: The variance in the driving white noise term.
     :param ar_roots: The roots of the CAR(p) characteristic polynomial.
     :param ma_coefs: The moving average coefficients.
-    :rtype : A numpy array containing the simulated CAR(p) process values at time.
+    :rtype : A numpy array containing the simulated CARMA(p,q) process values at time.
     """
     try:
         len(ma_coefs) <= len(ar_roots)
@@ -815,7 +816,8 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
     if len(ma_coefs) < p:
         # add extra zeros to end of ma_coefs
-        ma_coefs = np.array(ma_coefs).resize(len(ar_roots))
+        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
+        ma_coefs[1:] = 0.0
 
     time.sort()
     # make sure process is stationary
@@ -835,9 +837,8 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     except ValueError:
         "Roots are not unique."
 
-    # Setup the matrix of Eigenvectors for the state space transition matrix. This allows us to transform quantities
-    # into the rotated state basis. We then proceed by simulating the rotated state vectors, which are Markovian, and
-    # then constructing the CAR(p) process from a linear combination of the rotated state vectors.
+    # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform
+    # quantities into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
     EigenMat = np.ones((p, p), dtype=complex)
     EigenMat[1, :] = ar_roots
     for k in xrange(2, p):
@@ -851,52 +852,58 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
 
     # Compute the vector of moving average coefficients in the rotated state.
-    rotated_MA_coefs = EigenMat.dot(ma_coefs)
+    rotated_MA_coefs = ma_coefs.dot(EigenMat)
 
     # Calculate the stationary covariance matrix of the state vector
     StateVar = np.empty((p, p), dtype=complex)
     for j in xrange(p):
         StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
 
-    # Covariance matrix of real and imaginary components of the rotated state vector. The rotated state vector
-    # follows a complex multivariate normal distribution
-    ComplexCovar_top = np.hstack((StateVar.real, -StateVar.imag))
-    ComplexCovar_bottom = np.hstack((StateVar.imag, StateVar.real))
-    ComplexCovar = np.vstack((ComplexCovar_top, ComplexCovar_bottom))
+    # Initialize variance in one-step prediction error and the state vector
+    PredictionVar = StateVar.copy()
+    StateVector = np.zeros(p, dtype=complex)
 
-    # generate the state vector at time[0] by drawing from its stationary distribution
-    state_components = np.random.multivariate_normal(np.zeros(2 * p), ComplexCovar)
-    state_vector = state_components[0:p] + 1j * state_components[p:]
+    # Convert the current state to matrices for convenience, since we'll be doing some Linear algebra.
+    StateVector = np.matrix(StateVector).T
+    StateVar = np.matrix(StateVar)
+    PredictionVar = np.matrix(PredictionVar)
+    rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
+    StateTransition = np.zeros_like(StateVector)
+    KalmanGain = np.zeros_like(StateVector)
 
-    car_process = np.empty(time.size)
-    # calculate first value of the CAR(p) process
-    car_process[0] = np.real(np.sum(rotated_MA_coefs * state_vector))
+    # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
+    kalman_mean = 0.0
+    kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
 
-    StateCvar = np.empty_like(StateVar)  # the state vector covariance matrix, conditional on the previous state vector
+    # simulate the first time series value
+    y = np.empty_like(time)
+    y[0] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
 
-    # now generate remaining CAR(p) values
+    # Initialize the innovations, i.e., the KF residuals
+    innovation = y[0]
+
     for i in xrange(1, time.size):
-        # update the state vector mean, conditional on the earlier value
-        state_cmean = state_vector * np.exp(ar_roots * (time[i] - time[i - 1]))  # the state vector conditional mean
+        # First compute the Kalman gain
+        KalmanGain = PredictionVar * rotated_MA_coefs.H / kalman_var
+        # update the state vector
+        StateVector += innovation * KalmanGain
+        # update the state one-step prediction error variance
+        PredictionVar -= kalman_var * (KalmanGain * KalmanGain.H)
+        # predict the next state, do element-wise multiplication
+        dt = time[i] - time[i-1]
+        StateTransition = np.matrix(np.exp(ar_roots * dt)).T
+        StateVector = np.multiply(StateVector, StateTransition)
+        # update the predicted state covariance matrix
+        PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
+        # now predict the observation and its variance
+        kalman_mean = np.real(np.asscalar(rotated_MA_coefs * StateVector))
+        kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
+        # simulate the next time series value
+        y[i] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
+        # finally, update the innovation
+        innovation = y[i] - kalman_mean
 
-        # compute the state vector conditional covariance matrix
-        for j in xrange(p):
-            StateCvar[:, j] = StateVar[:, j] * (1.0 - np.exp((ar_roots + np.conjugate(ar_roots[j])) *
-                                                             (time[i] - time[i - 1])))
-
-        # update the covariance matrix of the state vector components
-        ComplexCovar_top = np.hstack((StateCvar.real, -StateCvar.imag))
-        ComplexCovar_bottom = np.hstack((StateCvar.imag, StateCvar.real))
-        ComplexCovar = np.vstack((ComplexCovar_top, ComplexCovar_bottom))
-
-        # now randomly generate a new value of the rotated state vector
-        state_components = np.random.multivariate_normal(np.zeros(2 * p), ComplexCovar)
-        state_vector = state_cmean + state_components[0:p] + 1j * state_components[p:]
-
-        # next value of the CAR(p) process
-        car_process[i] = np.real(np.sum(rotated_MA_coefs * state_vector))
-
-    return car_process
+    return y
 
 
 class CarSample1(CarSample):

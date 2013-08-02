@@ -52,9 +52,14 @@ ar_roots = get_ar_roots(qpo_width, qpo_cent)
 kappa = 0.7
 ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 
-sigsqr = sigmay ** 2 / carma_variance(1.0, ar_roots, ma_coefs)
+ma_coefs[:] = 0.0
+ma_coefs[0] = 1.0
 
-zcarma5 = carma_process(time, sigsqr, ar_roots, ma_coefs)
+sigsqr = sigmay ** 2 / carma_variance(1.0, ar_roots)
+print sigsqr, ar_roots
+zcarma5 = carma_process(time, sigsqr, ar_roots)
+
+print np.std(zcarma5), np.std(car1), np.sqrt(carma_variance(sigsqr, ar_roots))
 
 plt.plot(time, zcarma5)
 
