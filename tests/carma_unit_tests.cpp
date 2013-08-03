@@ -289,21 +289,22 @@ TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1
     REQUIRE(frac_diff < 1e-8);
 }
 
-TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process") {
-    // first grab the simulated Gaussian CAR(5) data set
-    arma::mat car5_data;
-    car5_data.load(car5file, arma::raw_ascii);
+TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) process") {
+    // first grab the simulated Gaussian ZCARMA(5) data set
+    arma::mat zcarma_data;
+    zcarma_data.load(zcarmafile, arma::raw_ascii);
     
-    arma::vec time = car5_data.col(0);
-    arma::vec y = car5_data.col(1);
-    arma::vec yerr = car5_data.col(2);
+    arma::vec time = zcarma_data.col(0);
+    arma::vec y = zcarma_data.col(1);
+    arma::vec yerr = zcarma_data.col(2);
     int ny = y.n_elem;
     
-    // CAR(5) process parameters
+    // ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
+    double kappa = 0.7;
     
     // Create the parameter vector, omega
 	arma::vec omega(p);
@@ -314,16 +315,19 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process")
     // p is odd, so add in additional value of lorentz_width
     omega(p-1) = qpo_width[p/2];
     
-    // construct the moving average coefficients, right now just assume q = 1
-    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
-    ma_coefs(0) = 1.0;
+    // construct the moving average coefficients
+    arma::vec ma_coefs(p);
+	ma_coefs(0) = 1.0;
+	for (int i=1; i<p; i++) {
+		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
+	}
     
     KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
     
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
-    CARp car5_process(true, "CAR(5)", time, y, yerr, p);
-    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, ma_coefs, 1.0);
+    ZCARMA zcarma_process(true, "ZCARMA(5)", time, y, yerr, p);
+    double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
     // First test that the Kalman Filter is correctly initialized after reseting it
@@ -393,21 +397,22 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CAR(5) process")
     REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
 }
 
-TEST_CASE("./KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR(5) process") {
-    // first grab the simulated Gaussian CAR(5) data set
-    arma::mat car5_data;
-    car5_data.load(car5file, arma::raw_ascii);
+TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARMA(5) process") {
+    // first grab the simulated Gaussian ZCARMA(5) data set
+    arma::mat zcarma_data;
+    zcarma_data.load(zcarmafile, arma::raw_ascii);
     
-    arma::vec time = car5_data.col(0);
-    arma::vec y = car5_data.col(1);
-    arma::vec yerr = car5_data.col(2);
+    arma::vec time = zcarma_data.col(0);
+    arma::vec y = zcarma_data.col(1);
+    arma::vec yerr = zcarma_data.col(2);
     int ny = y.n_elem;
     
-    // CAR(5) process parameters
+    // ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
+    double kappa = 0.7;
     
     // Create the parameter vector, omega
 	arma::vec omega(p);
@@ -418,17 +423,20 @@ TEST_CASE("./KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR
     // p is odd, so add in additional value of lorentz_width
     omega(p-1) = qpo_width[p/2];
     
-    // construct the moving average coefficients, right now just assume q = 1
-    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
-    ma_coefs(0) = 1.0;
+    // construct the moving average coefficients
+    arma::vec ma_coefs(p);
+	ma_coefs(0) = 1.0;
+	for (int i=1; i<p; i++) {
+		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
+	}
     
     KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
     Kfilter.Filter();
     
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
-    CARp car5_process(true, "CAR(5)", time, y, yerr, p);
-    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, ma_coefs, 1.0);
+    ZCARMA zcarma_process(true, "ZCARMA(5)", time, y, yerr, p);
+    double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
     // first test forecasting
@@ -453,7 +461,7 @@ TEST_CASE("./KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR
                 timej = time(j-1);
             }
             double dt = std::abs(timei - timej);
-            covar(i,j) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+            covar(i,j) = zcarma_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
             if (i == j && i > 0) {
                 // add contribution from measurement errors
                 covar(i,j) += yerr(i-1) * yerr(i-1);
@@ -485,7 +493,7 @@ TEST_CASE("./KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR
     
     for (int i=1; i<ny+1; i++) {
         double dt = std::abs(tpredict - time(i-1));
-        covar(0,i) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+        covar(0,i) = zcarma_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
         covar(i,0) = covar(0,i);
     }
     covar = arma::symmatu(covar);
@@ -509,7 +517,7 @@ TEST_CASE("./KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR
     
     for (int i=1; i<ny+1; i++) {
         double dt = std::abs(tpredict - time(i-1));
-        covar(0,i) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+        covar(0,i) = zcarma_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
         covar(i,0) = covar(0,i);
     }
     covar = arma::symmatu(covar);
@@ -525,22 +533,22 @@ TEST_CASE("./KalmanFilterp/Predict", "Test interpolation/extrapolation for a CAR
     REQUIRE(frac_diff < 1e-6);
 }
 
-TEST_CASE("./KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) process.") {
-    // first grab the simulated Gaussian CAR(5) data set
-    arma::mat car5_data;
-    car5_data.load(car5file, arma::raw_ascii);
+TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) process.") {
+    // first grab the simulated Gaussian ZCARMA(5) data set
+    arma::mat zcarma_data;
+    zcarma_data.load(zcarmafile, arma::raw_ascii);
     
-    arma::vec time = car5_data.col(0);
-    arma::vec y = car5_data.col(1);
-    arma::vec yerr = car5_data.col(2);
-    
+    arma::vec time = zcarma_data.col(0);
+    arma::vec y = zcarma_data.col(1);
+    arma::vec yerr = zcarma_data.col(2);
     int ny = y.n_elem;
     
-    // CAR(5) process parameters
+    // ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
+    double kappa = 0.7;
     
     // Create the parameter vector, omega
 	arma::vec omega(p);
@@ -551,17 +559,20 @@ TEST_CASE("./KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) pr
     // p is odd, so add in additional value of lorentz_width
     omega(p-1) = qpo_width[p/2];
     
-    // construct the moving average coefficients, right now just assume q = 1
-    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
-    ma_coefs(0) = 1.0;
+    // construct the moving average coefficients
+    arma::vec ma_coefs(p);
+	ma_coefs(0) = 1.0;
+	for (int i=1; i<p; i++) {
+		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
+	}
     
     KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
     Kfilter.Filter();
     
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
-    CARp car5_process(true, "CAR(5)", time, y, yerr, p);
-    double sigsqr = sigmay * sigmay / car5_process.Variance(ar_roots, ma_coefs, 1.0);
+    ZCARMA zcarma_process(true, "ZCARMA(5)", time, y, yerr, p);
+    double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
     // simulate the time series using the Kalman Filter
@@ -580,7 +591,7 @@ TEST_CASE("./KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) pr
     for (int i=0; i<ny+nsim; i++) {
         for (int j=0; j<ny+nsim; j++) {
             double dt = std::abs(tcombined(i) - tcombined(j));
-            covar(i,j) = car5_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
+            covar(i,j) = zcarma_process.Variance(ar_roots, ma_coefs, sqrt(sigsqr), dt);
             if ((i == j) && (i >= nsim)) {
                 // add contribution from measurement errors to the diagonal
                 covar(i,j) += yerr(i-nsim) * yerr(i-nsim);
@@ -1198,7 +1209,7 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
         theta(j) = log(kappa); // MA polynomial only has a single real root at -kappa.
     }
     
-    std::ofstream mcmc_outfile(carmafile);
+    std::ofstream mcmc_outfile("data/carma_mcmc.dat");
     mcmc_outfile <<
     "# sigma, measerr_scale, (lorentz_cent,lorentz_width), (imag(MA root), real(MA_root)), logpost"
     << std::endl;
