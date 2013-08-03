@@ -456,8 +456,8 @@ arma::vec ZCARMA::StartingValue()
         }
         
         // get initial guess for the moving average polynomial coefficients, parameterized by kappa
-        double kappa = kappa_low_ + (kappa_high_ - kappa_low_) * RandGen.uniform();
-        theta(2+p_) = logit(kappa);
+        double kappa_normed = RandGen.uniform();
+        theta(2+p_) = logit(kappa_normed);
         
         // compute the coefficients of the MA polynomial
         arma::vec ma_coefs = ExtractMA(theta);
@@ -499,7 +499,8 @@ arma::vec ZCARMA::StartingValue()
 // extract the moving average coefficients from the parameter vector
 arma::vec ZCARMA::ExtractMA(arma::vec theta)
 {
-    double kappa = inv_logit(theta(2 + p_));
+    double kappa_normed = inv_logit(theta(2 + p_));
+    double kappa = (kappa_high_ - kappa_low_) * kappa_normed + kappa_low_;
     // Set the moving average terms
     arma::vec ma_coefs(p_);
 	ma_coefs(0) = 1.0;

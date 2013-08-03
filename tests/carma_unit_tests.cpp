@@ -23,6 +23,7 @@ extern boost::random::mt19937 rng;
 std::string car1file("data/car1_test.dat");
 std::string car5file("data/car5_test.dat");
 std::string zcarmafile("data/zcarma5_test.dat");
+std::string carmafile("data/carma_test.dat");
 
 // Compute the autocorrelation function of a series
 arma::vec autocorr(arma::vec& y, int maxlag) {
@@ -1183,7 +1184,8 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
 	}
     
     // Create the parameter vector, theta
-	arma::vec theta(p+2);
+    int q = p - 1;
+	arma::vec theta(q+p+2);
     theta(0) = log(sigmay);
 	theta(1) = measerr_scale;
     for (int i=0; i<p/2; i++) {
@@ -1196,7 +1198,7 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
         theta(j) = log(kappa); // MA polynomial only has a single real root at -kappa.
     }
     
-    std::ofstream mcmc_outfile("data/carma_mcmc.dat");
+    std::ofstream mcmc_outfile(carmafile);
     mcmc_outfile <<
     "# sigma, measerr_scale, (lorentz_cent,lorentz_width), (imag(MA root), real(MA_root)), logpost"
     << std::endl;
