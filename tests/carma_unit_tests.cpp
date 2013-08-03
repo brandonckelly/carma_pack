@@ -16,6 +16,9 @@
 #include <boost/math/special_functions/binomial.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
 
+// Global random number generator object, instantiated in random.cpp
+extern boost::random::mt19937 rng;
+
 // Files containing simulated CAR(1) and CAR(5) time series, used for testing
 std::string car1file("data/car1_test.dat");
 std::string car5file("data/car5_test.dat");
@@ -43,6 +46,10 @@ arma::vec autocorr(arma::vec& y, int maxlag) {
 /*******************************************************************
                         TESTS FOR CAR1 CLASS
  *******************************************************************/
+
+TEST_CASE("startup/rng_seed", "Set the seed for the random number generator for reproducibility.") {
+    rng.seed(123456);
+}
 
 TEST_CASE("KalmanFilter/constructor", "Make sure constructor sorts the time vector and removes duplicates.") {
     int ny = 100;
@@ -927,7 +934,7 @@ TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
     REQUIRE(frac_diff < 1e-8);
 }
 
-TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
+TEST_CASE("./CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(1) model..." << std::endl << std::endl;
     
@@ -983,7 +990,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(1) model") {
     CHECK(std::abs(omega_zscore) < 3.0);
 }
 
-TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
+TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
     
@@ -1058,7 +1065,7 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEmsembleCarSampler on CAR(5) model") {
 
 TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
-    std::cout << "Running test of MCMC sampler for ZCARMA(5,4) model..." << std::endl << std::endl;
+    std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
     // first grab the simulated Gaussian CAR(5) data set
     arma::mat zcarma_data;

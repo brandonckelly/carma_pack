@@ -153,7 +153,15 @@ RunCarmaSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
 	//
 	// TODO: Get a better guess from maximum-likelihood fit
 	//
-	arma::mat prop_covar(2+p,2+p);
+    
+    int nparams;
+    if (do_zcarma) {
+        nparams = 3 + p;
+    } else {
+        nparams = 2 + p + q;
+    }
+    
+	arma::mat prop_covar(nparams,nparams);
 	prop_covar.eye();
 	prop_covar.diag() = prop_covar.diag() * 0.01 * 0.01;
     prop_covar(0,0) = 2.0 * arma::var(y) * arma::var(y) / y.n_elem;
