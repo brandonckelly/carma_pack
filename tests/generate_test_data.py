@@ -74,3 +74,13 @@ plt.xlabel("Time")
 plt.ylabel("ZCARMA(5)")
 plt.show()
 
+# covar = np.empty((ny, ny))
+# for i in xrange(ny):
+#     print i
+#     for j in xrange(ny):
+#         dt = np.abs(time[i] - time[j])
+#         covar[i, j] = carma_variance(sigsqr, ar_roots, ma_coefs=ma_coefs, lag=dt)
+#         if i == j:
+#             covar[i, j] += yerr[i] * yerr[j]
+
+
