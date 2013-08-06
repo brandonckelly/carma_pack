@@ -3,13 +3,14 @@ __author__ = 'Brandon C. Kelly'
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
+from scipy.misc import comb
 from os import environ
 import yamcmcpp.samplers as samplers
 
 
 class CarmaSample(samplers.MCMCSample):
     """
-    Class for storing and analyzing the MCMC samples of a CAR(p) model.
+    Class for storing and analyzing the MCMC samples of a CARMA(p,q) model.
     """
 
     def __init__(self, time, y, ysig, q=0, filename=None, logpost=None, trace=None):
@@ -271,10 +272,13 @@ class CarmaSample(samplers.MCMCSample):
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
+        if self.q == 0:
+            ma_coefs = [1.0]
+
         fig = plt.figure()
         # compute the kalman filter for data only
         sp = fig.add_subplot(111)
-        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots, ma_coefs=ma_coefs)
         kmean, kvar = kfilter.filter()
         sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
         sp.plot(self.time, kmean + self.y.mean(), '-r', label='Kalman Filter')
@@ -291,7 +295,7 @@ class CarmaSample(samplers.MCMCSample):
 
     def assess_fit(self, bestfit="median"):
         """
-        Display plots and provide useful information for assessing the quality of the CAR(p) model fit.
+        Display plots and provide useful information for assessing the quality of the CARMA(p.q) model fit.
 
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
             mean ("mean") or the posterior median ("median").
@@ -307,14 +311,17 @@ class CarmaSample(samplers.MCMCSample):
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
             ar_roots = self._samples['ar_roots'][max_index]
+            ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
         # compute the marginal mean and variance of the predicted values
         nplot = 256
@@ -334,7 +341,11 @@ class CarmaSample(samplers.MCMCSample):
         #plt.legend()
 
         # plot the standardized residuals and compare with the standard normal
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        if self.q == 0:
+            ma_coefs = [1.0]
+
+        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
+                                     ma_coefs=ma_coefs)
         kalman_mean, kalman_var = kalman_filter.filter()
         standardized_residuals = (self.y - self.y.mean() - kalman_mean) / np.sqrt(kalman_var)
         plt.subplot(222)
@@ -401,17 +412,24 @@ class CarmaSample(samplers.MCMCSample):
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
             ar_roots = self._samples['ar_roots'][max_index]
+            ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
+
+        if self.q == 0:
+            ma_coefs = [1.0]
 
         # note that KalmanFilter class assumes the time series has zero mean
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
+                                     ma_coefs=ma_coefs)
 
         if np.isscalar(time):
             yhat, yhat_var = kalman_filter.predict(time)
@@ -447,17 +465,24 @@ class CarmaSample(samplers.MCMCSample):
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
             ar_roots = self._samples['ar_roots'][max_index]
+            ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
+
+        if self.q == 0:
+            ma_coefs = [1.0]
 
         # note that KalmanFilter class assumes the time series has zero mean
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
+                                     ma_coefs=ma_coefs)
 
         ysim = kalman_filter.simulate(time)
         ysim += self.y.mean()  # add mean back into time series
@@ -478,7 +503,7 @@ class CarmaSample(samplers.MCMCSample):
         loglik = np.empty(nsamp)
         for i in xrange(nsamp):
             kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, self._samples['sigma'][i] ** 2,
-                                   self._samples['ar_roots'][i])
+                                   self._samples['ar_roots'][i], self._samples['ma_coefs'][i])
             kmean, kvar = kfilter.filter()
             chi2[i] = np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
             loglik[i] = -0.5 * np.sum(np.log(kvar)) - 0.5 * chi2
@@ -489,17 +514,36 @@ class CarmaSample(samplers.MCMCSample):
             sigsqr = np.median(self._samples['sigma']) ** 2
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             loglik = np.median(self._samples["loglik"])
+            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             loglik = np.mean(self._samples["loglik"])
+            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
-        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots)
+        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots, ma_coefs=ma_coefs)
         kmean, kvar = kfilter.filter()
         loglik_hat = -0.5 * np.sum(np.log(kvar)) - 0.5 * np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
         p = -2.0 * loglik + 2.0 * loglik_hat
 
         return -2.0 * loglik + 2 * p
+
+
+class ZCarmaSample(CarmaSample):
+    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
+        super(ZCarmaSample, self).__init__(time, y, ysig, q=0, filename=filename, logpost=logpost, trace=trace)
+
+    def generate_from_trace(self, trace):
+        super(ZCarmaSample, self).generate_from_trace(trace)
+        # add kappa values
+        self._samples['kappa'] = trace[:, trace.shape[1]-1]
+        # update value of q
+        self.q = self.p - 1
+
+    def _ma_coefs(self):
+        ma_coefs = np.empty(self._samples['var'].size, self.q+1)
+        for k in xrange(self.p):
+            ma_coefs[:, k] = comb(self.p-1, k) / self._samples['kappa'] ** k
 
 
 class KalmanFilter(object):

@@ -1119,11 +1119,15 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     }
     // p is odd, so add in additional value of lorentz_width
     theta(p+1) = log(qpo_width[p/2]);
-    theta(p+2) = logit(kappa);
+    arma::vec dt = time(arma::span(1,time.n_elem-1)) - time(arma::span(0,time.n_elem-2));
+    double kappa_low = 1.0 / (time.max() - time.min());
+    double kappa_high = 1.0 / dt.min();
+    double kappa_norm = (kappa - kappa_low) / (kappa_high - kappa_low);
+    theta(p+2) = logit(kappa_norm);
     
     std::ofstream mcmc_outfile("data/zcarma5_mcmc.dat");
     mcmc_outfile <<
-    "# log sigma, measerr_scale, (lorentz_cent,lorentz_width), logit(kappa), logpost" << std::endl;
+    "# log sigma, measerr_scale, (lorentz_cent,lorentz_width), kappa, logpost" << std::endl;
     
     arma::vec sigma_samples(mcmc_sample.size());
     arma::vec scale_samples(mcmc_sample.size());
@@ -1136,9 +1140,11 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
             ar_samples(i,j) = mcmc_sample[i](j+2);
         }
         kappa_samples(i) = mcmc_sample[i](p+2);
-        for (int j=0; j<theta.n_elem; j++) {
+        for (int j=0; j<theta.n_elem-1; j++) {
             mcmc_outfile << mcmc_sample[i](j) << " ";
         }
+        double kappa_i = kappa_low + (kappa_high - kappa_low) * inv_logit(theta(theta.n_elem-1));
+        mcmc_outfile << kappa_i << " ";
         mcmc_outfile << logpost_samples[i] << std::endl;
     }
     mcmc_outfile.close();
