@@ -7,12 +7,12 @@ from os import environ
 import yamcmcpp.samplers as samplers
 
 
-class CarSample(samplers.MCMCSample):
+class CarmaSample(samplers.MCMCSample):
     """
     Class for storing and analyzing the MCMC samples of a CAR(p) model.
     """
 
-    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
+    def __init__(self, time, y, ysig, q=0, filename=None, logpost=None, trace=None):
         """
         Constructor for the class. Right same as its superclass.
 
@@ -21,18 +21,24 @@ class CarSample(samplers.MCMCSample):
         self.time = time  # The time values of the time series
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
-        super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
+        self.q = q  # order of moving average polynomial
+        super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
-        # now calculate the CAR(p) characteristic polynomial roots, coefficients, and amplitude of driving noise and
-        # add them to the MCMC samples
+        # now calculate the AR(p) characteristic polynomial roots, coefficients, MA coefficients, and amplitude of
+        # driving noise and add them to the MCMC samples
         print "Calculating roots of AR polynomial..."
         self._ar_roots()
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()
+        if self.q > 0:
+            print "Calculating coefficients of MA polynomial..."
+            self._ma_coefs()
+        else:
+            self._samples['ma_coefs'] = np.ones(self._samples['var'])
         print "Calculating sigma..."
         self._sigma_noise()
 
-        # make the parameter names (i.e., the keys) public so the use knows how to get them
+        # make the parameter names (i.e., the keys) public so the user knows how to get them
         self.parameters = self._samples.keys()
 
     def set_logpost(self, logpost):
@@ -40,8 +46,10 @@ class CarSample(samplers.MCMCSample):
 
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
-        self.p = trace.shape[1] - 2
+        self.p = trace.shape[1] - 2 - self.q
         names = ['var', 'measerr_scale', 'log_centroid', 'log_width']
+        if self.q > 0:
+            names.append('ma_roots')
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
@@ -56,6 +64,13 @@ class CarSample(samplers.MCMCSample):
                 # Odd number of roots, so add in low-frequency component
                 ar_index = np.append(ar_index, ar_index.max() + 1)
             self._samples['log_width'] = trace[:, 3 + ar_index]
+            if self.q > 0:
+                # Add in roots of the moving average polynomial
+                ma_index = np.arange(0, self.q - 1, 2)
+                self._samples['ma_roots'] = np.hstack((-np.exp(trace[:, ma_index + 1]) +
+                                                       1j * np.exp(trace[:, ma_index]),
+                                                       np.conj(-np.exp(trace[:, ma_index + 1]) +
+                                                               1j * np.exp(trace[:, ma_index]))))
 
     def generate_from_file(self, filename):
         """
@@ -70,7 +85,7 @@ class CarSample(samplers.MCMCSample):
 
     def _ar_roots(self):
         """
-        Calculate the roots of the CAR(p) characteristic polynomial and add them to the MCMC samples.
+        Calculate the roots of the CARMA(p,q) characteristic polynomial and add them to the MCMC samples.
         """
         var = self._samples['var']
         qpo_centroid = np.exp(self._samples['log_centroid'])
@@ -89,7 +104,7 @@ class CarSample(samplers.MCMCSample):
 
     def _ar_coefs(self):
         """
-        Calculate the CAR(p) autoregressive coefficients and add them to the MCMC samples.
+        Calculate the CARMA(p,q) autoregressive coefficients and add them to the MCMC samples.
         """
         roots = self._samples['ar_roots']
         coefs = np.empty((roots.shape[0], self.p + 1), dtype=complex)
@@ -98,30 +113,50 @@ class CarSample(samplers.MCMCSample):
 
         self._samples['ar_coefs'] = coefs.real
 
+    def _ma_coefs(self):
+        """
+        Calculate the CARMA(p,q) moving average coefficients and add them to the MCMC samples.
+        """
+        roots = self._samples['ma_roots']
+        coefs = np.empty((roots.shape[0], self.q + 1), dtype=complex)
+        for i in xrange(roots.shape[0]):
+            coefs[i, :] = np.poly(roots[i, :])[::-1]  # MA coefficients go in reverse order
+            coefs[i, :] /= coefs[i, 0]  # MA coefficients normalized such that constant = 1.0
+
     def _sigma_noise(self):
         """
         Calculate the MCMC samples of the standard deviation of the white noise driving process and add them to the
         MCMC samples.
         """
-        # get the CAR(p) model variance of the time series
+        # get the CARMA(p,q) model variance of the time series
         var = self._samples['var']
 
         # get the roots of the AR(p) characteristic polynomial
         ar_roots = self._samples['ar_roots']
 
+        # get the moving average coefficients
+        ma_coefs = self._samples['ma_coefs']
+
         # calculate the variance of a CAR(p) process, assuming sigma = 1.0
         sigma1_variance = 0.0
         for k in xrange(self.p):
-            denom_product = -2.0 * ar_roots[:, k].real + 0j
+            denom = -2.0 * ar_roots[:, k].real + 0j
             for l in xrange(self.p):
                 if l != k:
-                    denom_product *= (ar_roots[:, l] - ar_roots[:, k]) * (np.conjugate(ar_roots[:, l]) + ar_roots[:, k])
-            sigma1_variance += 1.0 / denom_product
+                    denom *= (ar_roots[:, l] - ar_roots[:, k]) * (np.conjugate(ar_roots[:, l]) + ar_roots[:, k])
 
-        sigma = var / sigma1_variance.real
+            ma_sum1 = np.zeros_like(ar_roots[:, 0])
+            ma_sum2 = ma_sum1.copy()
+            for l in xrange(self.q + 1):
+                ma_sum1 += ma_coefs[:, l] * ar_roots[:, k] ** l
+                ma_sum2 += ma_coefs[:, l] * (-1.0 * ar_roots[:, k]) ** l
+            numer = ma_sum1 * ma_sum2 * np.exp(ar_roots[:, k])
 
-        # add the sigmas to the MCMC samples
-        self._samples['sigma'] = np.sqrt(sigma)
+        sigma1_variance += numer / denom
+        sigsqr = var / sigma1_variance.real
+
+        # add the white noise sigmas to the MCMC samples
+        self._samples['sigma'] = np.sqrt(sigsqr)
 
     def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", sp=None, doShow=True):
         """
@@ -137,6 +172,7 @@ class CarSample(samplers.MCMCSample):
         """
         sigmas = self._samples['sigma']
         ar_coefs = self._samples['ar_coefs']
+        ma_coefs = self._samples['ma_coefs']
         if nsamples is None:
             # Use all of the MCMC samples
             nsamples = sigmas.shape[0]
@@ -172,13 +208,19 @@ class CarSample(samplers.MCMCSample):
         for i in xrange(nfreq):
             omega = 2.0 * np.pi * 1j * frequencies[i]
             ar_poly = np.zeros(nsamples, dtype=complex)
+            ma_poly = ar_poly.copy()
             for k in xrange(self.p - 1):
                 # Here we compute:
                 #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
                 # Note that ar_coefs[0] = 1.0.
                 ar_poly += ar_coefs[:, k] * omega ** (self.p - k)
             ar_poly += ar_coefs[:, self.p - 1] * omega + ar_coefs[:, self.p]
-            psd_samples = sigmas ** 2 / np.abs(ar_poly) ** 2
+            for k in xrange(self.q + 1):
+                # Here we compute:
+                #   delta(omega) = ma_coefs[0] + ma_coefs[1] * omega + ... + ma_coefs[q] * omega^q
+                ma_poly += ma_coefs[:, k] * omega ** k
+
+            psd_samples = sigmas ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
 
             # Now compute credibility interval for power spectrum
             psd_credint[i, 0] = np.percentile(psd_samples, lower)
@@ -217,14 +259,17 @@ class CarSample(samplers.MCMCSample):
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
             ar_roots = self._samples['ar_roots'][max_index]
+            ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
+            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
         fig = plt.figure()
         # compute the kalman filter for data only
@@ -458,7 +503,7 @@ class CarSample(samplers.MCMCSample):
 
 
 class KalmanFilter(object):
-    def __init__(self, time, y, yvar, sigsqr, ar_roots):
+    def __init__(self, time, y, yvar, sigsqr, ar_roots, ma_coefs=[1.0]):
         """
         Constructor for Kalman Filter class.
 
@@ -468,12 +513,19 @@ class KalmanFilter(object):
         :param sigsqr: The variance of the driving white noise term in the CAR(p) process.
         :param ar_roots: The roots of the autoregressive characteristic polynomial.
         """
+        try:
+            len(ma_coefs) <= ar_roots.size
+        except ValueError:
+            "Order of MA polynomial cannot be larger than order of AR polynomial."
+
         self.time = time
         self.y = y
         self.yvar = yvar
         self.sigsqr = sigsqr
         self.ar_roots = ar_roots
-        self.p = ar_roots.size  # order of the CAR(p) process
+        self.p = ar_roots.size  # order of the CARMA(p,q) process
+        self.q = len(ma_coefs)
+        self.ma_coefs = np.append(ma_coefs, np.zeros(self.p - self.q))
 
     def reset(self):
         """
@@ -494,7 +546,7 @@ class KalmanFilter(object):
         Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
 
         # Compute the vector of moving average coefficients in the rotated state.
-        rotated_MA_coefs = np.ones(self.p, dtype=complex)  # just ones for a CAR(p) model
+        rotated_MA_coefs = self.ma_coefs.dot(EigenMat)
 
         # Calculate the stationary covariance matrix of the state vector
         StateVar = np.empty((self.p, self.p), dtype=complex)
@@ -506,15 +558,6 @@ class KalmanFilter(object):
         PredictionVar = StateVar.copy()
         StateVector = np.zeros(self.p, dtype=complex)
 
-        # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
-        self.kalman_mean = np.empty_like(self.time)
-        self.kalman_var = np.empty_like(self.time)
-        self.kalman_mean[0] = 0.0
-        self.kalman_var[0] = PredictionVar.sum().real + self.yvar[0]  # Kalman variance must be a real number
-
-        # Initialize the innovations, i.e., the KF residuals
-        self._innovation = self.y[0]
-
         # Convert the current state to matrices for convenience, since we'll be doing some Linear algebra.
         self._StateVector = np.matrix(StateVector).T
         self._StateVar = np.matrix(StateVar)
@@ -522,6 +565,17 @@ class KalmanFilter(object):
         self._rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
         self._StateTransition = np.zeros_like(self._StateVector)
         self._KalmanGain = np.zeros_like(self._StateVector)
+
+        # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
+        self.kalman_mean = np.empty_like(self.time)
+        self.kalman_var = np.empty_like(self.time)
+        self.kalman_mean[0] = 0.0
+        self.kalman_var[0] = np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H) \
+            + self.yvar[0]
+
+        # Initialize the innovations, i.e., the KF residuals
+        self._innovation = self.y[0]
+
         self._current_index = 1
 
     def update(self):
@@ -529,7 +583,7 @@ class KalmanFilter(object):
         Perform one iteration (update) of the Kalman Filter.
         """
         # First compute the Kalman gain
-        self._KalmanGain = self._PredictionVar.sum(axis=1) / self.kalman_var[self._current_index - 1]
+        self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[self._current_index - 1]
         # update the state vector
         self._StateVector += self._innovation * self._KalmanGain
         # update the state one-step prediction error variance
@@ -542,9 +596,10 @@ class KalmanFilter(object):
         self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
                                           self._PredictionVar - self._StateVar) + self._StateVar
         # now predict the observation and its variance
-        self.kalman_mean[self._current_index] = self._StateVector.sum().real
-        # for a CARMA(p,q) model we need to add the rotated MA terms
-        self.kalman_var[self._current_index] = self._PredictionVar.sum().real + self.yvar[self._current_index]
+        self.kalman_mean[self._current_index] = np.real(np.asscalar(self._rotated_MA_coefs * self._StateVector))
+        self.kalman_var[self._current_index] = \
+            np.real(np.asscalar(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H))
+        self.kalman_var[self._current_index] += self.yvar[self._current_index]
         # finally, update the innovation
         self._innovation = self.y[self._current_index] - self.kalman_mean[self._current_index]
         self._current_index += 1
@@ -749,7 +804,7 @@ def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
     except ValueError:
         "Size of ma_coefs must be less or equal to size of ar_roots."
 
-    ma_poly = np.polyval(ma_coefs, 2.0 * np.pi * 1j * freq) # Evaluate the polynomial in the PSD numerator
+    ma_poly = np.polyval(ma_coefs, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD numerator
     ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
     pspec = sigma ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
     return pspec
@@ -890,7 +945,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
         # update the state one-step prediction error variance
         PredictionVar -= kalman_var * (KalmanGain * KalmanGain.H)
         # predict the next state, do element-wise multiplication
-        dt = time[i] - time[i-1]
+        dt = time[i] - time[i - 1]
         StateTransition = np.matrix(np.exp(ar_roots * dt)).T
         StateVector = np.multiply(StateVector, StateTransition)
         # update the predicted state covariance matrix

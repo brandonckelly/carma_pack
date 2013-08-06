@@ -1075,7 +1075,7 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     }
 }
 
-TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1156,7 +1156,7 @@ TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) mod
     CHECK(std::abs(kappa_zscore) < 3.0);
 }
 
-TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
+TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CARMA(5,4) model..." << std::endl << std::endl;
     
@@ -1224,7 +1224,7 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
         for (int j=0; j<p; j++) {
             ar_samples(i,j) = mcmc_sample[i](j+2);
         }
-        for (int j=0; j<p-1; j++) {
+        for (int j=0; j<q; j++) {
             ma_samples(i,j) = mcmc_sample[i](p+2+j);
         }
         for (int j=0; j<theta.n_elem; j++) {
@@ -1243,7 +1243,7 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
         double ar_zscore = (arma::mean(ar_samples.col(j)) - theta(2+j)) / arma::stddev(ar_samples.col(j));
         CHECK(std::abs(ar_zscore) < 3.0);
     }
-    for (int j=0; j<p; j++) {
+    for (int j=0; j<q; j++) {
         double ma_zscore = (arma::mean(ma_samples.col(j)) - theta(p+2+j)) / arma::stddev(ma_samples.col(j));
         CHECK(std::abs(ma_zscore) < 3.0);
     }
