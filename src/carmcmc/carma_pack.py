@@ -1005,13 +1005,13 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     return y
 
 
-class CarSample1(CarSample):
+class CarSample1(CarmaSample):
     def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
         self.time = time  # The time values of the time series
         self.y = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.p = 1     # How many AR terms
-        super(CarSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
+        super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()

@@ -2,8 +2,9 @@
 __author__ = 'bkelly'
 
 import numpy as np
-from carmcmc.carma_pack import carma_process, get_ar_roots, carma_variance
+from carmcmc.carma_pack import carma_process, get_ar_roots, carma_variance, power_spectrum
 from scipy.misc import comb
+from scipy import stats
 import matplotlib.pyplot as plt
 
 ax1 = plt.subplot(211)
@@ -53,7 +54,7 @@ kappa = 0.7
 ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 
 sigsqr = sigmay ** 2 / carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
-print sigsqr, ar_roots
+print sigsqr, ar_roots, ma_coefs
 zcarma5 = carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
 print np.std(zcarma5), np.std(car1), np.sqrt(carma_variance(sigsqr, ar_roots, ma_coefs=ma_coefs))
@@ -71,6 +72,16 @@ plt.xlabel("Time")
 plt.ylabel("ZCARMA(5)")
 plt.show()
 
+freq_max = 1.0 / np.min(time[1:] - time[0:-1])
+freq_min = 1.0 / (np.max(time) - np.min(time))
+freq = np.logspace(np.log10(freq_min), np.log10(freq_max), num=256)
+ar_coef = np.poly(ar_roots)
+psd = power_spectrum(freq, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
+plt.loglog(freq, psd, lw=3)
+plt.xlabel('Frequency')
+plt.ylabel('PSD, ZCARMA(5)')
+plt.show()
+
 # covar = np.empty((ny, ny))
 # for i in xrange(ny):
 #     print i
@@ -79,5 +90,9 @@ plt.show()
 #         covar[i, j] = carma_variance(sigsqr, ar_roots, ma_coefs=ma_coefs, lag=dt)
 #         if i == j:
 #             covar[i, j] += yerr[i] * yerr[j]
-
+#
+# L = np.linalg.cholesky(covar)
+# znorm = np.linalg.inv(L).dot(zcarma5)
+# print znorm.mean(), znorm.std()
+# print stats.anderson(znorm)
 
