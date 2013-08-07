@@ -82,7 +82,7 @@ class CarmaSample(samplers.MCMCSample):
         # TODO: put in exceptions to make sure files are ready correctly
         # Grab the MCMC output
         trace = np.genfromtxt(filename[0], skip_header=1)
-        self.generate_from_trace(trace)
+        self.generate_from_trace(trace[:, 0:-1])
 
     def _ar_roots(self):
         """
@@ -123,6 +123,7 @@ class CarmaSample(samplers.MCMCSample):
         for i in xrange(roots.shape[0]):
             coefs[i, :] = np.poly(roots[i, :])[::-1]  # MA coefficients go in reverse order
             coefs[i, :] /= coefs[i, 0]  # MA coefficients normalized such that constant = 1.0
+        self._samples['ma_coefs'] = coefs
 
     def _sigma_noise(self):
         """
@@ -139,7 +140,7 @@ class CarmaSample(samplers.MCMCSample):
         ma_coefs = self._samples['ma_coefs']
 
         # calculate the variance of a CAR(p) process, assuming sigma = 1.0
-        sigma1_variance = 0.0
+        sigma1_variance = np.zeros_like(var) + 0j
         for k in xrange(self.p):
             denom = -2.0 * ar_roots[:, k].real + 0j
             for l in xrange(self.p):
@@ -151,9 +152,9 @@ class CarmaSample(samplers.MCMCSample):
             for l in xrange(self.q + 1):
                 ma_sum1 += ma_coefs[:, l] * ar_roots[:, k] ** l
                 ma_sum2 += ma_coefs[:, l] * (-1.0 * ar_roots[:, k]) ** l
-            numer = ma_sum1 * ma_sum2 * np.exp(ar_roots[:, k])
+            numer = ma_sum1 * ma_sum2
+            sigma1_variance += numer / denom
 
-        sigma1_variance += numer / denom
         sigsqr = var / sigma1_variance.real
 
         # add the white noise sigmas to the MCMC samples
@@ -187,6 +188,7 @@ class CarmaSample(samplers.MCMCSample):
             index = np.arange(nsamples) * (nsamples0 / nsamples)
             sigmas = sigmas[index]
             ar_coefs = ar_coefs[index]
+            ma_coefs = ma_coefs[index]
 
         nfreq = 1000
         dt_min = self.time[1:] - self.time[0:self.time.size - 1]
@@ -534,17 +536,33 @@ class ZCarmaSample(CarmaSample):
         super(ZCarmaSample, self).__init__(time, y, ysig, q=0, filename=filename, logpost=logpost, trace=trace)
 
     def generate_from_trace(self, trace):
-        super(ZCarmaSample, self).generate_from_trace(trace)
-        # add kappa values
-        self._samples['kappa'] = trace[:, trace.shape[1]-1]
-        # update value of q
-        self.q = self.p - 1
+        # Figure out how many AR terms we have
+        self.p = trace.shape[1] - 3
+        names = ['var', 'measerr_scale', 'log_centroid', 'log_width', 'kappa']
+        if names != self._samples.keys():
+            idx = 0
+            # Parameters are not already in the dictionary, add them.
+            self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
+            self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
+            ar_index = np.arange(0, self.p - 1, 2)
+            # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
+            # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
+            # roots of the AR(p) characteristic polynomial, respectively.
+            self._samples['log_centroid'] = trace[:, 2 + ar_index]
+            if self.p % 2 == 1:
+                # Odd number of roots, so add in low-frequency component
+                ar_index = np.append(ar_index, ar_index.max() + 1)
+            self._samples['log_width'] = trace[:, 3 + ar_index]
+            # add kappa values
+            self._samples['kappa'] = trace[:, 2 + self.p]
+            # update value of q
+            self.q = self.p - 1
 
     def _ma_coefs(self):
-        ma_coefs = np.empty(self._samples['var'].size, self.q+1)
+        ma_coefs = np.empty((self._samples['var'].size, self.q+1))
         for k in xrange(self.p):
             ma_coefs[:, k] = comb(self.p-1, k) / self._samples['kappa'] ** k
-
+        self._samples['ma_coefs'] = ma_coefs
 
 class KalmanFilter(object):
     def __init__(self, time, y, yvar, sigsqr, ar_roots, ma_coefs=[1.0]):
