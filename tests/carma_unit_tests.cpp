@@ -1090,8 +1090,8 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 100000;
-    int burnin = 50000;
+    int sample_size = 25000;
+    int burnin = 2;
     // True ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
     double qpo_cent[2] = {0.2, 0.02};
@@ -1115,9 +1115,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     double kappa_high = 1.0 / dt.min();
     double kappa_norm = (kappa - kappa_low) / (kappa_high - kappa_low);
     theta(p+2) = logit(kappa_norm);
-    double kappa2 = inv_logit(theta(p+2)) * (kappa_high - kappa_low) + kappa_low;
-    std::cout << inv_logit(kappa_norm) << ", " << kappa2 << std::endl;
-    
+
     // run the MCMC sampler
     std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
     mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, carp_order-1,
@@ -1149,7 +1147,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
         mcmc_outfile << logpost_samples[i] << std::endl;
     }
     mcmc_outfile.close();
-    
+        
     // Make sure true parameters are within 3sigma of the marginal posterior means
     double sigma_zscore = (arma::mean(sigma_samples) - log(sigmay)) / arma::stddev(sigma_samples);
     CHECK(std::abs(sigma_zscore) < 3.0);
@@ -1163,7 +1161,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     CHECK(std::abs(kappa_zscore) < 3.0);
 }
 
-TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
+TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CARMA(5,4) model..." << std::endl << std::endl;
     

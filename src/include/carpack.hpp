@@ -319,8 +319,9 @@ public:
         value_.set_size(p_+3);
         // set default boundaries on kappa
         arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
-        kappa_high_ = 1.0 / (dt.min());
-        kappa_low_ = 1.0 / (time_.max() - time_.min());
+        kappa_high_ = 1.1 / dt.min();
+        kappa_low_ = 0.9 / dt.min();
+        // kappa_low_ = 1.0 / (time_.max() - time_.min());
     }
     
     // Return the starting value and set log_posterior_

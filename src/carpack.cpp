@@ -501,10 +501,11 @@ arma::vec ZCARMA::StartingValue()
         }
         // p is odd, so add in additional value of lorentz_width
         theta(p_+1) = log(qpo_width[p_/2]);
-        arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
-        double kappa_low = 1.0 / (time_.max() - time_.min());
-        double kappa_high = 1.0 / dt.min();
-        double kappa_norm = (kappa - kappa_low) / (kappa_high - kappa_low);
+
+        kappa_low_ = 0.9 * kappa;
+        kappa_high_ = 1.1 * kappa;
+        
+        double kappa_norm = (kappa - kappa_low_) / (kappa_high_ - kappa_low_);
         theta(p_+2) = logit(kappa_norm);
 
         
