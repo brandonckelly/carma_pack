@@ -296,7 +296,7 @@ class CarmaSample(samplers.MCMCSample):
         sp.set_xlabel('Time')
         sp.set_xlim(self.time.min(), self.time.max())
 
-    def assess_fit(self, bestfit="median"):
+    def assess_fit(self, bestfit="map"):
         """
         Display plots and provide useful information for assessing the quality of the CARMA(p.q) model fit.
 
