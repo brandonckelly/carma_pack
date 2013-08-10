@@ -83,6 +83,7 @@ class CarmaSample(samplers.MCMCSample):
         # Grab the MCMC output
         trace = np.genfromtxt(filename[0], skip_header=1)
         self.generate_from_trace(trace[:, 0:-1])
+        self.set_logpost(trace[:, -1])
 
     def _ar_roots(self):
         """
