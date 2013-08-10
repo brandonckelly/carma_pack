@@ -1089,7 +1089,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     
     // MCMC parameters
     int carp_order = 5;
-    int nwalkers = 10;
+    int nwalkers = 25000;
     int sample_size = 75000;
     int burnin = 2;
     // True ZCARMA(5) process parameters
@@ -1097,7 +1097,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     double measerr_scale = 1.0;
-    double kappa = 0.7;
+    double kappa = 3.0;
     int p = 5;
     
     // Create the parameter vector, theta
@@ -1111,7 +1111,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     // p is odd, so add in additional value of lorentz_width
     theta(p+1) = log(qpo_width[p/2]);
     arma::vec dt = time(arma::span(1,time.n_elem-1)) - time(arma::span(0,time.n_elem-2));
-    double kappa_low = 1.0 / (time.max() - time.min());
+    double kappa_low = std::max(1.0 / (time.max() - time.min()), 10.0 / arma::median(dt));
     double kappa_high = 1.0 / dt.min();
     //double kappa_low = 0.9 * kappa;
     //double kappa_high = 1.1 * kappa;
@@ -1178,8 +1178,8 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 100000;
-    int burnin = 50000;
+    int sample_size = 75000;
+    int burnin = 25000;
     
     // run the MCMC sampler
     std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
@@ -1194,7 +1194,7 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
     double sigmay = 2.3;
     double measerr_scale = 1.0;
     int p = 5;
-    double kappa = 0.7;
+    double kappa = 3.0;
     arma::vec ma_coefs(p);
 	ma_coefs(0) = 1.0;
 	for (int i=1; i<p; i++) {

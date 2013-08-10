@@ -479,37 +479,6 @@ arma::vec ZCARMA::StartingValue()
         theta(0) = sqrt(yvar);
         theta(1) = measerr_scale;
         
-        /****************
-         *
-         * USE TRUE VALUES FOR DEBUGGING
-         *
-         ****************/
-        
-        /*
-        // True ZCARMA(5) process parameters
-        double qpo_width[3] = {0.01, 0.01, 0.002};
-        double qpo_cent[2] = {0.2, 0.02};
-        double sigmay = 2.3;
-        measerr_scale = 1.0;
-        double kappa = 0.7;
-
-        // Create the parameter vector, theta
-        theta(0) = log(sigmay);
-        theta(1) = measerr_scale;
-        for (int i=0; i<p_/2; i++) {
-            theta(2+2*i) = log(qpo_cent[i]);
-            theta(3+2*i) = log(qpo_width[i]);
-        }
-        // p is odd, so add in additional value of lorentz_width
-        theta(p_+1) = log(qpo_width[p_/2]);
-
-        // kappa_low_ = 0.9 * kappa;
-        // kappa_high_ = 1.1 * kappa;
-        
-        double kappa_norm = (kappa - kappa_low_) / (kappa_high_ - kappa_low_);
-        theta(p_+2) = logit(kappa_norm);
-         */
-        
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(ExtractAR(theta));
