@@ -866,7 +866,7 @@ def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
     except ValueError:
         "Size of ma_coefs must be less or equal to size of ar_roots."
 
-    ma_poly = np.polyval(ma_coefs, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD numerator
+    ma_poly = np.polyval(ma_coefs[::-1], 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD numerator
     ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
     pspec = sigma ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
     return pspec

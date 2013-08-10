@@ -319,9 +319,10 @@ public:
         value_.set_size(p_+3);
         // set default boundaries on kappa
         arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
-        kappa_high_ = 1.1 / dt.min();
-        kappa_low_ = 0.9 / dt.min();
-        // kappa_low_ = 1.0 / (time_.max() - time_.min());
+        kappa_high_ = 1.0 / dt.min();
+        // kappa_low_ = 0.9 / dt.min();
+        kappa_low_ = 1.0 / (time_.max() - time_.min());
+        // kappa_low_ = std::max(1.0 / (time_.max() - time_.min()), 10.0 / arma::median(dt));
     }
     
     // Return the starting value and set log_posterior_
@@ -341,6 +342,22 @@ public:
         kappa_low_ = kappa_low;
         kappa_high_ = kappa_high;
     }
+    
+    // compute the log-prior of the ZCARMA parameters
+    double LogPrior(arma::vec theta)
+    {
+        // first compute prior for measurement error scaling parameter
+        double measerr_scale = theta(1);
+        double logprior = -0.5 * measerr_dof_ / measerr_scale -
+        (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
+        
+        // now compute prior on x = logit(kappa_norm), assuming a uniform prior on kappa
+        double logit_kappa = theta(p_+2);
+        logprior += -logit_kappa - 2.0 * log(1.0 + exp(-logit_kappa));
+                
+        return logprior;
+    }
+
     
 private:
     double kappa_low_, kappa_high_; // prior bounds on the kappa parameter

@@ -26,7 +26,7 @@ Zcarma = carmcmc.ZCarmaSample(data[:, 0], data[:, 1], data[:, 2], filename=fname
 Zcarma.assess_fit()
 
 print "True value of log10(kappa) is: ", np.log10(kappa)
-plt.hist(np.log10(Zcarma.get_samples('kappa')), bins=100)
+plt.hist(Zcarma.get_samples('kappa'), bins=100)
 plt.show()
 
 Zcarma.plot_parameter('kappa', doShow=True)
@@ -35,7 +35,7 @@ psd_low, psd_high, psd_mid, freq = Zcarma.plot_power_spectrum(percentile=90.0, n
 
 ar_coef = np.poly(ar_roots)
 true_psd = carmcmc.power_spectrum(freq, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
-plt.loglog(freq, true_psd, 'r', lw=3)
+plt.loglog(freq, true_psd, 'r', lw=2)
 plt.xlabel('Frequency')
 plt.ylabel('PSD, ZCARMA(5)')
 plt.show()

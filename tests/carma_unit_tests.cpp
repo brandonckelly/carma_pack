@@ -1090,7 +1090,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 25000;
+    int sample_size = 75000;
     int burnin = 2;
     // True ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
@@ -1113,6 +1113,8 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     arma::vec dt = time(arma::span(1,time.n_elem-1)) - time(arma::span(0,time.n_elem-2));
     double kappa_low = 1.0 / (time.max() - time.min());
     double kappa_high = 1.0 / dt.min();
+    //double kappa_low = 0.9 * kappa;
+    //double kappa_high = 1.1 * kappa;
     double kappa_norm = (kappa - kappa_low) / (kappa_high - kappa_low);
     theta(p+2) = logit(kappa_norm);
 
