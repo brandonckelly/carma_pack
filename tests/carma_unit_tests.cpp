@@ -304,7 +304,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
-    double kappa = 0.7;
+    double kappa = 3.0;
     
     // Create the parameter vector, omega
 	arma::vec omega(p);
@@ -412,7 +412,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
-    double kappa = 0.7;
+    double kappa = 3.0;
     
     // Create the parameter vector, omega
 	arma::vec omega(p);
@@ -548,7 +548,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
-    double kappa = 0.7;
+    double kappa = 3.0;
     
     // Create the parameter vector, omega
 	arma::vec omega(p);
