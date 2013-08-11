@@ -299,9 +299,6 @@ public:
         return theta(0) * theta(0) / Variance(ar_roots, ma_coefs, 1.0);
     }
     
-    // Set the bounds on the uniform prior.
-    bool CheckPriorBounds(arma::vec theta);
-    
 private:
     int q_; // order of moving average polynomial
 };

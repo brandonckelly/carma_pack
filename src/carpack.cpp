@@ -306,30 +306,10 @@ arma::vec CARMA::StartingValue()
             theta(p_+1) = log(lorentz_width(p_/2));
         }
 
-        // get initial guess for the moving average polynomial roots
-        arma::vec ma_real((q_+1)/2);
-        arma::vec ma_imag((q_+1)/2);
-        ma_real.randn();
-        ma_real = arma::exp(ma_real);
-        ma_imag.randn();
-        ma_imag = arma::exp(ma_imag);
-        if ((q_ % 2) == 1) {
-            ma_imag(q_/2) = 0.0;
-        }
-        // Order imaginary components of MA roots to be in descending order to make the model identifiable
-        ma_imag = arma::sort(ma_imag, 1);
-
-        for (int j=0; j<q_/2; j++) {
-            theta(2+p_+2*j) = log(ma_imag(j));
-            theta(3+p_+2*j) = log(ma_real(j));
-        }
-        if ((q_ % 2) == 1) {
-            theta(q_+p_+1) = log(ma_real(q_/2));
-        }
-        
-        // compute the coefficients of the MA polynomial
-        arma::vec ma_coefs(p_);
-        ma_coefs = ExtractMA(theta);
+        // get initial guess for the moving average polynomial coefficients
+        arma::vec ma_coefs(q_);
+        ma_coefs.randn();
+        theta(arma::span(p_+2,theta.n_elem-1)) = arma::abs(ma_coefs);
         
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
@@ -351,7 +331,7 @@ arma::vec CARMA::StartingValue()
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(ExtractAR(theta));
-        pKFilter_->SetMA(ma_coefs);
+        pKFilter_->SetMA(ExtractMA(theta));
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
         
@@ -368,47 +348,13 @@ arma::vec CARMA::StartingValue()
 // extract the moving-average coefficients from the CARMA parameter vector
 arma::vec CARMA::ExtractMA(arma::vec theta)
 {
-    arma::cx_vec ma_roots(q_);
-    
-    // Construct the complex vector of roots of the MA polynomial
-    for (int i=0; i<q_/2; i++) {
-        double ma_imag = exp(theta(2+p_+2*i));
-        double ma_real = exp(theta(2+p_+2*i+1));
-        ma_roots(2*i) = std::complex<double> (-ma_real,ma_imag);
-        ma_roots(2*i+1) = std::conj(ma_roots(2*i));
-    }
-	
-    if ((q_ % 2) == 1) {
-        // p is odd, so add in additional low-frequency component
-        double ma_real = theta(q_+p_+1);
-        ma_roots(q_-1) = std::complex<double> (-ma_real, 0.0);
-    }
-    // compute the coefficients of the MA polynomial
-    arma::vec ma_coefs = polycoefs(ma_roots);
-    ma_coefs = arma::flipud(ma_coefs);
-    ma_coefs = ma_coefs / ma_coefs(0);
-    ma_coefs.resize(p_);
-    for (int j=q_+1; j<p_; j++) {
-        ma_coefs(j) = 0.0;
+    arma::vec ma_coefs = arma::zeros(p_);
+    ma_coefs(0) = 1.0;
+    for (int i=0; i<q_; i++) {
+        ma_coefs(i+1) = theta(p_+2+i);
     }
     return ma_coefs;
 }
-
-// Set the bounds on the uniform prior.
-bool CARMA::CheckPriorBounds(arma::vec theta)
-{
-    bool prior_satisfied = CARp::CheckPriorBounds(theta);
-
-    // Make sure the imaginary components of MA roots are still in decreasing order
-	for (int i=1; i<q_/2; i++) {
-		double ma_imag_difference = exp(theta(2+p_+2*(i-1))) - exp(theta(2+p_+2*i));
-		if (ma_imag_difference < 0) {
-			prior_satisfied = false;
-		}
-    }
-    return prior_satisfied;
-}
-
 
 /*******************************************************************
                         METHODS OF ZCARMA CLASS

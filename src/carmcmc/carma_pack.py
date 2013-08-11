@@ -31,11 +31,6 @@ class CarmaSample(samplers.MCMCSample):
         self._ar_roots()
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()
-        if self.q > 0:
-            print "Calculating coefficients of MA polynomial..."
-            self._ma_coefs()
-        else:
-            self._samples['ma_coefs'] = np.ones(self._samples['var'])
         print "Calculating sigma..."
         self._sigma_noise()
 
@@ -48,9 +43,7 @@ class CarmaSample(samplers.MCMCSample):
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 2 - self.q
-        names = ['var', 'measerr_scale', 'log_centroid', 'log_width']
-        if self.q > 0:
-            names.append('ma_roots')
+        names = ['var', 'measerr_scale', 'log_centroid', 'log_width', 'ma_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
@@ -66,12 +59,10 @@ class CarmaSample(samplers.MCMCSample):
                 ar_index = np.append(ar_index, ar_index.max() + 1)
             self._samples['log_width'] = trace[:, 3 + ar_index]
             if self.q > 0:
-                # Add in roots of the moving average polynomial
-                ma_index = np.arange(0, self.q - 1, 2)
-                self._samples['ma_roots'] = np.hstack((-np.exp(trace[:, ma_index + 1]) +
-                                                       1j * np.exp(trace[:, ma_index]),
-                                                       np.conj(-np.exp(trace[:, ma_index + 1]) +
-                                                               1j * np.exp(trace[:, ma_index]))))
+                # Add in coefficients of the moving average polynomial
+                self._samples['ma_coefs'] = np.column_stack((np.ones.shape(0), trace[:, 2+self.p:]))
+            else:
+                self._samples['ma_coefs'] = np.ones((trace.shape[0], 1))
 
     def generate_from_file(self, filename):
         """
@@ -114,17 +105,6 @@ class CarmaSample(samplers.MCMCSample):
             coefs[i, :] = np.poly(roots[i, :])
 
         self._samples['ar_coefs'] = coefs.real
-
-    def _ma_coefs(self):
-        """
-        Calculate the CARMA(p,q) moving average coefficients and add them to the MCMC samples.
-        """
-        roots = self._samples['ma_roots']
-        coefs = np.empty((roots.shape[0], self.q + 1), dtype=complex)
-        for i in xrange(roots.shape[0]):
-            coefs[i, :] = np.poly(roots[i, :])[::-1]  # MA coefficients go in reverse order
-            coefs[i, :] /= coefs[i, 0]  # MA coefficients normalized such that constant = 1.0
-        self._samples['ma_coefs'] = coefs
 
     def _sigma_noise(self):
         """
@@ -275,9 +255,6 @@ class CarmaSample(samplers.MCMCSample):
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
-        if self.q == 0:
-            ma_coefs = [1.0]
-
         fig = plt.figure()
         # compute the kalman filter for data only
         sp = fig.add_subplot(111)
@@ -344,8 +321,6 @@ class CarmaSample(samplers.MCMCSample):
         #plt.legend()
 
         # plot the standardized residuals and compare with the standard normal
-        if self.q == 0:
-            ma_coefs = [1.0]
 
         kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
                                      ma_coefs=ma_coefs)
@@ -427,9 +402,6 @@ class CarmaSample(samplers.MCMCSample):
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
 
-        if self.q == 0:
-            ma_coefs = [1.0]
-
         # note that KalmanFilter class assumes the time series has zero mean
         kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
                                      ma_coefs=ma_coefs)
@@ -479,9 +451,6 @@ class CarmaSample(samplers.MCMCSample):
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
-
-        if self.q == 0:
-            ma_coefs = [1.0]
 
         # note that KalmanFilter class assumes the time series has zero mean
         kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,

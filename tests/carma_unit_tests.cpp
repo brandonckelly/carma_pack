@@ -811,7 +811,7 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
     REQUIRE(logpost == -1.0 * arma::datum::inf);
 }
 
-TEST_CASE("CARMA/prior_bounds", "Make sure CARp::LogDensity return -infinity when prior bounds are violated") {
+TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity when prior bounds are violated") {
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -827,7 +827,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARp::LogDensity return -infinity whe
     double max_freq = 10.0;
 	double min_freq = 1.0 / (10.0 * time.max());
     
-    arma::vec bad_theta(p+2); // parameter value will violated the prior bounds
+    arma::vec bad_theta(p+2+q); // parameter value will violated the prior bounds
     bad_theta = carma_test.StartingValue();
 
     bad_theta = carma_test.StartingValue();
@@ -886,21 +886,6 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARp::LogDensity return -infinity whe
         bad_theta(2+2*j) = qpo_cent;
     }
     REQUIRE(nbad_cent == 0);
-    
-    double ma_imag = bad_theta(p+2);
-    bad_theta(p+2+2*(q/2-1)) = ma_imag;
-    int nbad_imag = 0;
-    for (int j=1; j<q/2; j++) {
-        // violate the ordering of the lorentzian centroids
-        ma_imag = bad_theta(2+p+2*j);
-        bad_theta(p+2+2*j) = log(1.1) + bad_theta(p+2+2*(j-1));
-        logpost = carma_test.LogDensity(bad_theta);
-        if (logpost != -1.0 * arma::datum::inf) {
-            nbad_imag++;
-        }
-        bad_theta(p+2+2*j) = ma_imag;
-    }
-    REQUIRE(nbad_imag == 0);
 }
 
 TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
@@ -1075,7 +1060,7 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     }
 }
 
-TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1163,7 +1148,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     CHECK(std::abs(kappa_zscore) < 3.0);
 }
 
-TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
+TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CARMA(5,4) model..." << std::endl << std::endl;
     
@@ -1212,13 +1197,12 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
     }
     // p is odd, so add in additional value of lorentz_width
     theta(p+1) = log(qpo_width[p/2]);
-    for (int j=p+2; j<theta.n_elem; j++) {
-        theta(j) = log(kappa); // MA polynomial only has a single real root at -kappa.
-    }
+    
+    theta(arma::span(p+2,theta.n_elem-1)) = ma_coefs(arma::span(1,ma_coefs.n_elem-1));
     
     std::ofstream mcmc_outfile("data/carma_mcmc.dat");
     mcmc_outfile <<
-    "# sigma, measerr_scale, (lorentz_cent,lorentz_width), (imag(MA root), real(MA_root)), logpost"
+    "# sigma, measerr_scale, (lorentz_cent,lorentz_width), ma_coefs, logpost"
     << std::endl;
     
     arma::vec sigma_samples(mcmc_sample.size());
