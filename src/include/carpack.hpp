@@ -322,7 +322,7 @@ public:
         kappa_high_ = 1.0 / dt.min();
         // kappa_low_ = 0.9 / dt.min();
         // kappa_low_ = 1.0 / (time_.max() - time_.min());
-        kappa_low_ = std::max(1.0 / (time_.max() - time_.min()), 10.0 / arma::median(dt));
+        kappa_low_ = std::max(1.0 / (time_.max() - time_.min()), 1.0 / (10.0 * arma::median(dt)));
     }
     
     // Return the starting value and set log_posterior_

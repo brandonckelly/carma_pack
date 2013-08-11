@@ -13,7 +13,7 @@ qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
 qpo_cent = np.array([1.0/5.0, 1.0/50.0])
 ar_roots = carmcmc.get_ar_roots(qpo_width, qpo_cent)
 # calculate moving average coefficients under z-transform of Belcher et al. (1994)
-kappa = 0.7
+kappa = 3.0
 ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 sigsqr = sigmay ** 2 / carmcmc.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
@@ -31,7 +31,7 @@ plt.show()
 
 Zcarma.plot_parameter('kappa', doShow=True)
 
-psd_low, psd_high, psd_mid, freq = Zcarma.plot_power_spectrum(percentile=90.0, nsamples=5000, doShow=False)
+psd_low, psd_high, psd_mid, freq = Zcarma.plot_power_spectrum(percentile=95.0, nsamples=10000, doShow=False)
 
 ar_coef = np.poly(ar_roots)
 true_psd = carmcmc.power_spectrum(freq, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)

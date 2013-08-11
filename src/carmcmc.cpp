@@ -177,7 +177,7 @@ RunCarmaSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
     // Add the steps to the sampler, starting with the hottest chain first
     for (int i=nwalkers-1; i>0; i--) {
         // First add Robust Adaptive Metropolis Step
-        CarModel.AddStep( new AdaptiveMetro(CarEnsemble[i], RAMProp, prop_covar, target_rate, report_iter) );
+        CarModel.AddStep( new AdaptiveMetro(CarEnsemble[i], RAMProp, prop_covar, target_rate, burnin) );
         // Now add Exchange steps
         CarModel.AddStep( new ExchangeStep<arma::vec, CARp>(CarEnsemble[i], i, CarEnsemble, report_iter) );
     }
@@ -185,7 +185,7 @@ RunCarmaSampler(int sample_size, int burnin, arma::vec time, arma::vec y,
     // Make sure we set this parameter to be tracked
     CarEnsemble[0].SetTracking(true);
     // Add in coolest chain. This is the chain that is actually moving in the posterior.
-    CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, report_iter) );
+    CarModel.AddStep( new AdaptiveMetro(CarEnsemble[0], RAMProp, prop_covar, target_rate, burnin) );
     
     // Now run the MCMC sampler. The samples will be dumped in the
     // output file provided by the user.
