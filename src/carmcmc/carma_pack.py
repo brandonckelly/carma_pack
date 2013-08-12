@@ -60,7 +60,7 @@ class CarmaSample(samplers.MCMCSample):
             self._samples['log_width'] = trace[:, 3 + ar_index]
             if self.q > 0:
                 # Add in coefficients of the moving average polynomial
-                self._samples['ma_coefs'] = np.column_stack((np.ones.shape(0), trace[:, 2+self.p:]))
+                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 2+self.p:]))
             else:
                 self._samples['ma_coefs'] = np.ones((trace.shape[0], 1))
 
@@ -508,7 +508,7 @@ class ZCarmaSample(CarmaSample):
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 3
-        names = ['var', 'measerr_scale', 'log_centroid', 'log_width', 'kappa']
+        names = ['var', 'measerr_scale', 'log_centroid', 'log_width', 'kappa', 'ma_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
@@ -527,12 +527,12 @@ class ZCarmaSample(CarmaSample):
             self._samples['kappa'] = trace[:, 2 + self.p]
             # update value of q
             self.q = self.p - 1
+            # add MA coefficients
+            ma_coefs = np.empty((trace.shape[0], self.p))
+            for k in xrange(self.p):
+                ma_coefs[:, k] = comb(self.p-1, k) / self._samples['kappa'] ** k
+            self._samples['ma_coefs'] = ma_coefs
 
-    def _ma_coefs(self):
-        ma_coefs = np.empty((self._samples['var'].size, self.q+1))
-        for k in xrange(self.p):
-            ma_coefs[:, k] = comb(self.p-1, k) / self._samples['kappa'] ** k
-        self._samples['ma_coefs'] = ma_coefs
 
 class KalmanFilter(object):
     def __init__(self, time, y, yvar, sigsqr, ar_roots, ma_coefs=[1.0]):

@@ -1162,9 +1162,9 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
     
     // MCMC parameters
     int carp_order = 5;
-    int nwalkers = 10;
-    int sample_size = 75000;
-    int burnin = 25000;
+    int nwalkers = 20;
+    int sample_size = 100000;
+    int burnin = 50000;
     
     // run the MCMC sampler
     std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
