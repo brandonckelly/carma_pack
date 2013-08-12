@@ -1,5 +1,6 @@
 #include <vector>
-#include <samplers.hpp>
+#include "carpack.hpp"
+#include "boost/shared_ptr.hpp"
 
 std::pair<std::vector<arma::vec>, std::vector<double> >
 RunEnsembleCarmaSampler(int sample_size, int burnin, arma::vec time, arma::vec y,

@@ -13,6 +13,9 @@
 #include <complex>
 #include <iostream>
 
+// Armadillo includes
+#include <armadillo>
+
 // Boost includes
 #include <boost/math/special_functions/binomial.hpp>
 
@@ -116,6 +119,12 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
     
     return ar_roots;
 }
+double CAR1::getLogDensity(std::vector<double> car1_value)
+{
+    arma::vec armaVec = arma::conv_to<arma::vec>::from(car1_value);
+    return LogDensity(armaVec);
+}
+
 
 
 // Return the starting value and set log_posterior_
@@ -223,6 +232,15 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     
     return prior_satisfied;
 }
+
+// Calculate the logarithm of the posterior
+double CARp::getLogDensity(std::vector<double> theta)
+{
+    arma::vec armaVec = arma::conv_to<arma::vec>::from(theta);
+    return LogDensity(armaVec);
+}
+
+
 
 // Calculate the variance of the CAR(p) process
 double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma, double dt)

@@ -6,6 +6,7 @@ from scipy.linalg import solve
 from scipy.misc import comb
 from os import environ
 import yamcmcpp.samplers as samplers
+import _carmcmc as carmcmcLib
 
 
 class CarmaSample(samplers.MCMCSample):
@@ -461,7 +462,7 @@ class CarmaSample(samplers.MCMCSample):
 
         return ysim
 
-    def DIC(self, bestfit="mean"):
+    def DIC(self, bestfit="median"):
         """ 
         Calculate the Deviance Information Criterion for the model.
 
@@ -498,8 +499,13 @@ class CarmaSample(samplers.MCMCSample):
         loglik_hat = -0.5 * np.sum(np.log(kvar)) - 0.5 * np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
         p = -2.0 * loglik + 2.0 * loglik_hat
 
-        return -2.0 * loglik + 2 * p
+        dicVec = carmcmcLib.vecD()
+        dicVec.extend(dicPars)
+        logLikePar = self.sampler.getLogDensity(dicVec)
 
+        dicp = -2 * logLike + 2 * logLikePar
+        dic  = -2 * logLike + 2 * dicp
+        return dic
 
 class ZCarmaSample(CarmaSample):
     def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):

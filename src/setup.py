@@ -19,6 +19,7 @@ library_dirs = [YAMCMCPP_DIR + "/lib", NUMPY_DIR + "/lib", BOOST_DIR + "/lib", A
 
 
 def configuration(parent_package='', top_path=None):
+    # http://docs.scipy.org/doc/numpy/reference/distutils.html#numpy.distutils.misc_util.Configuration
     from numpy.distutils.misc_util import Configuration
 
     config = Configuration("carmcmc", parent_package, top_path)
