@@ -50,17 +50,18 @@ template <class OmegaType>
 class CARMA_Base : public Parameter<arma::vec> {
 public:
     // Constructor
-    CARMA_Base(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr,
-               double temperature=1.0)  :
-    Parameter<arma::vec>(track, name, temperature), time_(time), y_(y), yerr_(yerr)
+    CARMA_Base(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr,
+               double temperature=1.0) : Parameter<arma::vec>(track, name, temperature)
     {
         // Set the degrees of freedom for the prior on the measurement error scaling parameter
         measerr_dof_ = 20;
         
-        y_ = y - arma::mean(y); // center the time series
-        time_ = time;
-        yerr_ = yerr;
-        int ndata = time.n_rows;
+        // convert input data to armadillo vectors
+        y_  = arma::conv_to<arma::vec>::from(y);
+        y_ -= arma::mean(y_); // center the time series
+        time_ = arma::conv_to<arma::vec>::from(time);
+        yerr_ = arma::conv_to<arma::vec>::from(yerr);
+        int ndata = time_.n_rows;
         
         // default prior bounds on the standard deviation of the time series
         SetPrior(10.0 * sqrt(arma::var(y_)));
@@ -153,11 +154,6 @@ public:
         
         return logpost;
     }
-    double getLogDensity(std::vector<double> theta)
-    {
-        arma::vec armaVec = arma::conv_to<arma::vec>::from(theta);
-        return LogDensity(armaVec);
-    }
     
     bool virtual CheckPriorBounds(arma::vec theta)
     {
@@ -187,7 +183,30 @@ public:
         max_freq_ = 10.0 / dt.min();
         min_freq_ = 1.0 / (10.0 * (time_.max() - time_.min()));
     }
-        
+    
+    // Return a copy of the MCMC samples
+    std::vector<std::vector<double> > getSamples() {
+        int nx = samples_.size();
+        int ny = samples_[0].n_elem;
+        std::vector<std::vector<double> > samples(nx,std::vector<double>(ny));
+        for (int i = 0; i < nx; i++) {
+            samples[i] = arma::conv_to<std::vector<double> >::from(samples_[i]);
+        }
+        return samples;
+    }
+
+    // grab the log-prior and log-posterior for a std::vector input
+    double getLogPrior(std::vector<double> theta)
+    {
+        arma::vec armaVec = arma::conv_to<arma::vec>::from(theta);
+        return LogPrior(armaVec);
+    }
+    double getLogDensity(std::vector<double> theta)
+    {
+        arma::vec armaVec = arma::conv_to<arma::vec>::from(theta);
+        return LogDensity(armaVec);
+    }
+    
 protected:
     // time series data
     arma::vec time_;
@@ -207,8 +226,8 @@ class CAR1 : public CARMA_Base<double> {
 	
 public:
 	// Constructor //
-	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0) :
-    CARMA_Base<double>(track, name, time, y, yerr, temperature)
+	CAR1(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr,
+         double temperature=1.0) : CARMA_Base<double>(track, name, time, y, yerr, temperature)
     {
         pKFilter_ = std::make_shared<KalmanFilter1>(time_, y_, yerr_);
         // Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
@@ -238,8 +257,8 @@ public:
 class CARp : public CARMA_Base<arma::vec> {
 public:
     // Constructor
-    CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
-    CARMA_Base<arma::vec>(track, name, time, y, yerr, temperature), p_(p)
+    CARp(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
+         double temperature=1.0): CARMA_Base<arma::vec>(track, name, time, y, yerr, temperature), p_(p)
 	{
         pKFilter_ = std::make_shared<KalmanFilterp>(time_, y_, yerr_);
 		value_.set_size(p_+2);
@@ -286,7 +305,7 @@ class CARMA : public CARp
 {	
 public:
 	// Constructor //
-	CARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, int q,
+	CARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p, int q,
           double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature), q_(q)
     {
         BOOST_ASSERT_MSG(q < p, "Order of moving average polynomial must be less than order of autoregressive polynomial");
@@ -316,7 +335,7 @@ private:
 class ZCARMA : public CARp
 {    
 public:
-    ZCARMA(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p,
+    ZCARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
            double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature)
     {
         value_.set_size(p_+3);

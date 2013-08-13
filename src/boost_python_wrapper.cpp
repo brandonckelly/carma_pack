@@ -16,6 +16,7 @@
 #include "numpy/ndarrayobject.h"
 #include "include/carmcmc.hpp"
 #include "include/carpack.hpp"
+#include "include/kfilter.hpp"
 
 using namespace boost::python;
 
@@ -44,26 +45,50 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<std::vector<std::vector<double > > >("vecvecD")
         .def(vector_indexing_suite<std::vector<std::vector<double> > >());
 
-    class_<CAR1, boost::shared_ptr<CAR1> >("CAR1", no_init)
+    /*
+    class_<CARMA_Base<double> >("CARMA_Base_double", no_init)
+        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,optional<double> >())
+        .def("getLogDensity", &CARMA_Base<double>::getLogDensity)
+        .def("getLogPrior", &CARMA_Base<double>::getLogPrior)
+        .def("getSamples", &CARMA_Base<double>::getSamples)
+    ;
+    */
+
+    // carpack.hpp
+    class_<CARMA_Base<double>, boost::noncopyable>("CARMA_Base_double", no_init);
+    class_<CARMA_Base<arma::vec>, boost::noncopyable>("CARMA_Base_arma", no_init);
+
+    class_<CAR1, bases<CARMA_Base<double> >, boost::shared_ptr<CAR1> >("CAR1", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,optional<double> >())
         .def("getLogPrior", &CAR1::getLogPrior)
         .def("getLogDensity", &CAR1::getLogDensity)
         .def("getSamples", &CAR1::getSamples)
-        .def("GetLogLikes", &CAR1::GetLogLikes)
     ;
 
-    class_<CARp, bases<CAR1>, boost::shared_ptr<CARp> >("CARp", no_init)
+    class_<CARp, bases<CARMA_Base<arma::vec> >, boost::shared_ptr<CARp> >("CARp", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
         .def("getLogPrior", &CARp::getLogPrior)
         .def("getLogDensity", &CARp::getLogDensity)
+        .def("getSamples", &CARp::getSamples)
     ;
 
-    class_<CARMA, bases<CAR1>, boost::shared_ptr<CARMA> >("CARMA", no_init)
-        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
+    class_<CARMA, bases<CARp>, boost::shared_ptr<CARMA> >("CARMA", no_init)
+        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,int,optional<double> >())
         .def("getLogPrior", &CARMA::getLogPrior)
         .def("getLogDensity", &CARMA::getLogDensity)
+        .def("getSamples", &CARMA::getSamples)
     ;
-    
-    def("run_mcmc1", RunEnsembleCarSampler1);
-    def("run_mcmcp", RunEnsembleCarSamplerp);
+
+    class_<ZCARMA, bases<CARp>, boost::shared_ptr<ZCARMA> >("ZCARMA", no_init)
+        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
+        .def("getLogPrior", &ZCARMA::getLogPrior)
+        .def("getLogDensity", &ZCARMA::getLogDensity)
+        .def("getSamples", &ZCARMA::getSamples)
+    ;
+ 
+    // carmcmc.hpp
+    def("run_mcmc_car1", RunCar1Sampler);
+    def("run_mcmc_carma", RunCarmaSampler);
+
+    // kfilter.hpp
 };

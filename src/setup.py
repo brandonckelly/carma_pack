@@ -37,10 +37,12 @@ def configuration(parent_package='', top_path=None):
         sources=["boost_python_wrapper.cpp", "carmcmc.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp", "carmcmc"]
+        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp", "carmcmc"],
+        extra_compile_args=["-std=c++0x", "-O3"]
     )
     config.add_data_dir(("../../../../include", "include"))
     config.add_data_dir(("../../../../examples", "examples"))
+    config.test_suite = "tests/testCarmcmc"
     return config
 
 

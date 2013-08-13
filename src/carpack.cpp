@@ -120,7 +120,6 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
     return ar_roots;
 }
 
-
 // Return the starting value and set log_posterior_
 arma::vec CARp::StartingValue()
 {

@@ -14,7 +14,7 @@ class CarmaSample(samplers.MCMCSample):
     Class for storing and analyzing the MCMC samples of a CARMA(p,q) model.
     """
 
-    def __init__(self, time, y, ysig, q=0, filename=None, logpost=None, trace=None):
+    def __init__(self, time, y, ysig, sampler, q=0, filename=None):
         """
         Constructor for the class. Right same as its superclass.
 
@@ -24,6 +24,10 @@ class CarmaSample(samplers.MCMCSample):
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.q = q  # order of moving average polynomial
+        self.sampler = sampler # Wrapper around C++ sampler
+        logpost = np.array(self.sampler.GetLogLikes())
+        trace = np.array(self.sampler.getSamples())
+        
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         # now calculate the AR(p) characteristic polynomial roots, coefficients, MA coefficients, and amplitude of
@@ -470,34 +474,15 @@ class CarmaSample(samplers.MCMCSample):
         Minus 2 times the value of chi2 using the mean/median parameters
         """
 
-        # Need to calculate chi2 until logpost is returned by sampler
-        nsamp = self._samples["sigma"].shape[0]
-        chi2 = np.empty(nsamp)
-        loglik = np.empty(nsamp)
-        for i in xrange(nsamp):
-            kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, self._samples['sigma'][i] ** 2,
-                                   self._samples['ar_roots'][i], self._samples['ma_coefs'][i])
-            kmean, kvar = kfilter.filter()
-            chi2[i] = np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
-            loglik[i] = -0.5 * np.sum(np.log(kvar)) - 0.5 * chi2
-        self._samples["chi2"] = chi2
-        self._samples["loglik"] = loglik
+        # Easier to do it here than undo what happens in generate_from_trace
+        rawSamples = np.array(self.sampler.getSamples())
 
-        if bestfit == 'median':
-            sigsqr = np.median(self._samples['sigma']) ** 2
-            ar_roots = np.median(self._samples['ar_roots'], axis=0)
-            loglik = np.median(self._samples["loglik"])
-            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
+        if bestfit == "median":
+            dicPars = np.median(rawSamples, axis=0)
+            logLike = np.median(self._samples['logpost'], axis=0)
         else:
-            sigsqr = np.mean(self._samples['sigma'] ** 2)
-            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
-            loglik = np.mean(self._samples["loglik"])
-            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
-
-        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots, ma_coefs=ma_coefs)
-        kmean, kvar = kfilter.filter()
-        loglik_hat = -0.5 * np.sum(np.log(kvar)) - 0.5 * np.sum((self.y - self.y.mean() - kmean) ** 2 / kvar)
-        p = -2.0 * loglik + 2.0 * loglik_hat
+            dicPars = np.mean(rawSamples, axis=0)
+            logLike = np.mean(self._samples['logpost'], axis=0)
 
         dicVec = carmcmcLib.vecD()
         dicVec.extend(dicPars)
@@ -507,9 +492,10 @@ class CarmaSample(samplers.MCMCSample):
         dic  = -2 * logLike + 2 * dicp
         return dic
 
+
 class ZCarmaSample(CarmaSample):
-    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
-        super(ZCarmaSample, self).__init__(time, y, ysig, q=0, filename=filename, logpost=logpost, trace=trace)
+    def __init__(self, time, y, ysig, sampler, filename=None):
+        super(ZCarmaSample, self).__init__(time, y, ysig, sampler, q=0, filename=filename)
 
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
@@ -1000,11 +986,16 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
 
 class CarSample1(CarmaSample):
-    def __init__(self, time, y, ysig, filename=None, logpost=None, trace=None):
+    def __init__(self, time, y, ysig, sampler, filename=None):
         self.time = time  # The time values of the time series
         self.y = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.p = 1     # How many AR terms
+
+        self.sampler = sampler # Wrapper around C++ sampler
+        logpost = np.array(self.sampler.GetLogLikes())
+        trace = np.array(self.sampler.getSamples())
+
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         print "Calculating coefficients of AR polynomial..."
