@@ -18,9 +18,6 @@
 #include <vector>
 #include <utility>
 #include <numeric>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/type_traits/is_same.hpp>
 // Include the MCMC sampler header files
 #include <random.hpp>
 #include <proposals.hpp>

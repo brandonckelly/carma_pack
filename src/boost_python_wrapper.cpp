@@ -3,7 +3,6 @@
 #endif
 
 #include <utility>
-#include <boost/shared_ptr.hpp>
 #include <boost/intrusive/options.hpp>
 #include <boost/python.hpp>
 #include <boost/python/call_method.hpp>
@@ -58,32 +57,36 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<CARMA_Base<double>, boost::noncopyable>("CARMA_Base_double", no_init);
     class_<CARMA_Base<arma::vec>, boost::noncopyable>("CARMA_Base_arma", no_init);
 
-    class_<CAR1, bases<CARMA_Base<double> >, boost::shared_ptr<CAR1> >("CAR1", no_init)
+    class_<CAR1, bases<CARMA_Base<double> >, std::shared_ptr<CAR1> >("CAR1", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,optional<double> >())
         .def("getLogPrior", &CAR1::getLogPrior)
         .def("getLogDensity", &CAR1::getLogDensity)
         .def("getSamples", &CAR1::getSamples)
+        .def("GetLogLikes", &CAR1::GetLogLikes)  // Base class parameters.hpp
     ;
 
-    class_<CARp, bases<CARMA_Base<arma::vec> >, boost::shared_ptr<CARp> >("CARp", no_init)
+    class_<CARp, bases<CARMA_Base<arma::vec> >, std::shared_ptr<CARp> >("CARp", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
         .def("getLogPrior", &CARp::getLogPrior)
         .def("getLogDensity", &CARp::getLogDensity)
         .def("getSamples", &CARp::getSamples)
+        .def("GetLogLikes", &CARp::GetLogLikes)
     ;
 
-    class_<CARMA, bases<CARp>, boost::shared_ptr<CARMA> >("CARMA", no_init)
+    class_<CARMA, bases<CARp>, std::shared_ptr<CARMA> >("CARMA", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,int,optional<double> >())
         .def("getLogPrior", &CARMA::getLogPrior)
         .def("getLogDensity", &CARMA::getLogDensity)
         .def("getSamples", &CARMA::getSamples)
+        .def("GetLogLikes", &CARMA::GetLogLikes)
     ;
 
-    class_<ZCARMA, bases<CARp>, boost::shared_ptr<ZCARMA> >("ZCARMA", no_init)
+    class_<ZCARMA, bases<CARp>, std::shared_ptr<ZCARMA> >("ZCARMA", no_init)
         .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
         .def("getLogPrior", &ZCARMA::getLogPrior)
         .def("getLogDensity", &ZCARMA::getLogDensity)
         .def("getSamples", &ZCARMA::getSamples)
+        .def("GetLogLikes", &ZCARMA::GetLogLikes)
     ;
  
     // carmcmc.hpp
