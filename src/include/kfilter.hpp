@@ -202,7 +202,7 @@ protected:
 class KalmanFilter1 : public KalmanFilter<double> {
 public:
     // Constructors
-    KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter(time, y, yerr) {}
+    KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<double>(time, y, yerr) {}
     KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, double omega) :
         KalmanFilter(time, y, yerr)
     {
@@ -225,7 +225,7 @@ public:
 class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructors
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter(time, y, yerr) {}
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<arma::vec>(time, y, yerr) {}
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
         KalmanFilter(time, y, yerr)
     {

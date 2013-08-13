@@ -326,7 +326,12 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
-    ZCARMA zcarma_process(true, "ZCARMA(5)", time, y, yerr, p);
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
+    
+    ZCARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -435,7 +440,12 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
-    ZCARMA zcarma_process(true, "ZCARMA(5)", time, y, yerr, p);
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
+    
+    ZCARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -571,7 +581,12 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
     
     // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
     arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
-    ZCARMA zcarma_process(true, "ZCARMA(5)", time, y, yerr, p);
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
+    
+    ZCARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -653,7 +668,11 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     arma::vec ycent = y - arma::mean(y);
     arma::vec ysig = 0.01 * arma::ones(ny);
     
-    CAR1 car1_test(true, "CAR(1)", time, y, ysig);
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    CAR1 car1_test(true, "CAR(1)", time_, y_, ysig_);
     KalmanFilter1 Kfilter(time, ycent, ysig);
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car1_test.SetPrior(max_stdev);
@@ -707,7 +726,11 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
     arma::vec ysig = 0.01 * arma::ones(ny);
     int p = 5;
     
-    ZCARMA car5_test(true, "ZCARMA(5)", time, y, ysig, p);
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    ZCARMA car5_test(true, "ZCARMA(5)", time_, y_, ysig_, p);
     KalmanFilterp Kfilter(time, ycent, ysig);
     Kfilter.SetMA(car5_test.ExtractMA(car5_test.Value()));
     
@@ -764,7 +787,11 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
     arma::vec y = arma::randn<arma::vec>(ny);
     arma::vec ysig = 0.01 * arma::ones(ny);
     
-    CAR1 car1_test(true, "CAR(1)", time, y, ysig);
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    CAR1 car1_test(true, "CAR(1)", time_, y_, ysig_);
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car1_test.SetPrior(max_stdev);
 
@@ -819,7 +846,11 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     int p = 9;
     int q = 4;
     
-    CARMA carma_test(true, "CARMA(9,4)", time, y, ysig, p, q);
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    CARMA carma_test(true, "CARMA(9,4)", time_, y_, ysig_, p, q);
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     carma_test.SetPrior(max_stdev);
     
@@ -916,7 +947,11 @@ TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
     
     alpha_roots *= 2.0 * arma::datum::pi;
     
-    ZCARMA carma_process(true, "CAR(5)", time, y, ysig, p);
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    ZCARMA carma_process(true, "CAR(5)", time_, y_, ysig_, p);
     double kappa = 0.7;
     // Set the moving average terms
     arma::vec ma_coefs(p);
@@ -931,7 +966,7 @@ TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
     REQUIRE(frac_diff < 1e-8);
 }
 
-TEST_CASE("./CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
+TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(1) model..." << std::endl << std::endl;
     
@@ -939,9 +974,9 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     arma::mat car1_data;
     car1_data.load(car1file, arma::raw_ascii);
     
-    arma::vec time = car1_data.col(0);
-    arma::vec y = car1_data.col(1);
-    arma::vec yerr = car1_data.col(2);
+    std::vector<double> time = arma::conv_to<std::vector<double> >::from(car1_data.col(0));
+    std::vector<double> y = arma::conv_to<std::vector<double> >::from(car1_data.col(1));
+    std::vector<double> yerr = arma::conv_to<std::vector<double> >::from(car1_data.col(2));
     
     // MCMC parameters
     int carp_order = 1;
@@ -950,11 +985,10 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     int burnin = 50000;
     
     // run the MCMC sampler
-    std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
-    mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
-    std::vector<arma::vec> mcmc_sample;
-    mcmc_sample = mcmc_out.first;
-    std::vector<double> logpost_samples = mcmc_out.second;
+    std::shared_ptr<CAR1> mcmc_out;
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr);
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     
     // True CAR(1) process parameters
     double tau = 100.0;
@@ -987,7 +1021,7 @@ TEST_CASE("./CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     CHECK(std::abs(omega_zscore) < 3.0);
 }
 
-TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
+TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
     
@@ -995,22 +1029,21 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     arma::mat car5_data;
     car5_data.load(car5file, arma::raw_ascii);
     
-    arma::vec time = car5_data.col(0);
-    arma::vec y = car5_data.col(1);
-    arma::vec yerr = car5_data.col(2);
+    std::vector<double> time = arma::conv_to<std::vector<double> >::from(car5_data.col(0));
+    std::vector<double> y = arma::conv_to<std::vector<double> >::from(car5_data.col(1));
+    std::vector<double> yerr = arma::conv_to<std::vector<double> >::from(car5_data.col(2));
     
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 100000;
-    int burnin = 50000;
+    int sample_size = 50000;
+    int burnin = 25000;
     
     // run the MCMC sampler
-    std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
-    mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
-    std::vector<arma::vec> mcmc_sample;
-    mcmc_sample = mcmc_out.first;
-    std::vector<double> logpost_samples = mcmc_out.second;
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, 0, nwalkers);
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     
     // True CAR(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
@@ -1060,7 +1093,7 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     }
 }
 
-TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1072,10 +1105,14 @@ TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) mod
     arma::vec y = zcarma_data.col(1);
     arma::vec yerr = zcarma_data.col(2);
     
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
+    std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
+    
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 75000;
+    int sample_size = 50000;
     int burnin = 25000;
     // True ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
@@ -1104,12 +1141,11 @@ TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) mod
     theta(p+2) = logit(kappa_norm);
 
     // run the MCMC sampler
-    std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
-    mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, carp_order-1,
-                                       nwalkers, true, 1);
-    std::vector<arma::vec> mcmc_sample;
-    mcmc_sample = mcmc_out.first;
-    std::vector<double> logpost_samples = mcmc_out.second;
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, yerr_, carp_order, carp_order-1, nwalkers, true, 1);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     
     std::ofstream mcmc_outfile("data/zcarma5_mcmc.dat");
     mcmc_outfile <<
@@ -1156,22 +1192,22 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
     arma::mat carma_data;
     carma_data.load(zcarmafile, arma::raw_ascii);
     
-    arma::vec time = carma_data.col(0);
-    arma::vec y = carma_data.col(1);
-    arma::vec yerr = carma_data.col(2);
+    std::vector<double> time = arma::conv_to<std::vector<double> >::from(carma_data.col(0));
+    std::vector<double> y = arma::conv_to<std::vector<double> >::from(carma_data.col(1));
+    std::vector<double> yerr = arma::conv_to<std::vector<double> >::from(carma_data.col(2));
     
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 20;
-    int sample_size = 100000;
-    int burnin = 50000;
+    int sample_size = 50000;
+    int burnin = 25000;
     
     // run the MCMC sampler
-    std::pair<std::vector<arma::vec>, std::vector<double> > mcmc_out;
-    mcmc_out = RunEnsembleCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, carp_order-1, nwalkers);
-    std::vector<arma::vec> mcmc_sample;
-    mcmc_sample = mcmc_out.first;
-    std::vector<double> logpost_samples = mcmc_out.second;
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time, y, yerr, carp_order, carp_order-1, nwalkers);
+
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     
     // True CAR(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
