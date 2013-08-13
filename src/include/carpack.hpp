@@ -13,6 +13,7 @@
 #define __CARPACK_HDEF__
 
 #include <string>
+#include <memory>
 #include <random.hpp>
 #include <proposals.hpp>
 #include <samplers.hpp>
@@ -152,6 +153,11 @@ public:
         
         return logpost;
     }
+    double getLogDensity(std::vector<double> theta)
+    {
+        arma::vec armaVec = arma::conv_to<arma::vec>::from(theta);
+        return LogDensity(armaVec);
+    }
     
     bool virtual CheckPriorBounds(arma::vec theta)
     {
@@ -172,7 +178,7 @@ public:
     arma::vec GetTimeSeriesErr() { return yerr_; }
     arma::vec GetKalmanMean() { return pKFilter_->mean; }
     arma::vec GetKalmanVar() { return pKFilter_->var; }
-    std::shared_ptr<KalmanFilter<OmegaType> > GetKalmanPtr() { return this->pKFilter_; }
+    std::shared_ptr<KalmanFilter<OmegaType> > GetKalmanPtr() { return pKFilter_; }
     
     virtual void SetPrior(double max_stdev) // set the bounds on the uniform prior
     {
@@ -202,7 +208,7 @@ class CAR1 : public CARMA_Base<double> {
 public:
 	// Constructor //
 	CAR1(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, double temperature=1.0) :
-    CARMA_Base(track, name, time, y, yerr, temperature)
+    CARMA_Base<double>(track, name, time, y, yerr, temperature)
     {
         pKFilter_ = std::make_shared<KalmanFilter1>(time_, y_, yerr_);
         // Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
@@ -233,7 +239,7 @@ class CARp : public CARMA_Base<arma::vec> {
 public:
     // Constructor
     CARp(bool track, std::string name, arma::vec& time, arma::vec& y, arma::vec& yerr, int p, double temperature=1.0):
-    CARMA_Base(track, name, time, y, yerr, temperature), p_(p)
+    CARMA_Base<arma::vec>(track, name, time, y, yerr, temperature), p_(p)
 	{
         pKFilter_ = std::make_shared<KalmanFilterp>(time_, y_, yerr_);
 		value_.set_size(p_+2);

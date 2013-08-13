@@ -5,7 +5,6 @@ import os
 desc = open("README.rst").read()
 extension_version = "0.1.0"
 extension_url = "https://github.com/bckelly80/carma_pack"
-CFLAGS = "-O3"
 BOOST_DIR = os.environ["BOOST_DIR"]
 ARMADILLO_DIR = os.environ["ARMADILLO_DIR"]
 YAMCMCPP_DIR = os.environ["YAMCMCPP_DIR"]
@@ -27,10 +26,11 @@ def configuration(parent_package='', top_path=None):
     config.add_data_dir((".", "carmcmc"))
     config.add_library(
         "carmcmc",
-        sources=["carmcmc.cpp", "carpack.cpp"],
+        sources=["carmcmc.cpp", "carpack.cpp", "kfilter.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp"]
+        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp"],
+        extra_compiler_args=["-std=c++0x", "-O3"]
     )
     config.add_extension(
         "_carmcmc",
