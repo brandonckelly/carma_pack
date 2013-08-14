@@ -32,9 +32,15 @@ public:
     arma::vec var;
 
     // Constructor
+    KalmanFilter() {};
     KalmanFilter(arma::vec& time, arma::vec& y, arma::vec& yerr) :
     time_(time), y_(y), yerr_(yerr)
     {
+        init();
+    }
+
+    // Initialize arrays
+    void init() {
         int ndata = time_.n_elem;
         dt_ = time_(arma::span(1,ndata-1)) - time_(arma::span(0,ndata-2));
         
@@ -44,9 +50,9 @@ public:
             << std::endl;
             // Sort the time values such that dt > 0
             arma::uvec sorted_indices = arma::sort_index(time_);
-            time_ = time.elem(sorted_indices);
+            time_ = time_.elem(sorted_indices);
             y_ = y_.elem(sorted_indices);
-            yerr_ = yerr.elem(sorted_indices);
+            yerr_ = yerr_.elem(sorted_indices);
             dt_ = time_.rows(1,ndata-1) - time_.rows(0,ndata-2);
         }
         // Make sure there are no duplicate values of time
@@ -59,14 +65,14 @@ public:
             time_ = time_.elem(unique_values);
             y_ = y_.elem(unique_values);
             yerr_ = yerr_.elem(unique_values);
-            ndata = time.n_elem;
+            ndata = time_.n_elem;
             dt_.set_size(ndata-1);
             dt_ = time_.rows(1,time_.n_elem-1) - time_.rows(0,time_.n_elem-2);
         }
         
         // Set the size of the Kalman Filter mean and variance vectors
-        mean.zeros(time.n_elem);
-        var.zeros(time.n_elem);
+        mean.zeros(time_.n_elem);
+        var.zeros(time_.n_elem);
     }
     
     // Methods to set and get the data
@@ -202,6 +208,7 @@ protected:
 class KalmanFilter1 : public KalmanFilter<double> {
 public:
     // Constructors
+    KalmanFilter1() : KalmanFilter<double>() {}
     KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<double>(time, y, yerr) {}
     KalmanFilter1(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, double omega) :
         KalmanFilter<double>(time, y, yerr)
@@ -209,13 +216,44 @@ public:
         sigsqr_ = sigsqr;
         omega_ = omega;
     }
-    
+    KalmanFilter1(std::vector<double> time, std::vector<double> y, std::vector<double> yerr) : 
+        KalmanFilter<double>() 
+    {
+        arma::vec armatime = arma::conv_to<arma::vec>::from(time);
+        arma::vec armay    = arma::conv_to<arma::vec>::from(y);
+        arma::vec armady   = arma::conv_to<arma::vec>::from(yerr);
+        time_ = armatime;
+        y_ = armay;
+        yerr_ = armady;
+        init();
+    }
+    KalmanFilter1(std::vector<double> time, std::vector<double> y, std::vector<double> yerr, double sigsqr, double omega) :
+        KalmanFilter<double>()
+    {
+        arma::vec armatime = arma::conv_to<arma::vec>::from(time);
+        arma::vec armay    = arma::conv_to<arma::vec>::from(y);
+        arma::vec armady   = arma::conv_to<arma::vec>::from(yerr);
+        time_ = armatime;
+        y_ = armay;
+        yerr_ = armady;
+        sigsqr_ = sigsqr;
+        omega_ = omega;
+        init();
+    }
+
     // Methods to perform the Kalman Filter operations
     void Reset();
     void Update();
     std::pair<double, double> Predict(double time);
     void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
     void UpdateCoefs();
+
+    std::vector<double> Simulate(std::vector<double> time) {
+        arma::vec armatime = arma::conv_to<arma::vec>::from(time);
+        arma::vec armasimulate = KalmanFilter<double>::Simulate(armatime);
+        std::vector<double> vecsimulate = arma::conv_to<std::vector<double> >::from(armasimulate);
+        return vecsimulate;
+    }
 };
 
 /*
@@ -225,6 +263,7 @@ public:
 class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructors
+    KalmanFilterp() : KalmanFilter<arma::vec>() {}
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<arma::vec>(time, y, yerr) {}
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
         KalmanFilter<arma::vec>(time, y, yerr)
@@ -232,6 +271,39 @@ public:
         sigsqr_ = sigsqr;
         omega_ = omega;
         SetMA(ma_coefs);
+        init();
+    }
+    KalmanFilterp(std::vector<double> time, std::vector<double> y, std::vector<double> yerr) :
+        KalmanFilter<arma::vec>()
+    {
+        arma::vec armatime = arma::conv_to<arma::vec>::from(time);
+        arma::vec armay    = arma::conv_to<arma::vec>::from(y);
+        arma::vec armady   = arma::conv_to<arma::vec>::from(yerr);
+        time_ = armatime;
+        y_ = armay;
+        yerr_ = armady;
+        init();
+    }
+   KalmanFilterp(std::vector<double> time, std::vector<double> y, std::vector<double> yerr, double sigsqr, 
+                 std::vector<double> omega, std::vector<double> ma_coefs) :
+        KalmanFilter<arma::vec>()
+    {
+        arma::vec armatime  = arma::conv_to<arma::vec>::from(time);
+        arma::vec armay     = arma::conv_to<arma::vec>::from(y);
+        arma::vec armady    = arma::conv_to<arma::vec>::from(yerr);
+        arma::vec armaomega = arma::conv_to<arma::vec>::from(omega);
+        arma::vec armacoefs = arma::conv_to<arma::vec>::from(ma_coefs);
+        time_ = armatime;
+        y_ = armay;
+        yerr_ = armady;
+        sigsqr_ = sigsqr;
+        omega_ = armaomega;
+        SetMA(armacoefs);
+        init();
+    }
+
+  
+    void init() {
         ar_roots_ = ARRoots(omega_);
         
         p_ = omega_.n_elem;

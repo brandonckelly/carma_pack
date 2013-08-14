@@ -97,7 +97,14 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<KalmanFilter<double>, boost::noncopyable>("KalmanFilter_double", no_init);
     class_<KalmanFilter<arma::vec>, boost::noncopyable>("KalmanFilter_arma", no_init);
 
-    class_<KalmanFilter1, bases<KalmanFilter<double> >, std::shared_ptr<KalmanFilter1> >("KalmanFilter1", no_init);
-    class_<KalmanFilterp, bases<KalmanFilter<arma::vec> >, std::shared_ptr<KalmanFilterp> >("KalmanFilterp", no_init);
-    
+    class_<KalmanFilter1, bases<KalmanFilter<double> >, std::shared_ptr<KalmanFilter1> >("KalmanFilter1", no_init)
+        .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
+        .def(init<std::vector<double>,std::vector<double>,std::vector<double>,double,double>())
+        .def("Simulate", &KalmanFilter1::Simulate)
+    ;
+    class_<KalmanFilterp, bases<KalmanFilter<arma::vec> >, std::shared_ptr<KalmanFilterp> >("KalmanFilterp", no_init)
+        .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
+        .def(init<std::vector<double>,std::vector<double>,std::vector<double>,double,std::vector<double>,std::vector<double> >())
+        .def("Simulate", &KalmanFilterp::Simulate)
+    ; 
 };
