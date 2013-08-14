@@ -44,15 +44,6 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<std::vector<std::vector<double > > >("vecvecD")
         .def(vector_indexing_suite<std::vector<std::vector<double> > >());
 
-    /*
-    class_<CARMA_Base<double> >("CARMA_Base_double", no_init)
-        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,optional<double> >())
-        .def("getLogDensity", &CARMA_Base<double>::getLogDensity)
-        .def("getLogPrior", &CARMA_Base<double>::getLogPrior)
-        .def("getSamples", &CARMA_Base<double>::getSamples)
-    ;
-    */
-
     // carpack.hpp
     class_<CARMA_Base<double>, boost::noncopyable>("CARMA_Base_double", no_init);
     class_<CARMA_Base<arma::vec>, boost::noncopyable>("CARMA_Base_arma", no_init);
@@ -101,10 +92,14 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
         .def(init<std::vector<double>,std::vector<double>,std::vector<double>,double,double>())
         .def("Simulate", &KalmanFilter1::Simulate)
+        .def("Filter", &KalmanFilter1::Filter)
+        .def("Predict", &KalmanFilter1::Predict)
     ;
     class_<KalmanFilterp, bases<KalmanFilter<arma::vec> >, std::shared_ptr<KalmanFilterp> >("KalmanFilterp", no_init)
         .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
         .def(init<std::vector<double>,std::vector<double>,std::vector<double>,double,std::vector<double>,std::vector<double> >())
         .def("Simulate", &KalmanFilterp::Simulate)
+        .def("Filter", &KalmanFilterp::Filter)
+        .def("Predict", &KalmanFilterp::Predict)
     ; 
 };
