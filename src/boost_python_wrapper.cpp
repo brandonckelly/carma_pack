@@ -2,16 +2,19 @@
 #define BOOST_SYSTEM_NO_DEPRECATED 1
 #endif
 
-#include <utility>
+#include "Python.h"
 #include <boost/intrusive/options.hpp>
 #include <boost/python.hpp>
+#include <boost/python/object.hpp>
+#include <boost/python/object/function_object.hpp>
+#include <boost/python/object/py_function.hpp>
 #include <boost/python/call_method.hpp>
 #include <boost/python/numeric.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include <armadillo>
-#include "Python.h"
+#include <utility>
 #include "numpy/ndarrayobject.h"
 #include "include/carmcmc.hpp"
 #include "include/carpack.hpp"
