@@ -264,7 +264,7 @@ class KalmanFilterp : public KalmanFilter<arma::vec> {
 public:
     // Constructors
     KalmanFilterp() : KalmanFilter<arma::vec>() {}
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<arma::vec>(time, y, yerr) {}
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<arma::vec>(time, y, yerr) {init();}
     KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
         KalmanFilter<arma::vec>(time, y, yerr)
     {

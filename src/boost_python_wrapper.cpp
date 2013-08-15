@@ -44,6 +44,10 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<std::vector<std::vector<double > > >("vecvecD")
         .def(vector_indexing_suite<std::vector<std::vector<double> > >());
 
+    class_<std::pair<double, double> >("pairD")
+        .def_readwrite("first", &std::pair<double, double>::first)
+        .def_readwrite("second", &std::pair<double, double>::second);
+
     // carpack.hpp
     class_<CARMA_Base<double>, boost::noncopyable>("CARMA_Base_double", no_init);
     class_<CARMA_Base<arma::vec>, boost::noncopyable>("CARMA_Base_arma", no_init);
