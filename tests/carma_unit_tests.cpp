@@ -1021,7 +1021,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     CHECK(std::abs(omega_zscore) < 3.0);
 }
 
-TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
+TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
     
@@ -1093,7 +1093,7 @@ TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     }
 }
 
-TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1184,7 +1184,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     CHECK(std::abs(kappa_zscore) < 3.0);
 }
 
-TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
+TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CARMA(5,4) model..." << std::endl << std::endl;
     
