@@ -53,6 +53,7 @@ TEST_CASE("startup/rng_seed", "Set the seed for the random number generator for 
 }
 
 TEST_CASE("KalmanFilter/constructor", "Make sure constructor sorts the time vector and removes duplicates.") {
+    std::cout << "Testing KalmanFilter1..." << std::endl;
     int ny = 100;
     arma::vec time0 = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y0 = arma::randn<arma::vec>(ny);
@@ -91,6 +92,96 @@ TEST_CASE("KalmanFilter/constructor", "Make sure constructor sorts the time vect
     REQUIRE(time.size() == (ny-1));
     REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
     y2 = Kfilter_dup.GetTimeSeries();
+    frac_diff = std::abs(y2(43)- y0(44)) / std::abs(y0(44));
+    REQUIRE(frac_diff < 1e-8);
+}
+
+TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vector and removes duplicates.") {
+    std::cout << "Testing KalmanFilterp for armadillo constructor..." << std::endl;
+    int ny = 100;
+    int p = 5;
+    arma::vec time0 = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y0 = arma::randn<arma::vec>(ny);
+    arma::vec ysig = arma::zeros<arma::vec>(ny);
+    
+    // swap two elements so that time is out of order
+    arma::vec time = time0;
+    arma::vec y = y0;
+    time(43) = time0(12);
+    y(43) = y0(12);
+    time(12) = time0(43);
+    y(12) = y0(43);
+    
+    double sigsqr = 1.0;
+    arma::vec omega = arma::exp(arma::randn<arma::vec>(p));
+    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
+    ma_coefs(0) = 1.0;
+    
+    KalmanFilterp Kfilter(time, y, ysig, sigsqr, omega, ma_coefs);
+    
+    // make sure KalmanFilterp constructor sorted the time values
+    time = Kfilter.GetTime();
+    REQUIRE(time(43) == time0(43));
+    REQUIRE(time(12) == time0(12));
+    arma::vec y2 = Kfilter.GetTimeSeries();
+    double frac_diff = std::abs(y2(43) - y0(43)) / std::abs(y0(43));
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(y2(12) - y0(12)) / std::abs(y0(12));
+    REQUIRE(frac_diff < 1e-8);
+    
+    // duplicate one of the elements of time
+    time(43) = time(42);
+    
+    KalmanFilterp Kfilter_dup(time, y, ysig, sigsqr, omega, ma_coefs);
+    
+    // make sure constructor removed the duplicate value
+    time = Kfilter_dup.GetTime();
+    REQUIRE(time.size() == (ny-1));
+    REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
+    y2 = Kfilter_dup.GetTimeSeries();
+    frac_diff = std::abs(y2(43)- y0(44)) / std::abs(y0(44));
+    REQUIRE(frac_diff < 1e-8);
+    
+    /*
+     *  Now do the exact same thing, but using std::vectors
+     */
+    std::cout << "Testing KalmanFilterp for standard vector constructor..." << std::endl;
+
+    // swap two elements so that time is out of order
+    std::vector<double> stime = arma::conv_to<std::vector<double> >::from(time0);
+    std::vector<double> sy = arma::conv_to<std::vector<double> >::from(y0);
+    std::vector<double> sysig = arma::conv_to<std::vector<double> >::from(ysig);
+    stime[43] = time0(12);
+    sy[43] = y0(12);
+    stime[12] = time0(43);
+    sy[12] = y0(43);
+    
+    std::vector<double> somega = arma::conv_to<std::vector<double> >::from(omega);
+    std::vector<double> sma_coefs = arma::conv_to<std::vector<double> >::from(ma_coefs);
+    
+    KalmanFilterp sKfilter(stime, sy, sysig, sigsqr, somega, sma_coefs);
+    
+    // make sure KalmanFilter1 constructor sorted the time values
+    time = sKfilter.GetTime();
+    REQUIRE(time(43) == time0(43));
+    REQUIRE(time(12) == time0(12));
+    y2 = sKfilter.GetTimeSeries();
+    frac_diff = std::abs(y2(43) - y0(43)) / std::abs(y0(43));
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(y2(12) - y0(12)) / std::abs(y0(12));
+    REQUIRE(frac_diff < 1e-8);
+    
+    // duplicate one of the elements of time
+    stime = arma::conv_to<std::vector<double> >::from(time);
+    stime[43] = time(42);
+    
+    KalmanFilterp sKfilter_dup(stime, sy, sysig, sigsqr, somega, sma_coefs);
+    
+    // make sure CAR1 constructor removed the duplicate value
+    time = sKfilter_dup.GetTime();
+    REQUIRE(time.size() == (ny-1));
+    REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
+    y2 = sKfilter_dup.GetTimeSeries();
     frac_diff = std::abs(y2(43)- y0(44)) / std::abs(y0(44));
     REQUIRE(frac_diff < 1e-8);
 }

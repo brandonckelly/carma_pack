@@ -20,7 +20,7 @@ if system_name != 'Darwin':
     # /usr/lib64 does not exist under Mac OS X
     library_dirs.append("/usr/lib64")
 
-compiler_args = ["-std=c++11", "-03"]
+compiler_args = ["-std=c++11", "-O3"]
 if system_name == 'Darwin':
     # need to build against libc++ for Mac OS X
     compiler_args.append("-stdlib=libc++")

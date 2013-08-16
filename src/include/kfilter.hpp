@@ -43,7 +43,7 @@ public:
     void init() {
         int ndata = time_.n_elem;
         dt_ = time_(arma::span(1,ndata-1)) - time_(arma::span(0,ndata-2));
-        
+
         // Make sure the time vector is strictly increasing
         if (dt_.min() < 0) {
             std::cout << "Time vector is not sorted in increasing order. Sorting the data vectors..."
@@ -270,8 +270,22 @@ public:
     {
         sigsqr_ = sigsqr;
         omega_ = omega;
+        p_ = omega_.n_elem;
+        if (p_ > ma_coefs.n_elem) {
+            ma_coefs.resize(p_);
+        }
         SetMA(ma_coefs);
-        init();
+        ar_roots_ = ARRoots(omega_);
+        
+        // set sizes of arrays
+        state_vector_.zeros(p_);
+        StateVar_.zeros(p_,p_);
+        PredictionVar_.zeros(p_,p_);
+        kalman_gain_.zeros(p_);
+        rho_.zeros(p_);
+        state_const_.zeros(p_);
+        state_slope_.zeros(p_);        
+        rotated_ma_coefs_.zeros(p_);
     }
     KalmanFilterp(std::vector<double> time, std::vector<double> y, std::vector<double> yerr) :
         KalmanFilter<arma::vec>()
@@ -298,15 +312,14 @@ public:
         yerr_ = armady;
         sigsqr_ = sigsqr;
         omega_ = armaomega;
+        p_ = omega_.n_elem;
+        if (p_ > armacoefs.n_elem) {
+            armacoefs.resize(p_);
+        }
         SetMA(armacoefs);
-        init();
-    }
-
-  
-    void init() {
         ar_roots_ = ARRoots(omega_);
         
-        p_ = omega_.n_elem;
+        // set sizes of arrays
         state_vector_.zeros(p_);
         StateVar_.zeros(p_,p_);
         PredictionVar_.zeros(p_,p_);
@@ -314,12 +327,11 @@ public:
         rho_.zeros(p_);
         state_const_.zeros(p_);
         state_slope_.zeros(p_);
-        
-        int q = ma_coefs_.n_elem;
-        BOOST_ASSERT_MSG(q == p_, "ma_coefs must be same size as omega");
         rotated_ma_coefs_.zeros(p_);
+
+        init();
     }
-    
+
     // Set and get and moving average terms
     void SetMA(arma::vec ma_coefs) {
         ma_coefs_ = ma_coefs.st();
