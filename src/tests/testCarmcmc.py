@@ -84,7 +84,9 @@ class TestCarpackOrder(unittest.TestCase):
         self.assertAlmostEqual(ploglikes[0], loglike0)
  
     def testKalman1(self):
-        kfilter = carmcmc.KalmanFilter1(self.xdata, self.ydata, self.dydata)
+        sigma = 1.0
+        omega = 1.0
+        kfilter = carmcmc.KalmanFilter1(self.xdata, self.ydata, self.dydata, sigma, omega)
         kfilter.Filter()
         pred0 = kfilter.Predict(self.xdata[0]) # evaluate at data point
         val0  = pred0.first
@@ -110,7 +112,7 @@ class TestCarpackOrder(unittest.TestCase):
             omega.append(psampler._samples["log_width"][0][i])
         if psampler.p%2:
             omega.append(psampler._samples["log_width"][0][psampler.p/2])
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
 
         kfilter = carmcmc.KalmanFilterp(self.xdata, self.ydata, self.dydata, sigsqr, omega, ma_coefs)
         kfilter.Filter()
