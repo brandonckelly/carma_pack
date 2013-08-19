@@ -24,7 +24,7 @@ class CarmaSample(samplers.MCMCSample):
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.q = q  # order of moving average polynomial
-        self.sampler = sampler # Wrapper around C++ sampler
+        self.sampler = sampler  # Wrapper around C++ sampler
         logpost = np.array(self.sampler.GetLogLikes())
         trace = np.array(self.sampler.getSamples())
         

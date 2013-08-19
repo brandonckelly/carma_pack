@@ -49,7 +49,8 @@
 template <class OmegaType>
 class CARMA_Base : public Parameter<arma::vec> {
 public:
-    // Constructor
+    // Constructors
+    CARMA_Base() {}
     CARMA_Base(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr,
                double temperature=1.0) : Parameter<arma::vec>(track, name, temperature)
     {
@@ -225,7 +226,8 @@ protected:
 class CAR1 : public CARMA_Base<double> {
 	
 public:
-	// Constructor //
+	// Constructors //
+    CAR1() {}
 	CAR1(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr,
          double temperature=1.0) : CARMA_Base<double>(track, name, time, y, yerr, temperature)
     {
@@ -257,6 +259,7 @@ public:
 class CARp : public CARMA_Base<arma::vec> {
 public:
     // Constructor
+    CARp() {}
     CARp(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
          double temperature=1.0): CARMA_Base<arma::vec>(track, name, time, y, yerr, temperature), p_(p)
 	{
@@ -305,6 +308,7 @@ class CARMA : public CARp
 {	
 public:
 	// Constructor //
+    CARMA() {}
 	CARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p, int q,
           double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature), q_(q)
     {
@@ -335,6 +339,7 @@ private:
 class ZCARMA : public CARp
 {    
 public:
+    ZCARMA() {}
     ZCARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
            double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature)
     {

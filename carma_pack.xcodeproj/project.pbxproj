@@ -198,7 +198,6 @@
 		DFD8B806172B290C006D6BAB = {
 			isa = PBXGroup;
 			children = (
-				DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */,
 				DFBDE83A1778CD3E00762288 /* src */,
 				DFA8DA9517712B3600C76A3E /* Makefile */,
 				556E3D2B176688AB00C3A045 /* tests */,
@@ -218,6 +217,7 @@
 		DFF0764E1734A07A006CB328 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
+				DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */,
 				DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */,
 				DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */,
 				DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */,
