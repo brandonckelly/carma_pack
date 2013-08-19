@@ -186,6 +186,18 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
     // output file provided by the user.
     
 	CarModel.Run();
-    std::shared_ptr<CARp> retObject = std::make_shared<CARp>(CarEnsemble[0]);
+    
+    std::shared_ptr<CARp> retObject;
+
+    if (do_zcarma) {
+        retObject = std::make_shared<ZCARMA>(*(dynamic_cast<ZCARMA*>(&CarEnsemble[0])));
+    } else {
+        if (q == 0) {
+            retObject = std::make_shared<CARp>(CarEnsemble[0]);
+        } else {
+            retObject = std::make_shared<CARMA>(*(dynamic_cast<CARMA*>(&CarEnsemble[0])));
+        }
+    }
+    
     return retObject;
 }

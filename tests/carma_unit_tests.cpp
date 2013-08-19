@@ -809,7 +809,7 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     REQUIRE(logpost_neq_count == 0);
 }
 
-TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogPost(theta) after running MCMC sampler") {
+TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.GetLogPost(theta) after running MCMC sampler") {
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -868,8 +868,213 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
             logpost_neq_count++; // count the number of time the two log-posterior values do not agree
         }
     }
-    // make sure that saved logdensity is always equal to LogDensity(theta) for current thera value
+    // make sure that saved logdensity is always equal to LogDensity(theta) for current theta value
     REQUIRE(logpost_neq_count == 0);
+}
+
+TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 1;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 2;
+    
+    std::shared_ptr<CAR1> mcmc_out;
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
+}
+
+TEST_CASE("CARp/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 2;
+    
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, ysig_, p, 0, nwalkers, false, 5);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
+}
+
+TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 10;
+    
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, ysig_, p, p-1, nwalkers, true);
+        
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    ZCARMA zcarma5(true, "ZCARMA(5)", time_, y_, ysig_, p);
+    
+    /*
+    mcmc_sample[0].print("arma theta:");
+    std::cout << "std::vec theta: ";
+    for (int j=0; j<mcmc_sample2[0].size(); j++) {
+        std::cout << mcmc_sample2[0][j] << " ";
+    }
+    std::cout << std::endl;
+    */
+    
+    int nequal_zcarma = 0;
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first make sure returned logpost values are same as those calculated directly
+        zcarma5.Save(mcmc_sample[i]);
+        double logpost0 = zcarma5.LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(logpost0 - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_zcarma++;
+        }
+        // now do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double sampled_logpost = logpost_samples[i];
+        frac_diff = std::abs(this_logpost - sampled_logpost) / std::abs(sampled_logpost);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - sampled_logpost) / std::abs(sampled_logpost);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    CHECK(nequal_zcarma == sample_size);
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
+}
+
+TEST_CASE("CARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculated directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    int q = 3;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 2;
+    
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, ysig_, p, q, nwalkers);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
 }
 
 TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when prior bounds are violated") {
