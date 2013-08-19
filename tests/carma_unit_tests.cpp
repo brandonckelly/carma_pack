@@ -53,6 +53,7 @@ TEST_CASE("startup/rng_seed", "Set the seed for the random number generator for 
 }
 
 TEST_CASE("KalmanFilter/constructor", "Make sure constructor sorts the time vector and removes duplicates.") {
+    std::cout << "Testing KalmanFilter1..." << std::endl;
     int ny = 100;
     arma::vec time0 = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y0 = arma::randn<arma::vec>(ny);
@@ -91,6 +92,96 @@ TEST_CASE("KalmanFilter/constructor", "Make sure constructor sorts the time vect
     REQUIRE(time.size() == (ny-1));
     REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
     y2 = Kfilter_dup.GetTimeSeries();
+    frac_diff = std::abs(y2(43)- y0(44)) / std::abs(y0(44));
+    REQUIRE(frac_diff < 1e-8);
+}
+
+TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vector and removes duplicates.") {
+    std::cout << "Testing KalmanFilterp for armadillo constructor..." << std::endl;
+    int ny = 100;
+    int p = 5;
+    arma::vec time0 = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y0 = arma::randn<arma::vec>(ny);
+    arma::vec ysig = arma::zeros<arma::vec>(ny);
+    
+    // swap two elements so that time is out of order
+    arma::vec time = time0;
+    arma::vec y = y0;
+    time(43) = time0(12);
+    y(43) = y0(12);
+    time(12) = time0(43);
+    y(12) = y0(43);
+    
+    double sigsqr = 1.0;
+    arma::vec omega = arma::exp(arma::randn<arma::vec>(p));
+    arma::vec ma_coefs = arma::zeros<arma::vec>(p);
+    ma_coefs(0) = 1.0;
+    
+    KalmanFilterp Kfilter(time, y, ysig, sigsqr, omega, ma_coefs);
+    
+    // make sure KalmanFilterp constructor sorted the time values
+    time = Kfilter.GetTime();
+    REQUIRE(time(43) == time0(43));
+    REQUIRE(time(12) == time0(12));
+    arma::vec y2 = Kfilter.GetTimeSeries();
+    double frac_diff = std::abs(y2(43) - y0(43)) / std::abs(y0(43));
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(y2(12) - y0(12)) / std::abs(y0(12));
+    REQUIRE(frac_diff < 1e-8);
+    
+    // duplicate one of the elements of time
+    time(43) = time(42);
+    
+    KalmanFilterp Kfilter_dup(time, y, ysig, sigsqr, omega, ma_coefs);
+    
+    // make sure constructor removed the duplicate value
+    time = Kfilter_dup.GetTime();
+    REQUIRE(time.size() == (ny-1));
+    REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
+    y2 = Kfilter_dup.GetTimeSeries();
+    frac_diff = std::abs(y2(43)- y0(44)) / std::abs(y0(44));
+    REQUIRE(frac_diff < 1e-8);
+    
+    /*
+     *  Now do the exact same thing, but using std::vectors
+     */
+    std::cout << "Testing KalmanFilterp for standard vector constructor..." << std::endl;
+
+    // swap two elements so that time is out of order
+    std::vector<double> stime = arma::conv_to<std::vector<double> >::from(time0);
+    std::vector<double> sy = arma::conv_to<std::vector<double> >::from(y0);
+    std::vector<double> sysig = arma::conv_to<std::vector<double> >::from(ysig);
+    stime[43] = time0(12);
+    sy[43] = y0(12);
+    stime[12] = time0(43);
+    sy[12] = y0(43);
+    
+    std::vector<double> somega = arma::conv_to<std::vector<double> >::from(omega);
+    std::vector<double> sma_coefs = arma::conv_to<std::vector<double> >::from(ma_coefs);
+    
+    KalmanFilterp sKfilter(stime, sy, sysig, sigsqr, somega, sma_coefs);
+    
+    // make sure KalmanFilter1 constructor sorted the time values
+    time = sKfilter.GetTime();
+    REQUIRE(time(43) == time0(43));
+    REQUIRE(time(12) == time0(12));
+    y2 = sKfilter.GetTimeSeries();
+    frac_diff = std::abs(y2(43) - y0(43)) / std::abs(y0(43));
+    REQUIRE(frac_diff < 1e-8);
+    frac_diff = std::abs(y2(12) - y0(12)) / std::abs(y0(12));
+    REQUIRE(frac_diff < 1e-8);
+    
+    // duplicate one of the elements of time
+    stime = arma::conv_to<std::vector<double> >::from(time);
+    stime[43] = time(42);
+    
+    KalmanFilterp sKfilter_dup(stime, sy, sysig, sigsqr, somega, sma_coefs);
+    
+    // make sure CAR1 constructor removed the duplicate value
+    time = sKfilter_dup.GetTime();
+    REQUIRE(time.size() == (ny-1));
+    REQUIRE(time(43) == time0(44)); // removed 43rd element from time vector
+    y2 = sKfilter_dup.GetTimeSeries();
     frac_diff = std::abs(y2(43)- y0(44)) / std::abs(y0(44));
     REQUIRE(frac_diff < 1e-8);
 }
@@ -718,7 +809,7 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     REQUIRE(logpost_neq_count == 0);
 }
 
-TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogPost(theta) after running MCMC sampler") {
+TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.GetLogPost(theta) after running MCMC sampler") {
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -777,8 +868,213 @@ TEST_CASE("CAR5/logpost_test", "Make sure the that Car5.logpost_ == Car5.GetLogP
             logpost_neq_count++; // count the number of time the two log-posterior values do not agree
         }
     }
-    // make sure that saved logdensity is always equal to LogDensity(theta) for current thera value
+    // make sure that saved logdensity is always equal to LogDensity(theta) for current theta value
     REQUIRE(logpost_neq_count == 0);
+}
+
+TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 1;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 2;
+    
+    std::shared_ptr<CAR1> mcmc_out;
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
+}
+
+TEST_CASE("CARp/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 2;
+    
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, ysig_, p, 0, nwalkers, false, 5);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
+}
+
+TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 10;
+    
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, ysig_, p, p-1, nwalkers, true);
+        
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    ZCARMA zcarma5(true, "ZCARMA(5)", time_, y_, ysig_, p);
+    
+    /*
+    mcmc_sample[0].print("arma theta:");
+    std::cout << "std::vec theta: ";
+    for (int j=0; j<mcmc_sample2[0].size(); j++) {
+        std::cout << mcmc_sample2[0][j] << " ";
+    }
+    std::cout << std::endl;
+    */
+    
+    int nequal_zcarma = 0;
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first make sure returned logpost values are same as those calculated directly
+        zcarma5.Save(mcmc_sample[i]);
+        double logpost0 = zcarma5.LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(logpost0 - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_zcarma++;
+        }
+        // now do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double sampled_logpost = logpost_samples[i];
+        frac_diff = std::abs(this_logpost - sampled_logpost) / std::abs(sampled_logpost);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - sampled_logpost) / std::abs(sampled_logpost);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    CHECK(nequal_zcarma == sample_size);
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
+}
+
+TEST_CASE("CARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculated directly") {
+    int ny = 100;
+    arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
+    arma::vec y = arma::randn<arma::vec>(ny);
+    arma::vec ycent = y - arma::mean(y);
+    arma::vec ysig = 0.01 * arma::ones(ny);
+    int p = 5;
+    int q = 3;
+    
+    std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
+    std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(ycent);
+    std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
+    
+    // run the MCMC sampler
+    int sample_size = 100;
+    int burnin = 10;
+    int nwalkers = 2;
+    
+    std::shared_ptr<CARp> mcmc_out;
+    mcmc_out = RunCarmaSampler(sample_size, burnin, time_, y_, ysig_, p, q, nwalkers);
+    
+    std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
+    std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
+    std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
+    
+    int nequal_arma = 0;
+    int nequal_std = 0;
+    
+    for (int i=0; i<logpost_samples.size(); i++) {
+        // first do test for arma::vec
+        double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
+        double frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_arma++;
+        }
+        // now do test for std::vector
+        this_logpost = mcmc_out->getLogDensity(mcmc_sample2[i]);
+        frac_diff = std::abs(this_logpost - logpost_samples[i]) / std::abs(logpost_samples[i]);
+        if (frac_diff < 1e-8) {
+            nequal_std++;
+        }
+    }
+    
+    CHECK(nequal_arma == sample_size);
+    CHECK(nequal_std == sample_size);
 }
 
 TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when prior bounds are violated") {
@@ -1021,7 +1317,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     CHECK(std::abs(omega_zscore) < 3.0);
 }
 
-TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
+TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
     
@@ -1093,7 +1389,7 @@ TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     }
 }
 
-TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1184,7 +1480,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     CHECK(std::abs(kappa_zscore) < 3.0);
 }
 
-TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
+TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CARMA(5,4) model..." << std::endl << std::endl;
     

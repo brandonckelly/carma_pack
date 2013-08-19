@@ -9,13 +9,13 @@
 /* Begin PBXBuildFile section */
 		556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */; };
 		556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
-		556E3D3E1766A39F00C3A045 /* libarmadillo.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */; };
-		556E3D3F1766A39F00C3A045 /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */; };
-		556E3D401766A39F00C3A045 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764A17349F49006CB328 /* libboost_system.dylib */; };
-		DF1E743C177E5BE800DC665F /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DF1E743B177E5BE800DC665F /* libyamcmcpp.dylib */; };
 		DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
 		DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84C1778CD3E00762288 /* carmcmc.cpp */; };
 		DFBDE8641778CD6700762288 /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84D1778CD3E00762288 /* carpack.cpp */; };
+		DFF1EDAF17BD8FAB00B3A2AC /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */; };
+		DFF1EDB017BD8FAB00B3A2AC /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */; };
+		DFF1EDB317BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */; };
+		DFF1EDB517BD90EF00B3A2AC /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -31,10 +31,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.dylib; path = /usr/local/lib/libarmadillo.dylib; sourceTree = "<absolute>"; };
 		556E3D301766895F00C3A045 /* carma_unit_tests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_unit_tests; sourceTree = BUILT_PRODUCTS_DIR; };
 		556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carma_unit_tests.cpp; path = tests/carma_unit_tests.cpp; sourceTree = "<group>"; };
-		DF1E743B177E5BE800DC665F /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = /usr/local/lib/libyamcmcpp.dylib; sourceTree = "<absolute>"; };
 		DF4DAD10177CF6900007879A /* kfilter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kfilter.cpp; sourceTree = "<group>"; };
 		DF4DAD14177CF6BE0007879A /* kfilter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = kfilter.hpp; sourceTree = "<group>"; };
 		DFA8DA9517712B3600C76A3E /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = "<group>"; };
@@ -61,9 +59,11 @@
 		DFBDE8561778CD3E00762288 /* README.rst */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.rst; sourceTree = "<group>"; };
 		DFBDE8571778CD3E00762288 /* setup.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = setup.py; sourceTree = "<group>"; };
 		DFBDE85A1778CD3E00762288 /* carma_pack.table */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = carma_pack.table; sourceTree = "<group>"; };
-		DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_filesystem.dylib; path = /usr/local/lib/libboost_filesystem.dylib; sourceTree = "<absolute>"; };
-		DFF0764A17349F49006CB328 /* libboost_system.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_system.dylib; path = /usr/local/lib/libboost_system.dylib; sourceTree = "<absolute>"; };
 		DFF0764C17349F5A006CB328 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_filesystem.dylib; path = ../../lib/libboost_filesystem.dylib; sourceTree = "<group>"; };
+		DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_system.dylib; path = ../../lib/libboost_system.dylib; sourceTree = "<group>"; };
+		DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.3.91.0.dylib; path = ../../lib/libarmadillo.3.91.0.dylib; sourceTree = "<group>"; };
+		DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = ../../lib/libyamcmcpp.dylib; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,10 +71,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DF1E743C177E5BE800DC665F /* libyamcmcpp.dylib in Frameworks */,
-				556E3D3E1766A39F00C3A045 /* libarmadillo.dylib in Frameworks */,
-				556E3D3F1766A39F00C3A045 /* libboost_filesystem.dylib in Frameworks */,
-				556E3D401766A39F00C3A045 /* libboost_system.dylib in Frameworks */,
+				DFF1EDB517BD90EF00B3A2AC /* libyamcmcpp.dylib in Frameworks */,
+				DFF1EDB317BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib in Frameworks */,
+				DFF1EDAF17BD8FAB00B3A2AC /* libboost_filesystem.dylib in Frameworks */,
+				DFF1EDB017BD8FAB00B3A2AC /* libboost_system.dylib in Frameworks */,
 				556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -217,11 +217,11 @@
 		DFF0764E1734A07A006CB328 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
-				DF1E743B177E5BE800DC665F /* libyamcmcpp.dylib */,
-				555C33C7173AC24B00D91BA8 /* libarmadillo.dylib */,
+				DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */,
+				DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */,
+				DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */,
+				DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */,
 				DFF0764C17349F5A006CB328 /* Accelerate.framework */,
-				DFF0764A17349F49006CB328 /* libboost_system.dylib */,
-				DFF0764817349F2C006CB328 /* libboost_filesystem.dylib */,
 			);
 			name = Libraries;
 			sourceTree = "<group>";
@@ -314,7 +314,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
@@ -340,14 +340,13 @@
 					/usr/local/include,
 					"${HOME}/include",
 				);
-				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				LIBRARY_SEARCH_PATHS = (
+					/usr/local/lib,
+					"${HOME}/lib",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"-lboost_filesystem",
-					"-lboost_system",
-					"-larmadillo",
-				);
+				OTHER_LDFLAGS = "";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -357,7 +356,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
@@ -378,14 +377,13 @@
 					/usr/local/include,
 					"${HOME}/include",
 				);
-				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				LIBRARY_SEARCH_PATHS = (
+					/usr/local/lib,
+					"${HOME}/lib",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"-lboost_filesystem",
-					"-lboost_system",
-					"-larmadillo",
-				);
+				OTHER_LDFLAGS = "";
 				SDKROOT = macosx;
 			};
 			name = Release;
