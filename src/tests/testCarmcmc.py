@@ -106,11 +106,10 @@ class TestCarpackOrder(unittest.TestCase):
         ma_coefs.extend(psampler._samples["ma_coefs"][0])
         omega    = carmcmc.vecD()
         for i in range(psampler.p/2):   
-            omega.append(psampler._samples["log_centroid"][0][i])
-            omega.append(psampler._samples["log_width"][0][i])
+            omega.append(np.exp(psampler._samples["log_centroid"][0][i]))
+            omega.append(np.exp(psampler._samples["log_width"][0][i]))
         if psampler.p%2:
-            omega.append(psampler._samples["log_width"][0][psampler.p/2])
-        import pdb; pdb.set_trace()
+            omega.append(np.exp(psampler._samples["log_width"][0][psampler.p/2]))
 
         kfilter = carmcmc.KalmanFilterp(self.xdata, self.ydata, self.dydata, sigsqr, omega, ma_coefs)
         kfilter.Filter()
