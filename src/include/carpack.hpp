@@ -55,7 +55,7 @@ public:
                double temperature=1.0) : Parameter<arma::vec>(track, name, temperature)
     {
         // Set the degrees of freedom for the prior on the measurement error scaling parameter
-        measerr_dof_ = 20;
+        measerr_dof_ = 200;
         
         // convert input data to armadillo vectors
         y_  = arma::conv_to<arma::vec>::from(y);
