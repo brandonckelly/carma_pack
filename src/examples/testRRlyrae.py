@@ -29,8 +29,8 @@ def doit(args):
     pModel   = int(args[0])
     x, y, dy = args[1]
 
-    nSample    = 100000
-    nBurnin    = 10000
+    nSample    = 10000
+    nBurnin    = 1000
     nThin      = 1
     nWalkers   = 10
 
@@ -43,11 +43,11 @@ def doit(args):
     dyv.extend(dy)
 
     if pModel == 1:
-        sampler = carmcmc.run_mcmc1(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
+        sampler = carmcmc.run_mcmc_car1(nSample, nBurnin, xv, yv, dyv, nWalkers, nThin)
         samplep = carmcmc.CarSample1(x, y, dy, sampler)
     else:
-        sampler = carmcmc.run_mcmcp(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
-        samplep = carmcmc.CarSample(x, y, dy, sampler)
+        sampler = carmcmc.run_mcmc_carma(nSample, nBurnin, xv, yv, dyv, pModel, 0, nWalkers, False, nThin)
+        samplep = carmcmc.CarmaSample(x, y, dy, sampler)
         
     dic = samplep.DIC()
     print "DIC", pModel, dic
@@ -55,21 +55,23 @@ def doit(args):
     
 
 if __name__ == "__main__":
-    u, g, r, i, z = loadData("examples/1640797.txt")
+    u, g, r, i, z = loadData("1640797.txt")
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
 
-    samplep = doit((2,r))
-    import pdb; pdb.set_trace()
+    samplep = doit((2, r))
+    # import pdb; pdb.set_trace()
+
+    print "did CAR model of order ", samplep.p
 
     args = []
     #for f in (u, g, r, i , z):
     for f in (r,):
-        for pModel in np.arange(1, 13):
+        for pModel in np.arange(1, 11):
             args.append((pModel, f))
     results = pool.map(doit, args)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
 
     fig = plt.figure()
     sp0 = fig.add_subplot(3, 3, 1)
@@ -83,5 +85,5 @@ if __name__ == "__main__":
 
         ps = sample.plot_power_spectrum(color=colors[0], sp=sp)
         sp.set_title("Order %d" % (i+1))
-    
+
     plt.show()
