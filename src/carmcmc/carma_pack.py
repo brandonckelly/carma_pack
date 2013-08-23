@@ -466,30 +466,21 @@ class CarmaSample(samplers.MCMCSample):
 
         return ysim
 
-    def DIC(self, bestfit="median"):
+    def DIC(self):
         """ 
         Calculate the Deviance Information Criterion for the model.
 
-        This is defined as 3 times the mean/median value of chi2 
-        Minus 2 times the value of chi2 using the mean/median parameters
+        The deviance is -2 * log-likelihood, and the DIC is:
+
+            DIC = mean(deviance) + 0.5 * variance(deviance)
         """
 
-        # Easier to do it here than undo what happens in generate_from_trace
-        rawSamples = np.array(self.sampler.getSamples())
+        deviance = -2.0 * self._samples['logpost']
+        mean_deviance = np.mean(deviance, axis=0)
+        effect_npar = 0.5 * np.var(deviance, axis=0)
 
-        if bestfit == "median":
-            dicPars = np.median(rawSamples, axis=0)
-            logLike = np.median(self._samples['logpost'], axis=0)
-        else:
-            dicPars = np.mean(rawSamples, axis=0)
-            logLike = np.mean(self._samples['logpost'], axis=0)
+        dic = mean_deviance + effect_npar
 
-        dicVec = carmcmcLib.vecD()
-        dicVec.extend(dicPars)
-        logLikePar = self.sampler.getLogDensity(dicVec)
-
-        dicp = -2 * logLike + 2 * logLikePar
-        dic  = -2 * logLike + 2 * dicp
         return dic
 
 
