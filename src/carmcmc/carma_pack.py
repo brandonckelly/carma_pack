@@ -119,6 +119,16 @@ class CarmaSample(samplers.MCMCSample):
         print "Calculating sigma..."
         self._sigma_noise()
 
+        # add the log-likelihoods
+        print "Calculating log-likelihoods..."
+        loglik = np.empty(logpost.size)
+        for i in xrange(logpost.size):
+            std_theta = carmcmcLib.vecD()
+            std_theta.extend(trace[i, :])
+            loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
+
+        self._samples['loglik'] = loglik
+
         # make the parameter names (i.e., the keys) public so the user knows how to get them
         self.parameters = self._samples.keys()
 
@@ -358,7 +368,7 @@ class CarmaSample(samplers.MCMCSample):
         sp.set_xlabel('Time')
         sp.set_xlim(self.time.min(), self.time.max())
 
-    def assess_fit(self, bestfit="map"):
+    def assess_fit(self, bestfit="map", doShow=True):
         """
         Display plots and provide useful information for assessing the quality of the CARMA(p.q) model fit.
 
@@ -453,7 +463,8 @@ class CarmaSample(samplers.MCMCSample):
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Sqrd. Resid.')
 
-        plt.show()
+        if doShow:
+            plt.show()
 
     def predict_lightcurve(self, time, bestfit='median'):
         """
@@ -555,7 +566,7 @@ class CarmaSample(samplers.MCMCSample):
             DIC = mean(deviance) + 0.5 * variance(deviance)
         """
 
-        deviance = -2.0 * self._samples['logpost']
+        deviance = -2.0 * self._samples['loglik']
         mean_deviance = np.mean(deviance, axis=0)
         effect_npar = 0.5 * np.var(deviance, axis=0)
 
@@ -1069,20 +1080,27 @@ class CarSample1(CarmaSample):
 
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
-        print "Calculating coefficients of AR polynomial..."
-        self._ar_coefs()
         print "Calculating sigma..."
-        self._variance()
+        self._sigma_noise()
 
+        # add the log-likelihoods
+        print "Calculating log-likelihoods..."
+        loglik = np.empty(logpost.size)
+        for i in xrange(logpost.size):
+            std_theta = carmcmcLib.vecD()
+            std_theta.extend(trace[i, :])
+            loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
+
+        self._samples['loglik'] = loglik
         # make the parameter names (i.e., the keys) public so the use knows how to get them
         self.parameters = self._samples.keys()
 
     def generate_from_trace(self, trace):
         names = ['sigma', 'measerr_scale', 'log_omega']
         if names != self._samples.keys():
-            self._samples['sigma'] = trace[:, 0]
+            self._samples['var'] = trace[:, 0]
             self._samples['measerr_scale'] = trace[:, 1]
-            self._samples['log_omega'] = trace[:, 1]
+            self._samples['log_omega'] = trace[:, 2]
 
     def _ar_roots(self):
         print "_ar_roots not supported for CAR1"
@@ -1092,8 +1110,8 @@ class CarSample1(CarmaSample):
         print "_ar_coefs not supported for CAR1"
         return
 
-    def _variance(self):
-        self._samples['var'] = 0.5 * self._samples['sigma'] ** 2 / self._samples['log_omega']
+    def _sigma_noise(self):
+        self._samples['sigma'] = np.sqrt(2.0 * self._samples['var'] * np.exp(self._samples['log_omega']))
 
     def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None):
         sigmas = self._samples['sigma']
