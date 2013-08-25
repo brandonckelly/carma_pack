@@ -45,7 +45,7 @@ class CarmaMCMC(object):
 
         if nwalkers is None:
             if p == 1:
-                nwalkers = 1
+                nwalkers = 2
             else:
                 nwalkers = max(10, p+q)
 
@@ -236,7 +236,8 @@ class CarmaSample(samplers.MCMCSample):
         # add the white noise sigmas to the MCMC samples
         self._samples['sigma'] = np.sqrt(sigsqr)
 
-    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", sp=None, doShow=True):
+    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", alpha=0.5, sp=None,
+                            doShow=True):
         """
         Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD. This
         function returns a tuple containing the lower and upper PSD credibility intervals as a function of
@@ -316,7 +317,7 @@ class CarmaSample(samplers.MCMCSample):
         else:
             sp.plot(frequencies, psd_credint[:, 1], color=color)
 
-        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
+        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=alpha)
         sp.set_xlim(frequencies.min(), frequencies.max())
         sp.set_xlabel('Frequency')
         sp.set_ylabel('Power Spectrum')
@@ -422,7 +423,6 @@ class CarmaSample(samplers.MCMCSample):
         kalman_mean, kalman_var = kalman_filter.filter()
         standardized_residuals = (self.y - self.y.mean() - kalman_mean) / np.sqrt(kalman_var)
         plt.subplot(222)
-        plt.plot(self.time, standardized_residuals, '.k')
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
 
@@ -432,20 +432,22 @@ class CarmaSample(samplers.MCMCSample):
         # Stretch the PDF so that it is readable on the residual plot when plotted horizontally
         pdf = pdf / float(pdf.max()) * 0.4 * self.time.max()
         # Add the histogram to the plot
-        plt.barh(bin_edges, pdf, height=bin_edges[1] - bin_edges[0], alpha=0.75)
+        plt.barh(bin_edges, pdf, height=bin_edges[1] - bin_edges[0])
         # now overplot the expected standard normal distribution
         expected_pdf = np.exp(-0.5 * bin_edges ** 2)
         expected_pdf = expected_pdf / expected_pdf.max() * 0.4 * self.time.max()
-        plt.plot(expected_pdf, bin_edges, '-r', lw=2)
+        plt.plot(expected_pdf, bin_edges, 'DarkOrange', lw=2)
+        plt.plot(self.time, standardized_residuals, '.k')
+
 
         # plot the autocorrelation function of the residuals and compare with the 95% confidence intervals for white
         # noise
         plt.subplot(223)
-        maxlag = 20
-        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=maxlag, lw=2)
+        maxlag = 50
         wnoise_upper = 1.96 / np.sqrt(self.time.size)
         wnoise_lower = -1.96 / np.sqrt(self.time.size)
-        plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+        plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, facecolor='grey')
+        lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=maxlag, lw=2)
         plt.xlim(0, maxlag)
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Residuals')
@@ -454,14 +456,15 @@ class CarmaSample(samplers.MCMCSample):
         # white noise
         plt.subplot(224)
         squared_residuals = standardized_residuals ** 2
-        lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag,
-                                                        lw=2)
         wnoise_upper = 1.96 / np.sqrt(self.time.size)
         wnoise_lower = -1.96 / np.sqrt(self.time.size)
-        plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, alpha=0.5, facecolor='grey')
+        plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, facecolor='grey')
+        lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag,
+                                                        lw=2)
         plt.xlim(0, maxlag)
         plt.xlabel('Time Lag')
         plt.ylabel('ACF of Sqrd. Resid.')
+        plt.tight_layout()
 
         if doShow:
             plt.show()
