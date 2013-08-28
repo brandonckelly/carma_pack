@@ -103,10 +103,12 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
     // Construct the complex vector of roots of the characteristic polynomial:
     // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
     for (int i=0; i<p_/2; i++) {
-        double quad_term1 = exp(theta(2+2*i)); // alpha(s) decomosed into its quadratic terms
+        // alpha(s) decomposed into its quadratic terms:
+        //   alpha(s) = (quad_term1 + quad_term2 * s + s^2) * ...
+        double quad_term1 = exp(theta(2+2*i));
         double quad_term2 = exp(theta(2+2*i+1));
 
-        double discriminant = quad_term2 - 4.0 * quad_term1;
+        double discriminant = quad_term2 * quad_term2 - 4.0 * quad_term1;
         
         if (discriminant > 0) {
             // two real roots
@@ -202,17 +204,17 @@ arma::vec CARp::StartingAR() {
         // value of the system frequencies
         lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
     }
-    
+
     arma::vec loga(p_);
     
     // convert the PSD lorentzian parameters to quadratic terms in the AR polynomial decomposition
     for (int i=0; i<p_/2; i++) {
         double real_part = -2.0 * arma::datum::pi * lorentz_width(i);
         double imag_part = 2.0 * arma::datum::pi * lorentz_cent(i);
-        double quad_term1 = imag_part / 2.0 + real_part * real_part;
+        double quad_term1 = real_part * real_part + imag_part * imag_part;
         double quad_term2 = -2.0 * real_part;
-        loga(2*i) = log(2.0 * arma::datum::pi * quad_term1);
-        loga(1+2*i) = log(2.0 * arma::datum::pi * quad_term2);
+        loga(2*i) = log(quad_term1);
+        loga(1+2*i) = log(quad_term2);
     }
     if ((p_ % 2) == 1) {
         // p is odd, so add in additional value of lorentz_width
@@ -229,8 +231,8 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     double measerr_scale = theta(1);
     arma::cx_vec ar_roots = ExtractAR(theta);
     
-    arma::vec lorentz_cent = arma::imag(ar_roots);
-    arma::vec lorentz_width = arma::real(ar_roots);
+    arma::vec lorentz_cent = arma::abs(arma::imag(ar_roots)) / 2.0 / arma::datum::pi;
+    arma::vec lorentz_width = -arma::real(ar_roots) / 2.0 / arma::datum::pi;
     
     // Find the set of Frequencies satisfying the prior bounds
     arma::uvec valid_frequencies1 = arma::find(lorentz_cent < max_freq_);
