@@ -275,6 +275,8 @@ public:
     
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
+    // return the starting values for the AR and MA parameters
+    arma::vec StartingAR();
 
     // extract the lorentzian parameters from the CARMA parameter vector
     arma::cx_vec ExtractAR(arma::vec theta) {
@@ -318,6 +320,8 @@ public:
 
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
+    // return the starting value for the MA coefficients
+    arma::vec StartingMA();
     
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta);
@@ -354,6 +358,8 @@ public:
     
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
+    // Return the starting value for the kappa parameter
+    double StartingKappa();
     
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta);

@@ -905,7 +905,7 @@ TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
     int nwalkers = 2;
     
     std::shared_ptr<CAR1> mcmc_out;
-    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_);
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_, nwalkers, 1);
     
     std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
     std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
@@ -1172,6 +1172,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     arma::vec bad_theta(p+2+q); // parameter value will violated the prior bounds
     bad_theta = carma_test.StartingValue();
 
+    // violate bounds on standard deviation of lightcurve
     bad_theta = carma_test.StartingValue();
     bad_theta(0) = 2.0 * max_stdev;
     double logpost = carma_test.LogDensity(bad_theta);
@@ -1180,6 +1181,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     logpost = carma_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
     
+    // violate bounds on measurement error scaling parameter
     bad_theta(0) = max_stdev / 10.0;
     bad_theta(1) = 0.1;
     logpost = carma_test.LogDensity(bad_theta);
@@ -1188,6 +1190,9 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     logpost = carma_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
     
+    /*
+    
+    // violate bounds on lorentzian widths
     bad_theta(1) = 1.0;
     int nbad_width = 0;
     for (int j=0; j<p/2; j++) {
@@ -1206,6 +1211,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     }
     REQUIRE(nbad_width == 0);
     
+    // violate bounds on lorentzian centroids
     double qpo_cent = bad_theta(2);
     bad_theta(2) = log(2.0 * max_freq);
     logpost = carma_test.LogDensity(bad_theta);
@@ -1216,6 +1222,8 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     logpost = carma_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
     bad_theta(2+2*(p/2-1)) = qpo_cent;
+    
+    // violate ordering of lorentzian centroids
     int nbad_cent = 0;
     for (int j=1; j<p/2; j++) {
         // violate the ordering of the lorentzian centroids
@@ -1228,6 +1236,8 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
         bad_theta(2+2*j) = qpo_cent;
     }
     REQUIRE(nbad_cent == 0);
+     
+     */
 }
 
 TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {

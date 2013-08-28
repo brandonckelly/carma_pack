@@ -134,53 +134,18 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
 // Return the starting value and set log_posterior_
 arma::vec CARp::StartingValue()
 {
-	double min_freq = 1.0 / (time_.max() - time_.min());
     // Create the parameter vector, theta
     arma::vec theta(p_+2);
     
     bool good_initials = false;
     while (!good_initials) {
-        
-        // Obtain initial values for Lorentzian centroids (= system frequencies) and 
-        // widths (= break frequencies)
-        arma::vec lorentz_cent((p_+1)/2);
-        lorentz_cent.randu();
-        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
-        lorentz_cent = arma::exp(lorentz_cent);
-        
-        // Force system frequencies to be in descending order to make the model identifiable
-        lorentz_cent = arma::sort(lorentz_cent, 1);
-        
-        arma::vec lorentz_width((p_+1)/2);
-        lorentz_width.randu();
-        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
-        lorentz_width = arma::exp(lorentz_width);
-
-        if ((p_ % 2) == 1) {
-            // p is odd, so add additional low-frequency component
-            lorentz_cent(p_/2) = 0.0;
-            // make initial break frequency of low-frequency component less than minimum
-            // value of the system frequencies
-            lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
-        }
-
-        // convert the PSD lorentzian parameters to quadratic terms in the AR polynomial decomposition
-        for (int i=0; i<p_/2; i++) {
-            double real_part = -2.0 * arma::datum::pi * lorentz_width(i);
-            double imag_part = 2.0 * arma::datum::pi * lorentz_cent(i);
-            double quad_term1 = imag_part / 2.0 + real_part * real_part;
-            double quad_term2 = -2.0 * real_part;
-            theta(2+2*i) = log(2.0 * arma::datum::pi * quad_term1);
-            theta(3+2*i) = log(2.0 * arma::datum::pi * quad_term2);
-        }
-        if ((p_ % 2) == 1) {
-            // p is odd, so add in additional value of lorentz_width
-            double real_part = -2.0 * arma::datum::pi * lorentz_width(p_/2);
-            theta(p_+1) = log(-real_part);
-        }
 
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
+        arma::vec loga = StartingAR();
+        for (int i=0; i<p_; i++) {
+            theta(2+i) = loga(i);
+        }
         
         double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
         arma::cx_vec alpha_roots = ARRoots(theta);
@@ -209,6 +174,52 @@ arma::vec CARp::StartingValue()
     } // continue loop until the starting values give us a finite posterior
     
     return theta;
+}
+
+// return the starting values for the autoregressive polynomial paramters
+arma::vec CARp::StartingAR() {
+    double min_freq = 1.0 / (time_.max() - time_.min());
+    
+    // Obtain initial values for Lorentzian centroids (= system frequencies) and
+    // widths (= break frequencies)
+    arma::vec lorentz_cent((p_+1)/2);
+    lorentz_cent.randu();
+    lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
+    lorentz_cent = arma::exp(lorentz_cent);
+    
+    // Force system frequencies to be in descending order to make the model identifiable
+    lorentz_cent = arma::sort(lorentz_cent, 1);
+    
+    arma::vec lorentz_width((p_+1)/2);
+    lorentz_width.randu();
+    lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
+    lorentz_width = arma::exp(lorentz_width);
+    
+    if ((p_ % 2) == 1) {
+        // p is odd, so add additional low-frequency component
+        lorentz_cent(p_/2) = 0.0;
+        // make initial break frequency of low-frequency component less than minimum
+        // value of the system frequencies
+        lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
+    }
+    
+    arma::vec loga(p_);
+    
+    // convert the PSD lorentzian parameters to quadratic terms in the AR polynomial decomposition
+    for (int i=0; i<p_/2; i++) {
+        double real_part = -2.0 * arma::datum::pi * lorentz_width(i);
+        double imag_part = 2.0 * arma::datum::pi * lorentz_cent(i);
+        double quad_term1 = imag_part / 2.0 + real_part * real_part;
+        double quad_term2 = -2.0 * real_part;
+        loga(2*i) = log(2.0 * arma::datum::pi * quad_term1);
+        loga(1+2*i) = log(2.0 * arma::datum::pi * quad_term2);
+    }
+    if ((p_ % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * lorentz_width(p_/2);
+        loga(p_-1) = log(-real_part);
+    }
+    return loga;
 }
 
 // check prior bounds
@@ -289,49 +300,21 @@ double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma
 // Return the starting value and set log_posterior_
 arma::vec CARMA::StartingValue()
 {
-    double min_freq = 1.0 / (time_.max() - time_.min());
     // Create the parameter vector, theta
     arma::vec theta(p_+q_+2);
     
     bool good_initials = false;
     while (!good_initials) {
         
-        // Obtain initial values for Lorentzian centroids (= system frequencies) and
-        // widths (= break frequencies)
-        arma::vec lorentz_cent((p_+1)/2);
-        lorentz_cent.randu();
-        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
-        lorentz_cent = arma::exp(lorentz_cent);
-        
-        // Force system frequencies to be in descending order to make the model identifiable
-        lorentz_cent = arma::sort(lorentz_cent, 1);
-        
-        arma::vec lorentz_width((p_+1)/2);
-        lorentz_width.randu();
-        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
-        lorentz_width = arma::exp(lorentz_width);
-        
-        if ((p_ % 2) == 1) {
-            // p is odd, so add additional low-frequency component
-            lorentz_cent(p_/2) = 0.0;
-            // make initial break frequency of low-frequency component less than minimum
-            // value of the system frequencies
-            lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        arma::vec loga = StartingAR();
+        for (int i=0; i<p_; i++) {
+            theta(2+i) = loga(i);
         }
         
-        for (int i=0; i<p_/2; i++) {
-            theta(2+2*i) = log(lorentz_cent(i));
-            theta(3+2*i) = log(lorentz_width(i));
-        }
-        if ((p_ % 2) == 1) {
-            // p is odd, so add in additional value of lorentz_width
-            theta(p_+1) = log(lorentz_width(p_/2));
-        }
-
-        // get initial guess for the moving average polynomial coefficients
-        arma::vec ma_coefs(q_);
-        ma_coefs.randn();
-        theta(arma::span(p_+2,theta.n_elem-1)) = arma::abs(ma_coefs);
+        arma::vec ma_coefs = StartingMA();
+        theta(arma::span(p_+2,theta.n_elem-1)) = ma_coefs;
         
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
@@ -367,6 +350,13 @@ arma::vec CARMA::StartingValue()
     return theta;
 }
 
+// get initial guess for the moving average polynomial coefficients
+arma::vec CARMA::StartingMA() {
+    arma::vec ma_coefs(q_);
+    ma_coefs.randn();
+    return arma::abs(ma_coefs);
+}
+
 // extract the moving-average coefficients from the CARMA parameter vector
 arma::vec CARMA::ExtractMA(arma::vec theta)
 {
@@ -384,48 +374,20 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
 
 arma::vec ZCARMA::StartingValue()
 {
-    double min_freq = 1.0 / (time_.max() - time_.min());
     // Create the parameter vector, theta
     arma::vec theta(p_+3);
     
     bool good_initials = false;
     while (!good_initials) {
         
-        // Obtain initial values for Lorentzian centroids (= system frequencies) and
-        // widths (= break frequencies)
-        arma::vec lorentz_cent((p_+1)/2);
-        lorentz_cent.randu();
-        lorentz_cent = log(max_freq_ / min_freq) * lorentz_cent + log(min_freq);
-        lorentz_cent = arma::exp(lorentz_cent);
-        
-        // Force system frequencies to be in descending order to make the model identifiable
-        lorentz_cent = arma::sort(lorentz_cent, 1);
-        
-        arma::vec lorentz_width((p_+1)/2);
-        lorentz_width.randu();
-        lorentz_width = log(max_freq_ / min_freq) * lorentz_width + log(min_freq);
-        lorentz_width = arma::exp(lorentz_width);
-        
-        if ((p_ % 2) == 1) {
-            // p is odd, so add additional low-frequency component
-            lorentz_cent(p_/2) = 0.0;
-            // make initial break frequency of low-frequency component less than minimum
-            // value of the system frequencies
-            lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        arma::vec loga = StartingAR();
+        for (int i=0; i<p_; i++) {
+            theta(2+i) = loga(i);
         }
         
-        for (int i=0; i<p_/2; i++) {
-            theta(2+2*i) = log(lorentz_cent(i));
-            theta(3+2*i) = log(lorentz_width(i));
-        }
-        if ((p_ % 2) == 1) {
-            // p is odd, so add in additional value of lorentz_width
-            theta(p_+1) = log(lorentz_width(p_/2));
-        }
-        
-        // get initial guess for the moving average polynomial coefficients, parameterized by kappa
-        double kappa_normed = RandGen.uniform();
-        theta(2+p_) = logit(kappa_normed);
+        theta(2+p_) = logit(StartingKappa());
         
         // compute the coefficients of the MA polynomial
         arma::vec ma_coefs = ExtractMA(theta);
@@ -462,6 +424,12 @@ arma::vec ZCARMA::StartingValue()
     } // continue loop until the starting values give us a finite posterior
     
     return theta;
+}
+
+// get initial guess for the moving average polynomial coefficients, parameterized by kappa
+double ZCARMA::StartingKappa() {
+    double kappa_normed = RandGen.uniform();
+    return kappa_normed;
 }
 
 // extract the moving average coefficients from the parameter vector
