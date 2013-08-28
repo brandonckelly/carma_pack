@@ -1291,7 +1291,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     
     // MCMC parameters
     int carp_order = 1;
-    int nwalkers = 10;
+    int nwalkers = 2;
     int sample_size = 100000;
     int burnin = 50000;
     
