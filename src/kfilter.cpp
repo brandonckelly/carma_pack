@@ -134,32 +134,6 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     return ypredict;
 }
 
-// Calculate the roots of the AR(p) polynomial from the PSD parameters
-arma::cx_vec KalmanFilterp::ARRoots(arma::vec omega) {
-
-    int p = omega.n_elem;
-    arma::cx_vec ar_roots(p);
-    
-    // Construct the complex vector of roots of the characteristic polynomial:
-    // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
-    for (int i=0; i<p/2; i++) {
-        double lorentz_cent = omega(2*i); // PSD is a sum of Lorentzian functions
-        double lorentz_width = omega(2*i+1);
-        ar_roots(2*i) = std::complex<double> (-lorentz_width,lorentz_cent);
-        ar_roots(2*i+1) = std::conj(ar_roots(2*i));
-    }
-	
-    if ((p % 2) == 1) {
-        // p is odd, so add in additional low-frequency component
-        double lorentz_width = omega(p-1);
-        ar_roots(p-1) = std::complex<double> (-lorentz_width, 0.0);
-    }
-    
-    ar_roots *= 2.0 * arma::datum::pi;
-    
-    return ar_roots;
-}
-
 // Reset the Kalman Filter for a CARMA(p,q) process
 void KalmanFilterp::Reset() {
     
@@ -169,9 +143,9 @@ void KalmanFilterp::Reset() {
 	// is fast.
     arma::cx_mat EigenMat(p_,p_);
 	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);
-	EigenMat.row(1) = ar_roots_.st();
+	EigenMat.row(1) = omega_.st();
 	for (int i=2; i<p_; i++) {
-		EigenMat.row(i) = strans(arma::pow(ar_roots_, i));
+		EigenMat.row(i) = strans(arma::pow(omega_, i));
 	}
     
 	// Input vector under original state space representation
@@ -192,7 +166,7 @@ void KalmanFilterp::Reset() {
 		for (int j=i; j<p_; j++) {
 			// Only fill in upper triangle of StateVar because of symmetry
 			StateVar_(i,j) = -sigsqr_ * Jvector(i) * std::conj(Jvector(j)) /
-            (ar_roots_(i) + std::conj(ar_roots_(j)));
+            (omega_(i) + std::conj(omega_(j)));
 		}
 	}
 	StateVar_ = arma::symmatu(StateVar_); // StateVar is symmetric
@@ -223,7 +197,7 @@ void KalmanFilterp::Update() {
     PredictionVar_ -= var(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
     
     // Predict the next state
-    rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
+    rho_ = arma::exp(omega_ * dt_(current_index_-1));
     state_vector_ = rho_ % state_vector_;
     
     // Update the predicted state variance matrix
@@ -271,7 +245,7 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
         state_vector_ += kalman_gain_ * innovation_;
         PredictionVar_ -= var(ipredict-1) * (kalman_gain_ * kalman_gain_.t());
         double dt = std::abs(time - time_(ipredict-1));
-        rho_ = arma::exp(ar_roots_ * dt);
+        rho_ = arma::exp(omega_ * dt);
         state_vector_ = rho_ % state_vector_;
         PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
         
@@ -323,7 +297,7 @@ void KalmanFilterp::InitializeCoefs(double time, unsigned int itime, double ymea
     PredictionVar_ -= yvar * (kalman_gain_ * kalman_gain_.t());
     // coefs(time_predict|time_predict) --> coefs(time[i+1]|time_predict)
     double dt = std::abs(time_(itime) - time);
-    rho_ = arma::exp(ar_roots_ * dt);
+    rho_ = arma::exp(omega_ * dt);
     state_const_ = rho_ % state_const_;
     state_slope_ = rho_ % state_slope_;
     // update the predicted state covariance matrix
@@ -348,7 +322,7 @@ void KalmanFilterp::UpdateCoefs() {
     // update the state one-step prediction error variance
     PredictionVar_ -= var(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
     // compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
-    rho_ = arma::exp(ar_roots_ * dt_(current_index_-1));
+    rho_ = arma::exp(omega_ * dt_(current_index_-1));
     state_const_ = rho_ % state_const_;
     state_slope_ = rho_ % state_slope_;
     // update the predicted state covariance matrix

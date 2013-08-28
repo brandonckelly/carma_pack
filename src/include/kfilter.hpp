@@ -108,7 +108,7 @@ public:
     OmegaType GetOmega() {
         return omega_;
     }
-    virtual void SetMA(OmegaType ma_coefs) {}
+    virtual void SetMA(arma::vec ma_coefs) {}
         
     double GetConst() { return yconst_; }
     double GetSlope() { return yslope_; }
@@ -260,22 +260,21 @@ public:
  Same as KalmanFilter1 but for a CARMA(p,q) process
  */
 
-class KalmanFilterp : public KalmanFilter<arma::vec> {
+class KalmanFilterp : public KalmanFilter<arma::cx_vec> {
 public:
     // Constructors
-    KalmanFilterp() : KalmanFilter<arma::vec>() {}
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<arma::vec>(time, y, yerr) {init();}
-    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::vec& omega, arma::vec& ma_coefs) :
-        KalmanFilter<arma::vec>(time, y, yerr)
+    KalmanFilterp() : KalmanFilter<arma::cx_vec>() {}
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr) : KalmanFilter<arma::cx_vec>(time, y, yerr) {init();}
+    KalmanFilterp(arma::vec& time, arma::vec& y, arma::vec& yerr, double sigsqr, arma::cx_vec& omega, arma::vec& ma_coefs) :
+        KalmanFilter<arma::cx_vec>(time, y, yerr)
     {
         sigsqr_ = sigsqr;
-        omega_ = omega;
+        omega_ = omega; // omega are the roots of the AR characteristic polynomial
         p_ = omega_.n_elem;
         if (p_ > ma_coefs.n_elem) {
             ma_coefs.resize(p_);
         }
         SetMA(ma_coefs);
-        ar_roots_ = ARRoots(omega_);
         
         // set sizes of arrays
         state_vector_.zeros(p_);
@@ -288,7 +287,7 @@ public:
         rotated_ma_coefs_.zeros(p_);
     }
     KalmanFilterp(std::vector<double> time, std::vector<double> y, std::vector<double> yerr) :
-        KalmanFilter<arma::vec>()
+        KalmanFilter<arma::cx_vec>()
     {
         arma::vec armatime = arma::conv_to<arma::vec>::from(time);
         arma::vec armay    = arma::conv_to<arma::vec>::from(y);
@@ -299,13 +298,13 @@ public:
         init();
     }
    KalmanFilterp(std::vector<double> time, std::vector<double> y, std::vector<double> yerr, double sigsqr, 
-                 std::vector<double> omega, std::vector<double> ma_coefs) :
-        KalmanFilter<arma::vec>()
+                 std::vector<std::complex<double> > omega, std::vector<double> ma_coefs) :
+        KalmanFilter<arma::cx_vec>()
     {
         arma::vec armatime  = arma::conv_to<arma::vec>::from(time);
         arma::vec armay     = arma::conv_to<arma::vec>::from(y);
         arma::vec armady    = arma::conv_to<arma::vec>::from(yerr);
-        arma::vec armaomega = arma::conv_to<arma::vec>::from(omega);
+        arma::cx_vec armaomega = arma::conv_to<arma::cx_vec>::from(omega);
         arma::vec armacoefs = arma::conv_to<arma::vec>::from(ma_coefs);
         time_ = armatime;
         y_ = armay;
@@ -317,7 +316,6 @@ public:
             armacoefs.resize(p_);
         }
         SetMA(armacoefs);
-        ar_roots_ = ARRoots(omega_);
         
         // set sizes of arrays
         state_vector_.zeros(p_);
@@ -339,13 +337,10 @@ public:
     arma::vec GetMA() {
         return ma_coefs_.st();
     }
-    // Compute the roots of the AR(p) polynomial from the PSD parameters, omega
-    arma::cx_vec ARRoots(arma::vec omega);
-    
+
     // set the AR parameters
-    void SetOmega(arma::vec omega) {
+    void SetOmega(arma::cx_vec omega) {
         omega_ = omega;
-        ar_roots_ = ARRoots(omega);
         // resize arrays
         p_ = omega_.n_elem;
         state_vector_.zeros(p_);
@@ -368,7 +363,6 @@ public:
     
 private:
     // parameters
-    arma::cx_vec ar_roots_; // ar_roots are derived from the values of omega_
     arma::rowvec ma_coefs_; // moving average terms
     unsigned int p_; // the orders of the CARMA process
     // quantities defining the current state of the kalman filter

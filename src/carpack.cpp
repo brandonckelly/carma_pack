@@ -103,20 +103,31 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
     // Construct the complex vector of roots of the characteristic polynomial:
     // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
     for (int i=0; i<p_/2; i++) {
-        double lorentz_cent = exp(theta(2+2*i)); // PSD is a sum of Lorentzian functions
-        double lorentz_width = exp(theta(2+2*i+1));
-        ar_roots(2*i) = std::complex<double> (-lorentz_width,lorentz_cent);
-        ar_roots(2*i+1) = std::conj(ar_roots(2*i));
+        double quad_term1 = exp(theta(2+2*i)); // alpha(s) decomosed into its quadratic terms
+        double quad_term2 = exp(theta(2+2*i+1));
+
+        double discriminant = quad_term2 - 4.0 * quad_term1;
+        
+        if (discriminant > 0) {
+            // two real roots
+            double root1 = -0.5 * (quad_term2 + sqrt(discriminant));
+            double root2 = -0.5 * (quad_term2 - sqrt(discriminant));
+            ar_roots(2*i) = std::complex<double> (root1, 0.0);
+            ar_roots(2*i+1) = std::complex<double> (root2, 0.0);
+        } else {
+            double real_part = -0.5 * quad_term2;
+            double imag_part = -0.5 * sqrt(-discriminant);
+            ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+            ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
+        }
     }
 	
     if ((p_ % 2) == 1) {
         // p is odd, so add in additional low-frequency component
-        double lorentz_width = exp(theta(2+p_-1));
-        ar_roots(p_-1) = std::complex<double> (-lorentz_width, 0.0);
+        double real_root = -exp(theta(2+p_-1));
+        ar_roots(p_-1) = std::complex<double> (real_root, 0.0);
     }
-    
-    ar_roots *= 2.0 * arma::datum::pi;
-    
+        
     return ar_roots;
 }
 
@@ -153,13 +164,19 @@ arma::vec CARp::StartingValue()
             lorentz_width(p_/2) = exp(RandGen.uniform(log(min_freq), log(lorentz_cent(p_/2-1))));
         }
 
+        // convert the PSD lorentzian parameters to quadratic terms in the AR polynomial decomposition
         for (int i=0; i<p_/2; i++) {
-            theta(2+2*i) = log(lorentz_cent(i));
-            theta(3+2*i) = log(lorentz_width(i));
+            double real_part = -2.0 * arma::datum::pi * lorentz_width(i);
+            double imag_part = 2.0 * arma::datum::pi * lorentz_cent(i);
+            double quad_term1 = imag_part / 2.0 + real_part * real_part;
+            double quad_term2 = -2.0 * real_part;
+            theta(2+2*i) = log(2.0 * arma::datum::pi * quad_term1);
+            theta(3+2*i) = log(2.0 * arma::datum::pi * quad_term2);
         }
         if ((p_ % 2) == 1) {
             // p is odd, so add in additional value of lorentz_width
-            theta(p_+1) = log(lorentz_width(p_/2));
+            double real_part = -2.0 * arma::datum::pi * lorentz_width(p_/2);
+            theta(p_+1) = log(-real_part);
         }
 
         // Initial guess for model standard deviation is randomly distributed
@@ -199,16 +216,19 @@ bool CARp::CheckPriorBounds(arma::vec theta)
 {
     double ysigma = theta(0);
     double measerr_scale = theta(1);
-    arma::vec lorentz_params = ExtractAR(theta);
+    arma::cx_vec ar_roots = ExtractAR(theta);
+    
+    arma::vec lorentz_cent = arma::imag(ar_roots);
+    arma::vec lorentz_width = arma::real(ar_roots);
     
     // Find the set of Frequencies satisfying the prior bounds
-    arma::uvec valid_frequencies1 = arma::find(lorentz_params < max_freq_);
-	arma::uvec valid_frequencies2 = arma::find(lorentz_params > min_freq_);
+    arma::uvec valid_frequencies1 = arma::find(lorentz_cent < max_freq_);
+	arma::uvec valid_frequencies2 = arma::find(lorentz_width < max_freq_);
     
     bool prior_satisfied = true;
     
-    if ( (valid_frequencies1.n_elem != lorentz_params.n_elem) ||
-        (valid_frequencies2.n_elem != lorentz_params.n_elem) ||
+    if ( (valid_frequencies1.n_elem != lorentz_cent.n_elem) ||
+        (valid_frequencies2.n_elem != lorentz_width.n_elem) ||
         (ysigma > max_stdev_) || (ysigma < 0) ||
         (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
         // Value are outside of prior bounds
@@ -216,8 +236,8 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     }
 	// Make sure the Lorentzian centroids are still in decreasing order
 	for (int i=1; i<p_/2; i++) {
-		double lorentz_cent_difference = exp(theta(2+2*(i-1))) - exp(theta(2+2*i));
-		if (lorentz_cent_difference < 0) {
+        double lorentz_cent_difference = lorentz_cent(i) - lorentz_cent(i-1);
+		if (lorentz_cent_difference > 1e-8) {
 			// Lorentzians are not in decreasing order, reject this proposal
 			prior_satisfied = false;
 		}

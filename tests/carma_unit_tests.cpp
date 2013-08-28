@@ -113,7 +113,7 @@ TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vec
     y(12) = y0(43);
     
     double sigsqr = 1.0;
-    arma::vec omega = arma::exp(arma::randn<arma::vec>(p));
+    arma::cx_vec omega = arma::exp(arma::randn<arma::cx_vec>(p));
     arma::vec ma_coefs = arma::zeros<arma::vec>(p);
     ma_coefs(0) = 1.0;
     
@@ -156,7 +156,7 @@ TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vec
     stime[12] = time0(43);
     sy[12] = y0(43);
     
-    std::vector<double> somega = arma::conv_to<std::vector<double> >::from(omega);
+    std::vector<std::complex<double> > somega = arma::conv_to<std::vector<std::complex<double> > >::from(omega);
     std::vector<double> sma_coefs = arma::conv_to<std::vector<double> >::from(ma_coefs);
     
     KalmanFilterp sKfilter(stime, sy, sysig, sigsqr, somega, sma_coefs);
@@ -398,14 +398,19 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     double kappa = 3.0;
     
     // Create the parameter vector, omega
-	arma::vec omega(p);
+	arma::cx_vec ar_roots(p);
     for (int i=0; i<p/2; i++) {
-        omega(2*i) = qpo_cent[i];
-        omega(1+2*i) = qpo_width[i];
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+        ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
     }
-    // p is odd, so add in additional value of lorentz_width
-    omega(p-1) = qpo_width[p/2];
-    
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        ar_roots(p+1) = std::complex<double> (real_part, 0.0);
+    }
+
     // construct the moving average coefficients
     arma::vec ma_coefs(p);
 	ma_coefs(0) = 1.0;
@@ -413,10 +418,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
 		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
 	}
     
-    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
-    
-    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
-    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, ar_roots, ma_coefs);
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -511,14 +513,19 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     double kappa = 3.0;
     
     // Create the parameter vector, omega
-	arma::vec omega(p);
+	arma::cx_vec ar_roots(p);
     for (int i=0; i<p/2; i++) {
-        omega(2*i) = qpo_cent[i];
-        omega(1+2*i) = qpo_width[i];
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+        ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
     }
-    // p is odd, so add in additional value of lorentz_width
-    omega(p-1) = qpo_width[p/2];
-    
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        ar_roots(p+1) = std::complex<double> (real_part, 0.0);
+    }
+
     // construct the moving average coefficients
     arma::vec ma_coefs(p);
 	ma_coefs(0) = 1.0;
@@ -526,11 +533,8 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
 		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
 	}
     
-    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, ar_roots, ma_coefs);
     Kfilter.Filter();
-    
-    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
-    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -652,6 +656,20 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
     double kappa = 3.0;
     
     // Create the parameter vector, omega
+	arma::cx_vec ar_roots(p);
+    for (int i=0; i<p/2; i++) {
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+        ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
+    }
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        ar_roots(p+1) = std::complex<double> (real_part, 0.0);
+    }
+    
+    // Create the parameter vector, omega
 	arma::vec omega(p);
     for (int i=0; i<p/2; i++) {
         omega(2*i) = qpo_cent[i];
@@ -667,11 +685,8 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
 		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
 	}
     
-    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, ar_roots, ma_coefs);
     Kfilter.Filter();
-    
-    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
-    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -845,7 +860,7 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.Ge
         arma::vec theta = car5_test.Value();
         double logdens_computed = car5_test.LogDensity(theta); // explicitly calculate log-posterior for current theta
         // calculate log-posterior manually from the kalman filter object
-        arma::vec omega = car5_test.ExtractAR(theta);
+        arma::cx_vec omega = car5_test.ExtractAR(theta);
         Kfilter.SetOmega(omega);
         arma::vec ma_coefs = car5_test.ExtractMA(theta);
         Kfilter.SetMA(ma_coefs);
@@ -1282,7 +1297,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     
     // run the MCMC sampler
     std::shared_ptr<CAR1> mcmc_out;
-    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr);
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr, nwalkers);
     std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
     std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     

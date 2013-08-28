@@ -106,7 +106,7 @@ public:
     // extract the lorentzian parameters from the CARMA parameter vector
     virtual OmegaType ExtractAR(arma::vec theta) = 0;
     // extract the moving-average parameters from the CARMA parameter vector
-    virtual OmegaType ExtractMA(arma::vec theta) = 0;
+    virtual arma::vec ExtractMA(arma::vec theta) = 0;
     // extract the variance in the driving noise from the CARMA parameter vector
     virtual double ExtractSigsqr(arma::vec theta) = 0;
         
@@ -125,7 +125,7 @@ public:
     double LogDensity(arma::vec theta)
     {
         OmegaType omega = ExtractAR(theta);
-        OmegaType ma_coefs = ExtractMA(theta);
+        arma::vec ma_coefs = ExtractMA(theta);
         double sigsqr = ExtractSigsqr(theta);
         double measerr_scale = theta(1);
         
@@ -238,7 +238,7 @@ public:
     
     // extract the AR parameters from the parameter vector
     double ExtractAR(arma::vec theta) { return exp(theta(2)); }
-    double ExtractMA(arma::vec theta) { return 1.0; }
+    arma::vec ExtractMA(arma::vec theta) { return arma::zeros<arma::vec>(1); }
     
     // generate starting values of the CAR(1) parameters
 	arma::vec StartingValue();
@@ -256,12 +256,12 @@ public:
  Continuous time autoregressive process of order p.
 */
 
-class CARp : public CARMA_Base<arma::vec> {
+class CARp : public CARMA_Base<arma::cx_vec> {
 public:
     // Constructor
     CARp() {}
     CARp(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
-         double temperature=1.0): CARMA_Base<arma::vec>(track, name, time, y, yerr, temperature), p_(p)
+         double temperature=1.0): CARMA_Base<arma::cx_vec>(track, name, time, y, yerr, temperature), p_(p)
 	{
         pKFilter_ = std::make_shared<KalmanFilterp>(time_, y_, yerr_);
 		value_.set_size(p_+2);
@@ -277,8 +277,8 @@ public:
 	arma::vec StartingValue();
 
     // extract the lorentzian parameters from the CARMA parameter vector
-    arma::vec ExtractAR(arma::vec theta) {
-        return arma::exp(theta(arma::span(2,p_+1)));
+    arma::cx_vec ExtractAR(arma::vec theta) {
+        return ARRoots(theta);
     }
     // extract the moving-average parameters from the CARMA parameter vector
     arma::vec ExtractMA(arma::vec theta) { return ma_coefs_; }
