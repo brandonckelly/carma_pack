@@ -408,7 +408,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     if ((p % 2) == 1) {
         // p is odd, so add in additional value of lorentz_width
         double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
-        ar_roots(p+1) = std::complex<double> (real_part, 0.0);
+        ar_roots(p-1) = std::complex<double> (real_part, 0.0);
     }
 
     // construct the moving average coefficients
@@ -523,7 +523,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     if ((p % 2) == 1) {
         // p is odd, so add in additional value of lorentz_width
         double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
-        ar_roots(p+1) = std::complex<double> (real_part, 0.0);
+        ar_roots(p-1) = std::complex<double> (real_part, 0.0);
     }
 
     // construct the moving average coefficients
@@ -666,7 +666,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
     if ((p % 2) == 1) {
         // p is odd, so add in additional value of lorentz_width
         double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
-        ar_roots(p+1) = std::complex<double> (real_part, 0.0);
+        ar_roots(p-1) = std::complex<double> (real_part, 0.0);
     }
     
     // Create the parameter vector, omega
