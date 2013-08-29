@@ -113,7 +113,7 @@ TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vec
     y(12) = y0(43);
     
     double sigsqr = 1.0;
-    arma::vec omega = arma::exp(arma::randn<arma::vec>(p));
+    arma::cx_vec omega = arma::exp(arma::randn<arma::cx_vec>(p));
     arma::vec ma_coefs = arma::zeros<arma::vec>(p);
     ma_coefs(0) = 1.0;
     
@@ -156,7 +156,7 @@ TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vec
     stime[12] = time0(43);
     sy[12] = y0(43);
     
-    std::vector<double> somega = arma::conv_to<std::vector<double> >::from(omega);
+    std::vector<std::complex<double> > somega = arma::conv_to<std::vector<std::complex<double> > >::from(omega);
     std::vector<double> sma_coefs = arma::conv_to<std::vector<double> >::from(ma_coefs);
     
     KalmanFilterp sKfilter(stime, sy, sysig, sigsqr, somega, sma_coefs);
@@ -187,6 +187,8 @@ TEST_CASE("KalmanFilterp/constructor", "Make sure constructor sorts the time vec
 }
 
 TEST_CASE("KalmanFilter1/Filter", "Test the Kalman Filter for a CAR(1) process") {
+    std::cout << "Testing KalmanFilter1.Filter()..." << std::endl;
+
     // first grab the simulated Gaussian CAR(1) data set
     arma::mat car1_data;
     car1_data.load(car1file, arma::raw_ascii);
@@ -273,6 +275,8 @@ TEST_CASE("KalmanFilter1/Filter", "Test the Kalman Filter for a CAR(1) process")
 }
 
 TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1) process") {
+    std::cout << "Testing KalmanFilter1.Predict()..." << std::endl;
+
     // first grab the simulated Gaussian CAR(1) data set
     arma::mat car1_data;
     car1_data.load(car1file, arma::raw_ascii);
@@ -381,6 +385,8 @@ TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1
 }
 
 TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) process") {
+    std::cout << "Testing KalmanFilterp.Filter()..." << std::endl;
+
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
     zcarma_data.load(zcarmafile, arma::raw_ascii);
@@ -398,14 +404,19 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     double kappa = 3.0;
     
     // Create the parameter vector, omega
-	arma::vec omega(p);
+	arma::cx_vec ar_roots(p);
     for (int i=0; i<p/2; i++) {
-        omega(2*i) = qpo_cent[i];
-        omega(1+2*i) = qpo_width[i];
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+        ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
     }
-    // p is odd, so add in additional value of lorentz_width
-    omega(p-1) = qpo_width[p/2];
-    
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        ar_roots(p-1) = std::complex<double> (real_part, 0.0);
+    }
+
     // construct the moving average coefficients
     arma::vec ma_coefs(p);
 	ma_coefs(0) = 1.0;
@@ -413,10 +424,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
 		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
 	}
     
-    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
-    
-    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
-    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, ar_roots, ma_coefs);
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -494,6 +502,8 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
 }
 
 TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARMA(5) process") {
+    std::cout << "Testing KalmanFilterp.Predict()..." << std::endl;
+
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
     zcarma_data.load(zcarmafile, arma::raw_ascii);
@@ -511,14 +521,19 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     double kappa = 3.0;
     
     // Create the parameter vector, omega
-	arma::vec omega(p);
+	arma::cx_vec ar_roots(p);
     for (int i=0; i<p/2; i++) {
-        omega(2*i) = qpo_cent[i];
-        omega(1+2*i) = qpo_width[i];
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+        ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
     }
-    // p is odd, so add in additional value of lorentz_width
-    omega(p-1) = qpo_width[p/2];
-    
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        ar_roots(p-1) = std::complex<double> (real_part, 0.0);
+    }
+
     // construct the moving average coefficients
     arma::vec ma_coefs(p);
 	ma_coefs(0) = 1.0;
@@ -526,11 +541,8 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
 		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
 	}
     
-    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, ar_roots, ma_coefs);
     Kfilter.Filter();
-    
-    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
-    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -635,6 +647,8 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
 }
 
 TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) process.") {
+    std::cout << "Testing KalmanFilter1.Simulate()..." << std::endl;
+
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
     zcarma_data.load(zcarmafile, arma::raw_ascii);
@@ -652,6 +666,20 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
     double kappa = 3.0;
     
     // Create the parameter vector, omega
+	arma::cx_vec ar_roots(p);
+    for (int i=0; i<p/2; i++) {
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        ar_roots(2*i) = std::complex<double> (real_part, imag_part);
+        ar_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
+    }
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        ar_roots(p-1) = std::complex<double> (real_part, 0.0);
+    }
+    
+    // Create the parameter vector, omega
 	arma::vec omega(p);
     for (int i=0; i<p/2; i++) {
         omega(2*i) = qpo_cent[i];
@@ -667,11 +695,8 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
 		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
 	}
     
-    KalmanFilterp Kfilter(time, y, yerr, 1.0, omega, ma_coefs);
+    KalmanFilterp Kfilter(time, y, yerr, 1.0, ar_roots, ma_coefs);
     Kfilter.Filter();
-    
-    // Get the roots of the AR(p) polynomial and compute the value of sigsqr given omega and sigmay
-    arma::cx_vec ar_roots = Kfilter.ARRoots(omega);
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -753,6 +778,8 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
 }
 
 TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogPost(theta) after running MCMC sampler") {
+    std::cout << "Running CAR1/logpost_test..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -810,6 +837,8 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
 }
 
 TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.GetLogPost(theta) after running MCMC sampler") {
+    std::cout << "Running CARMA/logpost_test..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -845,7 +874,7 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.Ge
         arma::vec theta = car5_test.Value();
         double logdens_computed = car5_test.LogDensity(theta); // explicitly calculate log-posterior for current theta
         // calculate log-posterior manually from the kalman filter object
-        arma::vec omega = car5_test.ExtractAR(theta);
+        arma::cx_vec omega = car5_test.ExtractAR(theta);
         Kfilter.SetOmega(omega);
         arma::vec ma_coefs = car5_test.ExtractMA(theta);
         Kfilter.SetMA(ma_coefs);
@@ -873,6 +902,8 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.Ge
 }
 
 TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    std::cout << "Running CAR1/logpost_test_mcmc..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -890,7 +921,7 @@ TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
     int nwalkers = 2;
     
     std::shared_ptr<CAR1> mcmc_out;
-    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_);
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_, nwalkers, 1);
     
     std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
     std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
@@ -919,6 +950,8 @@ TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
 }
 
 TEST_CASE("CARp/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    std::cout << "Running CARp/logpost_test..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -965,6 +998,8 @@ TEST_CASE("CARp/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
 }
 
 TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    std::cout << "Running ZCARMA/logpost_test_mcmc..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -1031,6 +1066,8 @@ TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC 
 }
 
 TEST_CASE("CARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculated directly") {
+    std::cout << "Running CARMA/logpost_test_mcmc..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -1078,6 +1115,8 @@ TEST_CASE("CARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC s
 }
 
 TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when prior bounds are violated") {
+    std::cout << "Running CAR1/prior_bounds..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -1135,6 +1174,8 @@ TEST_CASE("CAR1/prior_bounds", "Make sure CAR1::LogDensity returns -infinty when
 }
 
 TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity when prior bounds are violated") {
+    std::cout << "Running CARMA/prior_bounds..." << std::endl;
+
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
@@ -1157,6 +1198,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     arma::vec bad_theta(p+2+q); // parameter value will violated the prior bounds
     bad_theta = carma_test.StartingValue();
 
+    // violate bounds on standard deviation of lightcurve
     bad_theta = carma_test.StartingValue();
     bad_theta(0) = 2.0 * max_stdev;
     double logpost = carma_test.LogDensity(bad_theta);
@@ -1165,6 +1207,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     logpost = carma_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
     
+    // violate bounds on measurement error scaling parameter
     bad_theta(0) = max_stdev / 10.0;
     bad_theta(1) = 0.1;
     logpost = carma_test.LogDensity(bad_theta);
@@ -1173,6 +1216,9 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     logpost = carma_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
     
+    /*
+    
+    // violate bounds on lorentzian widths
     bad_theta(1) = 1.0;
     int nbad_width = 0;
     for (int j=0; j<p/2; j++) {
@@ -1191,6 +1237,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     }
     REQUIRE(nbad_width == 0);
     
+    // violate bounds on lorentzian centroids
     double qpo_cent = bad_theta(2);
     bad_theta(2) = log(2.0 * max_freq);
     logpost = carma_test.LogDensity(bad_theta);
@@ -1201,6 +1248,8 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     logpost = carma_test.LogDensity(bad_theta);
     REQUIRE(logpost == -1.0 * arma::datum::inf);
     bad_theta(2+2*(p/2-1)) = qpo_cent;
+    
+    // violate ordering of lorentzian centroids
     int nbad_cent = 0;
     for (int j=1; j<p/2; j++) {
         // violate the ordering of the lorentzian centroids
@@ -1213,9 +1262,13 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
         bad_theta(2+2*j) = qpo_cent;
     }
     REQUIRE(nbad_cent == 0);
+     
+     */
 }
 
 TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
+    std::cout << "Running ZCARMA/variance..." << std::endl;
+
     // generate some data
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
@@ -1276,13 +1329,13 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     
     // MCMC parameters
     int carp_order = 1;
-    int nwalkers = 10;
+    int nwalkers = 2;
     int sample_size = 100000;
     int burnin = 50000;
     
     // run the MCMC sampler
     std::shared_ptr<CAR1> mcmc_out;
-    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr);
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr, nwalkers);
     std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
     std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     
@@ -1352,15 +1405,24 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
 	arma::vec theta(p+2);
     theta(0) = log(sigmay);
 	theta(1) = measerr_scale;
+    
+    // convert the PSD lorentzian parameters to quadratic terms in the AR polynomial decomposition
     for (int i=0; i<p/2; i++) {
-        theta(2+2*i) = log(qpo_cent[i]);
-        theta(3+2*i) = log(qpo_width[i]);
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        double quad_term1 = real_part * real_part + imag_part * imag_part;
+        double quad_term2 = -2.0 * real_part;
+        theta(2+2*i) = log(quad_term1);
+        theta(3+2*i) = log(quad_term2);
     }
-    // p is odd, so add in additional value of lorentz_width
-    theta(p+1) = log(qpo_width[p/2]);
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        theta(p+1) = log(-real_part);
+    }
 
     std::ofstream mcmc_outfile("data/car5_mcmc.dat");
-    mcmc_outfile << "# sigma, measerr_scale, (lorentz_cent,lorentz_width), logpost" << std::endl;
+    mcmc_outfile << "# sigma, measerr_scale, log(a_1), ..., log(a_p), logpost" << std::endl;
     
     arma::vec sigma_samples(mcmc_sample.size());
     arma::vec scale_samples(mcmc_sample.size());

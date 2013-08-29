@@ -47,7 +47,7 @@ class CarmaMCMC(object):
             if p == 1:
                 nwalkers = 2
             else:
-                nwalkers = max(10, p+q)
+                nwalkers = max(10, p + q)
 
         if nburnin is None:
             nburnin = nsamples / 2
@@ -74,12 +74,12 @@ class CarmaMCMC(object):
         if self.p == 1:
             # Treat the CAR(1) case separately
             self._CppSample = carmcmcLib.run_mcmc_car1(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                              self.nwalkers, self.nthin)
+                                                       self.nwalkers, self.nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CAR1 class, convert to python object
             sample = CarSample1(self.time, self.y, self.ysig, self._CppSample)
         else:
             self._CppSample = carmcmcLib.run_mcmc_carma(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                           self.p, self.q, self.nwalkers, self.doZcarma, self.nthin)
+                                                        self.p, self.q, self.nwalkers, self.doZcarma, self.nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCARMA class, convert to a python object
             if self.doZcarma:
                 sample = ZCarmaSample(self.time, self.y, self.ysig, self._CppSample)
@@ -107,12 +107,12 @@ class CarmaSample(samplers.MCMCSample):
         self.sampler = sampler  # Wrapper around C++ sampler
         logpost = np.array(self.sampler.GetLogLikes())
         trace = np.array(self.sampler.getSamples())
-        
+
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
         # now calculate the AR(p) characteristic polynomial roots, coefficients, MA coefficients, and amplitude of
         # driving noise and add them to the MCMC samples
-        print "Calculating roots of AR polynomial..."
+        print "Calculating PSD Lorentzian parameters..."
         self._ar_roots()
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()
@@ -138,24 +138,18 @@ class CarmaSample(samplers.MCMCSample):
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 2 - self.q
-        names = ['var', 'measerr_scale', 'log_centroid', 'log_width', 'ma_coefs']
+        names = ['var', 'measerr_scale', 'quad_coefs', 'ma_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
             self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
-            self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
-            ar_index = np.arange(0, self.p - 1, 2)
-            # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
-            # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
-            # roots of the AR(p) characteristic polynomial, respectively.
-            self._samples['log_centroid'] = trace[:, 2 + ar_index]
-            if self.p % 2 == 1:
-                # Odd number of roots, so add in low-frequency component
-                ar_index = np.append(ar_index, ar_index.max() + 1)
-            self._samples['log_width'] = trace[:, 3 + ar_index]
+            self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
+            # AR(p) polynomial is factored as a product of quadratic terms:
+            #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
+            self._samples['quad_coefs'] = np.exp(trace[:, 2:self.p + 2])
             if self.q > 0:
                 # Add in coefficients of the moving average polynomial
-                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 2+self.p:]))
+                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 2 + self.p:]))
             else:
                 self._samples['ma_coefs'] = np.ones((trace.shape[0], 1))
 
@@ -176,19 +170,31 @@ class CarmaSample(samplers.MCMCSample):
         Calculate the roots of the CARMA(p,q) characteristic polynomial and add them to the MCMC samples.
         """
         var = self._samples['var']
-        qpo_centroid = np.exp(self._samples['log_centroid'])
-        qpo_width = np.exp(self._samples['log_width'])
+        quad_coefs = self._samples['quad_coefs']
+        self._samples['ar_roots'] = np.empty((var.size, self.p), dtype=complex)
+        self._samples['psd_centroid'] = np.empty((var.size, self.p))
+        self._samples['psd_width'] = np.empty((var.size, self.p))
 
-        ar_roots = np.empty((var.size, self.p), dtype=complex)
         for i in xrange(self.p / 2):
-            ar_roots[:, 2 * i] = qpo_width[:, i] + 1j * qpo_centroid[:, i]
-            ar_roots[:, 2 * i + 1] = np.conjugate(ar_roots[:, 2 * i])
-        if self.p % 2 == 1:
-            # p is odd, so add in low-frequency component
-            ar_roots[:, -1] = qpo_width[:, -1]
+            quad1 = quad_coefs[:, 2 * i]
+            quad2 = quad_coefs[:, 2 * i + 1]
 
-        # add it to the MCMC samples
-        self._samples['ar_roots'] = -2.0 * np.pi * ar_roots
+            discriminant = quad2 ** 2 - 4.0 * quad1
+            sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), 1j * np.sqrt(-discriminant))
+            self._samples['ar_roots'][:, 2 * i] = -0.5 * (quad2 + sqrt_disc)
+            self._samples['ar_roots'][:, 2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
+            self._samples['psd_width'][:, 2 * i] = -np.real(self._samples['ar_roots'][:, 2 * i]) / (2.0 * np.pi)
+            self._samples['psd_centroid'][:, 2 * i] = np.abs(np.imag(self._samples['ar_roots'][:, 2 * i])) / \
+                (2.0 * np.pi)
+            self._samples['psd_width'][:, 2 * i + 1] = -np.real(self._samples['ar_roots'][:, 2 * i + 1]) / (2.0 * np.pi)
+            self._samples['psd_centroid'][:, 2 * i + 1] = np.abs(np.imag(self._samples['ar_roots'][:, 2 * i + 1])) / \
+                (2.0 * np.pi)
+
+        if self.p % 2 == 1:
+            # p is odd, so add in root from linear term
+            self._samples['ar_roots'][:, -1] = -quad_coefs[:, -1]
+            self._samples['psd_centroid'][:, -1] = 0.0
+            self._samples['psd_width'][:, -1] = quad_coefs[:, -1] / (2.0 * np.pi)
 
     def _ar_coefs(self):
         """
@@ -585,21 +591,15 @@ class ZCarmaSample(CarmaSample):
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 3
-        names = ['var', 'measerr_scale', 'log_centroid', 'log_width', 'kappa', 'ma_coefs']
+        names = ['var', 'measerr_scale', 'quad_coefs', 'kappa', 'ma_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
             self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
-            self._samples['measerr_scale'] = trace[:, 1]       # Measurement errors are scaled by this much.
-            ar_index = np.arange(0, self.p - 1, 2)
-            # The centroids and widths of the quasi-periodic oscillations, i.e., of the Lorentzians characterizing
-            # the power spectrum. Note that these are equal to -1 / 2 * pi times the imaginary and real parts of the
-            # roots of the AR(p) characteristic polynomial, respectively.
-            self._samples['log_centroid'] = trace[:, 2 + ar_index]
-            if self.p % 2 == 1:
-                # Odd number of roots, so add in low-frequency component
-                ar_index = np.append(ar_index, ar_index.max() + 1)
-            self._samples['log_width'] = trace[:, 3 + ar_index]
+            self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
+            # AR(p) polynomial is factored as a product of quadratic terms:
+            #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
+            self._samples['quad_coefs'] = np.exp(trace[:, 2:self.p + 2])
             # add kappa values
             self._samples['kappa'] = trace[:, 2 + self.p]
             # update value of q
@@ -607,7 +607,7 @@ class ZCarmaSample(CarmaSample):
             # add MA coefficients
             ma_coefs = np.empty((trace.shape[0], self.p))
             for k in xrange(self.p):
-                ma_coefs[:, k] = comb(self.p-1, k) / self._samples['kappa'] ** k
+                ma_coefs[:, k] = comb(self.p - 1, k) / self._samples['kappa'] ** k
             self._samples['ma_coefs'] = ma_coefs
 
 
@@ -680,7 +680,7 @@ class KalmanFilter(object):
         self.kalman_var = np.empty_like(self.time)
         self.kalman_mean[0] = 0.0
         self.kalman_var[0] = np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H) \
-            + self.yvar[0]
+                             + self.yvar[0]
 
         # Initialize the innovations, i.e., the KF residuals
         self._innovation = self.y[0]
