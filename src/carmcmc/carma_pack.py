@@ -176,11 +176,11 @@ class CarmaSample(samplers.MCMCSample):
         self._samples['psd_width'] = np.empty((var.size, self.p))
 
         for i in xrange(self.p / 2):
-            quad1 = quad_coefs[2 * i]
-            quad2 = quad_coefs[2 * i + 1]
+            quad1 = quad_coefs[:, 2 * i]
+            quad2 = quad_coefs[:, 2 * i + 1]
 
             discriminant = quad2 ** 2 - 4.0 * quad1
-            sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), np.sqrt(-discriminant) + 1j)
+            sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), 1j * np.sqrt(-discriminant))
             self._samples['ar_roots'][:, 2 * i] = -0.5 * (quad2 + sqrt_disc)
             self._samples['ar_roots'][:, 2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
             self._samples['psd_width'][:, 2 * i] = -np.real(self._samples['ar_roots'][:, 2 * i]) / (2.0 * np.pi)
