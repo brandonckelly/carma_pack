@@ -47,6 +47,9 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<std::vector<std::vector<double > > >("vecvecD")
         .def(vector_indexing_suite<std::vector<std::vector<double> > >());
 
+    class_<std::vector<std::complex<double> > >("vecC")
+        .def(vector_indexing_suite<std::vector<std::complex<double> > >());
+    
     class_<std::pair<double, double> >("pairD")
         .def_readwrite("first", &std::pair<double, double>::first)
         .def_readwrite("second", &std::pair<double, double>::second);
@@ -93,7 +96,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
 
     // kfilter.hpp
     class_<KalmanFilter<double>, boost::noncopyable>("KalmanFilter_double", no_init);
-    class_<KalmanFilter<arma::vec>, boost::noncopyable>("KalmanFilter_arma", no_init);
+    class_<KalmanFilter<arma::cx_vec>, boost::noncopyable>("KalmanFilter_arma", no_init);
 
     class_<KalmanFilter1, bases<KalmanFilter<double> >, std::shared_ptr<KalmanFilter1> >("KalmanFilter1", no_init)
         .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
@@ -102,9 +105,10 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("Filter", &KalmanFilter1::Filter)
         .def("Predict", &KalmanFilter1::Predict)
     ;
-    class_<KalmanFilterp, bases<KalmanFilter<arma::vec> >, std::shared_ptr<KalmanFilterp> >("KalmanFilterp", no_init)
+    class_<KalmanFilterp, bases<KalmanFilter<arma::cx_vec> >, std::shared_ptr<KalmanFilterp> >("KalmanFilterp", no_init)
         .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
-        .def(init<std::vector<double>,std::vector<double>,std::vector<double>,double,std::vector<double>,std::vector<double> >())
+        .def(init<std::vector<double>,std::vector<double>,std::vector<double>,double,
+             std::vector<std::complex<double> >,std::vector<double> >())
         .def("Simulate", &KalmanFilterp::Simulate)
         .def("Filter", &KalmanFilterp::Filter)
         .def("Predict", &KalmanFilterp::Predict)
