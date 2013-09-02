@@ -59,7 +59,6 @@ public:
         
         // convert input data to armadillo vectors
         y_  = arma::conv_to<arma::vec>::from(y);
-        y_ -= arma::mean(y_); // center the time series
         time_ = arma::conv_to<arma::vec>::from(time);
         yerr_ = arma::conv_to<arma::vec>::from(yerr);
         int ndata = time_.n_rows;
@@ -95,9 +94,10 @@ public:
         // using the value of new_value.
         //
         log_posterior_ = 0.0;
+        double mu = new_value(2);
         for (int i=0; i<time_.n_elem; i++) {
-            log_posterior_ += -0.5 * log(pKFilter_->var(i)) - 0.5 * (y_(i) - pKFilter_->mean(i)) *
-            (y_(i) - pKFilter_->mean(i)) / pKFilter_->var(i);
+            double ycent = y_(i) - pKFilter_->mean(i) - mu;
+            log_posterior_ += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }
         log_posterior_ += LogPrior(new_value);
 
@@ -128,6 +128,7 @@ public:
         arma::vec ma_coefs = ExtractMA(theta);
         double sigsqr = ExtractSigsqr(theta);
         double measerr_scale = theta(1);
+        double mu = theta(2);
         
         // Run the Kalman filter
         pKFilter_->SetSigsqr(sigsqr);
@@ -135,13 +136,15 @@ public:
         pKFilter_->SetMA(ma_coefs);
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        arma::vec ycent = y_ - mu;
+        pKFilter_->SetTimeSeries(ycent);
         pKFilter_->Filter();
         
         // calculate the log-likelihood
         double logpost = 0.0;
         for (int i=0; i<time_.n_elem; i++) {
-            logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * (y_(i) - pKFilter_->mean(i)) *
-            (y_(i) - pKFilter_->mean(i)) / pKFilter_->var(i);
+            double ycent = y_(i) - pKFilter_->mean(i) - mu;
+            logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }
         
         // Prior bounds satisfied?
@@ -173,7 +176,7 @@ public:
     arma::vec GetTime() { return time_; }
     arma::vec GetTimeSeries() { return y_; }
     arma::vec GetTimeSeriesErr() { return yerr_; }
-    arma::vec GetKalmanMean() { return pKFilter_->mean; }
+    arma::vec GetKalmanMean() { return value_(2) + pKFilter_->mean; }
     arma::vec GetKalmanVar() { return pKFilter_->var; }
     std::shared_ptr<KalmanFilter<OmegaType> > GetKalmanPtr() { return pKFilter_; }
     
@@ -233,11 +236,11 @@ public:
     {
         pKFilter_ = std::make_shared<KalmanFilter1>(time_, y_, yerr_);
         // Set the size of the parameter vector theta=(mu,sigma,measerr_scale,log(omega))
-        value_.set_size(3);
+        value_.set_size(4);
     }
     
     // extract the AR parameters from the parameter vector
-    double ExtractAR(arma::vec theta) { return exp(theta(2)); }
+    double ExtractAR(arma::vec theta) { return exp(theta(3)); }
     arma::vec ExtractMA(arma::vec theta) { return arma::zeros<arma::vec>(1); }
     
     // generate starting values of the CAR(1) parameters
@@ -245,7 +248,7 @@ public:
     
     // return the variance of a CAR(1) process
     double ExtractSigsqr(arma::vec theta) {
-        return 2.0 * theta(0) * theta(0) * exp(theta(2));
+        return 2.0 * theta(0) * theta(0) * exp(theta(3));
     }
 
 	// Set the bounds on the uniform prior.
@@ -264,7 +267,7 @@ public:
          double temperature=1.0): CARMA_Base<arma::cx_vec>(track, name, time, y, yerr, temperature), p_(p)
 	{
         pKFilter_ = std::make_shared<KalmanFilterp>(time_, y_, yerr_);
-		value_.set_size(p_+2);
+		value_.set_size(p_+3);
         ma_coefs_ = arma::zeros(p);
         ma_coefs_(0) = 1.0;
         pKFilter_->SetMA(ma_coefs_);
@@ -315,7 +318,7 @@ public:
           double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature), q_(q)
     {
         BOOST_ASSERT_MSG(q < p, "Order of moving average polynomial must be less than order of autoregressive polynomial");
-        value_.set_size(p_+q_+2);
+        value_.set_size(p_+q_+3);
     }
 
     // Return the starting value and set log_posterior_
@@ -347,7 +350,7 @@ public:
     ZCARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
            double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature)
     {
-        value_.set_size(p_+3);
+        value_.set_size(p_+4);
         // set default boundaries on kappa
         arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
         kappa_high_ = 1.0 / dt.min();
@@ -385,7 +388,7 @@ public:
         (1.0 + measerr_dof_ / 2.0) * log(measerr_scale);
         
         // now compute prior on x = logit(kappa_norm), assuming a uniform prior on kappa
-        double logit_kappa = theta(p_+2);
+        double logit_kappa = theta(p_+3);
         logprior += -logit_kappa - 2.0 * log(1.0 + exp(-logit_kappa));
                 
         return logprior;

@@ -41,9 +41,12 @@ arma::vec CAR1::StartingValue()
 
 	// Initialize the standard deviation of the CAR(1) process
 	// by drawing from its prior
-	car1_stdev_start = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+	car1_stdev_start = RandGen.scaled_inverse_chisqr(y_.n_elem-1, arma::var(y_));
 	car1_stdev_start = sqrt(car1_stdev_start);
-	
+    
+    // Get initial value of the time series mean
+    double mu = RandGen.normal(arma::mean(y_), car1_stdev_start / y_.n_elem);
+
 	// Initialize log(omega) to log( 1 / (a * median(dt)) ), where
 	// a ~ Uniform(1,50) , under the constraint that 
 	// tau = 1 / omega < max(time)
@@ -61,15 +64,17 @@ arma::vec CAR1::StartingValue()
     measerr_scale = std::min(measerr_scale, 1.99);
     measerr_scale = std::max(measerr_scale, 0.51);
 	
-	arma::vec theta(3);
+	arma::vec theta(4);
 	
-	theta << car1_stdev_start << measerr_scale << log_omega_start << arma::endr;
+	theta << car1_stdev_start << measerr_scale << mu << log_omega_start << arma::endr;
 	
 	// Initialize the Kalman filter
     pKFilter_->SetOmega(exp(log_omega_start));
     pKFilter_->SetSigsqr(sigma * sigma);
     arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
     pKFilter_->SetTimeSeriesErr(proposed_yerr);
+    arma::vec ycent = y_ - mu;
+    pKFilter_->SetTimeSeries(ycent);
     pKFilter_->Filter();
 	
 	return theta;
@@ -105,8 +110,8 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
     for (int i=0; i<p_/2; i++) {
         // alpha(s) decomposed into its quadratic terms:
         //   alpha(s) = (quad_term1 + quad_term2 * s + s^2) * ...
-        double quad_term1 = exp(theta(2+2*i));
-        double quad_term2 = exp(theta(2+2*i+1));
+        double quad_term1 = exp(theta(3+2*i));
+        double quad_term2 = exp(theta(3+2*i+1));
 
         double discriminant = quad_term2 * quad_term2 - 4.0 * quad_term1;
         
@@ -126,7 +131,7 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
 	
     if ((p_ % 2) == 1) {
         // p is odd, so add in additional low-frequency component
-        double real_root = -exp(theta(2+p_-1));
+        double real_root = -exp(theta(3+p_-1));
         ar_roots(p_-1) = std::complex<double> (real_root, 0.0);
     }
         
@@ -137,36 +142,43 @@ arma::cx_vec CARp::ARRoots(arma::vec theta)
 arma::vec CARp::StartingValue()
 {
     // Create the parameter vector, theta
-    arma::vec theta(p_+2);
+    arma::vec theta(p_+3);
     
     bool good_initials = false;
     while (!good_initials) {
 
-        // Initial guess for model standard deviation is randomly distributed
-        // around measured standard deviation of the time series
         arma::vec loga = StartingAR();
         for (int i=0; i<p_; i++) {
-            theta(2+i) = loga(i);
+            theta(3+i) = loga(i);
         }
         
-        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        // Initial guess for model standard deviation is randomly distributed
+        // around measured standard deviation of the time series
+        double yvar = RandGen.scaled_inverse_chisqr(y_.n_elem-1, arma::var(y_));
+        
+        // Get initial value of the time series mean
+        double mu = RandGen.normal(arma::mean(y_), sqrt(yvar) / y_.n_elem);
+
         arma::cx_vec alpha_roots = ARRoots(theta);
         double sigsqr = yvar / Variance(alpha_roots, ma_coefs_, 1.0);
+        
         // Get initial value of the measurement error scaling parameter by
         // drawing from its prior.
-        
         double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
         measerr_scale = std::min(measerr_scale, 1.99);
         measerr_scale = std::max(measerr_scale, 0.51);
         
         theta(0) = sqrt(yvar);
         theta(1) = measerr_scale;
+        theta(2) = mu;
         
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(ExtractAR(theta));
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        arma::vec ycent = y_ - mu;
+        pKFilter_->SetTimeSeries(ycent);
         
         // run the kalman filter
         pKFilter_->Filter();
@@ -303,7 +315,7 @@ double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma
 arma::vec CARMA::StartingValue()
 {
     // Create the parameter vector, theta
-    arma::vec theta(p_+q_+2);
+    arma::vec theta(p_+q_+3);
     
     bool good_initials = false;
     while (!good_initials) {
@@ -312,16 +324,19 @@ arma::vec CARMA::StartingValue()
         // around measured standard deviation of the time series
         arma::vec loga = StartingAR();
         for (int i=0; i<p_; i++) {
-            theta(2+i) = loga(i);
+            theta(3+i) = loga(i);
         }
         
         arma::vec ma_coefs = StartingMA();
-        theta(arma::span(p_+2,theta.n_elem-1)) = ma_coefs;
+        theta(arma::span(p_+3,theta.n_elem-1)) = ma_coefs;
         
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
+        double yvar = RandGen.scaled_inverse_chisqr(y_.n_elem-1, arma::var(y_));
         
-        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        // Get initial value of the time series mean
+        double mu = RandGen.normal(arma::mean(y_), sqrt(yvar) / y_.n_elem);
+        
         arma::cx_vec alpha_roots = ARRoots(theta);
         double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0);
         
@@ -334,6 +349,7 @@ arma::vec CARMA::StartingValue()
         
         theta(0) = sqrt(yvar);
         theta(1) = measerr_scale;
+        theta(2) = mu;
         
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
@@ -341,6 +357,8 @@ arma::vec CARMA::StartingValue()
         pKFilter_->SetMA(ExtractMA(theta));
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        arma::vec ycent;
+        pKFilter_->SetTimeSeries(ycent);
         
         // run the kalman filter
         pKFilter_->Filter();
@@ -365,7 +383,7 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
     arma::vec ma_coefs = arma::zeros(p_);
     ma_coefs(0) = 1.0;
     for (int i=0; i<q_; i++) {
-        ma_coefs(i+1) = theta(p_+2+i);
+        ma_coefs(i+1) = theta(p_+3+i);
     }
     return ma_coefs;
 }
@@ -377,7 +395,7 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
 arma::vec ZCARMA::StartingValue()
 {
     // Create the parameter vector, theta
-    arma::vec theta(p_+3);
+    arma::vec theta(p_+4);
     
     bool good_initials = false;
     while (!good_initials) {
@@ -386,7 +404,7 @@ arma::vec ZCARMA::StartingValue()
         // around measured standard deviation of the time series
         arma::vec loga = StartingAR();
         for (int i=0; i<p_; i++) {
-            theta(2+i) = loga(i);
+            theta(3+i) = loga(i);
         }
         
         theta(2+p_) = logit(StartingKappa());
@@ -396,8 +414,11 @@ arma::vec ZCARMA::StartingValue()
         
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
+        double yvar = RandGen.scaled_inverse_chisqr(y_.n_elem-1, arma::var(y_));
         
-        double yvar = RandGen.scaled_inverse_chisqr(y_.size()-1, arma::var(y_));
+        // Get initial value of the time series mean
+        double mu = RandGen.normal(arma::mean(y_), sqrt(yvar) / y_.n_elem);
+        
         arma::cx_vec alpha_roots = ARRoots(theta);
         double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0);
         
@@ -410,6 +431,7 @@ arma::vec ZCARMA::StartingValue()
         
         theta(0) = sqrt(yvar);
         theta(1) = measerr_scale;
+        theta(2) = mu;
         
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
@@ -417,6 +439,8 @@ arma::vec ZCARMA::StartingValue()
         pKFilter_->SetMA(ma_coefs);
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
+        arma::vec ycent = y_ - mu;
+        pKFilter_->SetTimeSeries(ycent);
         
         // run the kalman filter
         pKFilter_->Filter();
@@ -437,7 +461,7 @@ double ZCARMA::StartingKappa() {
 // extract the moving average coefficients from the parameter vector
 arma::vec ZCARMA::ExtractMA(arma::vec theta)
 {
-    double kappa_normed = inv_logit(theta(2 + p_));
+    double kappa_normed = inv_logit(theta(3 + p_));
     double kappa = (kappa_high_ - kappa_low_) * kappa_normed + kappa_low_;
     // Set the moving average terms
     arma::vec ma_coefs(p_);
