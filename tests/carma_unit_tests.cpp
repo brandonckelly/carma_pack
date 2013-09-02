@@ -1379,7 +1379,7 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     CHECK(std::abs(omega_zscore) < 3.0);
 }
 
-TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
+TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CAR(5) model..." << std::endl << std::endl;
     
@@ -1466,7 +1466,7 @@ TEST_CASE("CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     }
 }
 
-TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1485,8 +1485,8 @@ TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) mod
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 50000;
-    int burnin = 25000;
+    int sample_size = 1000;
+    int burnin = 1000;
     // True ZCARMA(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
     double qpo_cent[2] = {0.2, 0.02};
@@ -1524,7 +1524,7 @@ TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) mod
     
     std::ofstream mcmc_outfile("data/zcarma5_mcmc.dat");
     mcmc_outfile <<
-    "# log sigma, measerr_scale, mu, (lorentz_cent,lorentz_width), kappa, logpost" << std::endl;
+    "# log sigma, measerr_scale, mu, loga, kappa, logpost" << std::endl;
     
     arma::vec sigma_samples(mcmc_sample.size());
     arma::vec scale_samples(mcmc_sample.size());
