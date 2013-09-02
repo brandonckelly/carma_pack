@@ -4,7 +4,7 @@
 
 std::shared_ptr<CAR1>
 RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y,
-               std::vector<double> yerr, int nwalkers=1, int thin=1);
+               std::vector<double> yerr, int thin=1);
 
 std::shared_ptr<CARp>
 RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y,

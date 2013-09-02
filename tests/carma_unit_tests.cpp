@@ -795,7 +795,7 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     
     // setup Robust Adaptive Metropolis step object
     StudentProposal tUnit(8.0, 1.0);
-    arma::mat prop_covar(3,3);
+    arma::mat prop_covar(4,4);
     prop_covar.eye();
     int niter = 1000;
     double target_rate = 0.4;
@@ -861,7 +861,7 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.Ge
     
     // setup Robust Adaptive Metropolis step object
     StudentProposal tUnit(8.0, 1.0);
-    arma::mat prop_covar(p+3,p+3);
+    arma::mat prop_covar(p+4,p+4);
     prop_covar.eye();
     int niter = 1000;
     double target_rate = 0.4;
@@ -926,10 +926,9 @@ TEST_CASE("CAR1/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
     // run the MCMC sampler
     int sample_size = 100;
     int burnin = 10;
-    int nwalkers = 2;
     
     std::shared_ptr<CAR1> mcmc_out;
-    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_, nwalkers, 1);
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time_, y_, ysig_);
     
     std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
     std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
@@ -1335,13 +1334,12 @@ TEST_CASE("CAR1/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(1) model") {
     
     // MCMC parameters
     int carp_order = 1;
-    int nwalkers = 2;
     int sample_size = 100000;
     int burnin = 50000;
     
     // run the MCMC sampler
     std::shared_ptr<CAR1> mcmc_out;
-    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr, nwalkers);
+    mcmc_out = RunCar1Sampler(sample_size, burnin, time, y, yerr);
     std::vector<arma::vec> mcmc_sample = mcmc_out->GetSamples();
     std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     

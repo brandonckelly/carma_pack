@@ -84,7 +84,7 @@ bool CAR1::CheckPriorBounds(arma::vec theta)
 {
     double ysigma = theta(0);
     double measerr_scale = theta(1);
-    double omega = exp(theta(2));
+    double omega = exp(theta(3));
     
     bool prior_satisfied = true;
     if ( (omega > max_freq_) || (omega < min_freq_) ||
@@ -407,7 +407,7 @@ arma::vec ZCARMA::StartingValue()
             theta(3+i) = loga(i);
         }
         
-        theta(2+p_) = logit(StartingKappa());
+        theta(3+p_) = logit(StartingKappa());
         
         // compute the coefficients of the MA polynomial
         arma::vec ma_coefs = ExtractMA(theta);
