@@ -305,7 +305,34 @@ private:
     arma::vec ma_coefs_;
 };
 
-/* 
+/*
+ Same as CARp class, but using the Belcher et al. (1994) parameterization for the moving average coefficients.
+ */
+class ZCAR : public CARp
+{
+public:
+    // constructor //
+    ZCAR() {}
+    ZCAR(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
+         double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature)
+    {
+        // set value of kappa
+        arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
+        kappa_ = 1.0 / dt.min();
+        // set the moving average coefficients
+        ma_coefs_ = arma::zeros(p_);
+        ma_coefs_(0) = 1.0;
+        for (int i=1; i<p_; i++) {
+            ma_coefs_(i) = boost::math::binomial_coefficient<double>(p_-1, i) / pow(kappa_,i);
+        }
+        pKFilter_->SetMA(ma_coefs_);
+    }
+private:
+    double kappa_; // minimum frequency resolved by the observation times
+    arma::vec ma_coefs_;
+};
+
+/*
  Continuous time autoregressive moving average process of order (p,q)
 */
 
@@ -340,7 +367,8 @@ private:
 };
 
 /*
- CARMA(p,p-1) model using the z-transformed parameterization (Belcher et al. 1994).
+ CARMA(p,p-1) model using the z-transformed parameterization (Belcher et al. 1994). This is the same as the ZCAR model, except
+ that kappa is a free parameter for the ZCARMA model.
  */
 
 class ZCARMA : public CARp

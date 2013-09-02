@@ -78,10 +78,7 @@ class CarmaMCMC(object):
             self._CppSample = carmcmcLib.run_mcmc_carma(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
                                                         self.p, self.q, self.nwalkers, self.doZcarma, self.nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCARMA class, convert to a python object
-            if self.doZcarma:
-                sample = ZCarmaSample(self.time, self.y, self.ysig, self._CppSample)
-            else:
-                sample = CarmaSample(self.time, self.y, self.ysig, self._CppSample, q=self.q)
+            sample = CarmaSample(self.time, self.y, self.ysig, self._CppSample, q=self.q, Zcar=self.doZcarma)
 
         return sample
 
@@ -91,7 +88,7 @@ class CarmaSample(samplers.MCMCSample):
     Class for storing and analyzing the MCMC samples of a CARMA(p,q) model.
     """
 
-    def __init__(self, time, y, ysig, sampler, q=0, filename=None):
+    def __init__(self, time, y, ysig, sampler, q=0, Zcar=False, filename=None):
         """
         Constructor for the CarmaSample class.
 
@@ -102,6 +99,7 @@ class CarmaSample(samplers.MCMCSample):
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.q = q  # order of moving average polynomial
         self.sampler = sampler  # Wrapper around C++ sampler
+        self.Zcar = Zcar
         logpost = np.array(self.sampler.GetLogLikes())
         trace = np.array(self.sampler.getSamples())
 
@@ -115,6 +113,11 @@ class CarmaSample(samplers.MCMCSample):
         self._ar_coefs()
         if self.q > 0:
             print "Calculating coefficients of MA polynomial..."
+        if self.Zcar:
+            # using the Belcher et al. (1994) parameterization of the MA polynomial
+            dt = time[1:] - time[0:-1]
+            self.kappa = 1.0 / dt.min()
+
         self._ma_coefs(trace)
 
         print "Calculating sigma..."
@@ -199,7 +202,14 @@ class CarmaSample(samplers.MCMCSample):
         """
         nsamples = trace.shape[0]
         if self.q == 0:
-            self._samples['ma_coefs'] = np.ones(nsamples)
+            if self.Zcar:
+                # using Belcher et al. (1994) MA parameterization
+                self._samples['ma_coefs'] = np.empty((nsamples, self.p-1))
+                self.q = self.p - 1
+                for k in xrange(self.p):
+                    self._samples['ma_coefs'][:, k] = comb(self.p - 1, k) / self.kappa ** k
+            else:
+                self._samples['ma_coefs'] = np.ones(nsamples)
         else:
             quad_coefs = np.exp(trace[:, 3 + self.p:])
             roots = np.empty(quad_coefs.shape, dtype=complex)

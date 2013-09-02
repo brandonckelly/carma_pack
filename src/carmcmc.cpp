@@ -107,7 +107,7 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
             }
         } else {
             // doing a ZCARMA(p) model
-            CarEnsemble.AddObject(new ZCARMA(false, "ZCARMA(p) Parameters", time, y, yerr, p, temp_ladder(i)));
+            CarEnsemble.AddObject(new ZCAR(false, "ZCAR(p) Parameters", time, y, yerr, p, temp_ladder(i)));
         }
 		// Set the prior parameters
         CarEnsemble[i].SetPrior(max_stdev);
@@ -122,12 +122,7 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
 	// TODO: Get a better guess from maximum-likelihood fit
 	//
     
-    int nparams;
-    if (do_zcarma) {
-        nparams = 4 + p;
-    } else {
-        nparams = 3 + p + q;
-    }
+    int nparams = 3 + p + q;
     
 	arma::mat prop_covar(nparams,nparams);
 	prop_covar.eye();
@@ -164,7 +159,7 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
     std::shared_ptr<CARp> retObject;
 
     if (do_zcarma) {
-        retObject = std::make_shared<ZCARMA>(*(dynamic_cast<ZCARMA*>(&CarEnsemble[0])));
+        retObject = std::make_shared<ZCAR>(*(dynamic_cast<ZCAR*>(&CarEnsemble[0])));
     } else {
         if (q == 0) {
             retObject = std::make_shared<CARp>(CarEnsemble[0]);
