@@ -113,6 +113,10 @@ class CarmaSample(samplers.MCMCSample):
         self._ar_roots()
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()
+        if self.q > 0:
+            print "Calculating coefficients of MA polynomial..."
+        self._ma_coefs(trace)
+
         print "Calculating sigma..."
         self._sigma_noise()
 
@@ -135,7 +139,7 @@ class CarmaSample(samplers.MCMCSample):
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 3 - self.q
-        names = ['var', 'measerr_scale', 'mu', 'quad_coefs', 'ma_coefs']
+        names = ['var', 'measerr_scale', 'mu', 'quad_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
@@ -145,11 +149,6 @@ class CarmaSample(samplers.MCMCSample):
             # AR(p) polynomial is factored as a product of quadratic terms:
             #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
             self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
-            if self.q > 0:
-                # Add in coefficients of the moving average polynomial
-                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 3 + self.p:]))
-            else:
-                self._samples['ma_coefs'] = np.ones((trace.shape[0], 1))
 
     def generate_from_file(self, filename):
         """
@@ -193,6 +192,35 @@ class CarmaSample(samplers.MCMCSample):
             self._samples['ar_roots'][:, -1] = -quad_coefs[:, -1]
             self._samples['psd_centroid'][:, -1] = 0.0
             self._samples['psd_width'][:, -1] = quad_coefs[:, -1] / (2.0 * np.pi)
+
+    def _ma_coefs(self, trace):
+        """
+        Calculate the CARMA(p,q) moving average coefficients and add them to the MCMC samples.
+        """
+        nsamples = trace.shape[0]
+        if self.q == 0:
+            self._samples['ma_coefs'] = np.ones(nsamples)
+        else:
+            quad_coefs = np.exp(trace[:, 3 + self.p:])
+            roots = np.empty(quad_coefs.shape, dtype=complex)
+            for i in xrange(self.q / 2):
+                quad1 = quad_coefs[:, 2 * i]
+                quad2 = quad_coefs[:, 2 * i + 1]
+
+                discriminant = quad2 ** 2 - 4.0 * quad1
+                sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), 1j * np.sqrt(np.abs(discriminant)))
+                roots[:, 2 * i] = -0.5 * (quad2 + sqrt_disc)
+                roots[:, 2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
+
+            if self.p % 2 == 1:
+                # p is odd, so add in root from linear term
+                roots[:, -1] = -quad_coefs[:, -1]
+
+            coefs = np.empty((nsamples, self.q + 1), dtype=complex)
+            for i in xrange(nsamples):
+                coefs[i, :] = np.poly(roots[i, :])
+
+            self._samples['ma_coefs'] = coefs.real
 
     def _ar_coefs(self):
         """

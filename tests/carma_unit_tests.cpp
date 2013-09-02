@@ -1461,12 +1461,12 @@ TEST_CASE("./CAR5/mcmc_sampler", "Test RunEnsembleCarSampler on CAR(5) model") {
     double mu_zscore = (arma::mean(mu_samples) - mu) / arma::stddev(mu_samples);
     CHECK(std::abs(mu_zscore) < 3.0);
     for (int j=0; j<p; j++) {
-        double ar_zscore = (arma::mean(ar_samples.col(j)) - theta(2+j)) / arma::stddev(ar_samples.col(j));
+        double ar_zscore = (arma::mean(ar_samples.col(j)) - theta(3+j)) / arma::stddev(ar_samples.col(j));
         CHECK(std::abs(ar_zscore) < 3.0);
     }
 }
 
-TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
+TEST_CASE("./ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for ZCARMA(5) model..." << std::endl << std::endl;
     
@@ -1513,7 +1513,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     //double kappa_low = 0.9 * kappa;
     //double kappa_high = 1.1 * kappa;
     double kappa_norm = (kappa - kappa_low) / (kappa_high - kappa_low);
-    theta(p+3) = logit(kappa_norm);
+    theta(p+2) = logit(kappa_norm);
 
     // run the MCMC sampler
     std::shared_ptr<CARp> mcmc_out;
@@ -1563,7 +1563,7 @@ TEST_CASE("ZCARMA5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCARMA(5) model
     CHECK(std::abs(kappa_zscore) < 3.0);
 }
 
-TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
+TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model") {
     std::cout << std::endl;
     std::cout << "Running test of MCMC sampler for CARMA(5,4) model..." << std::endl << std::endl;
     
@@ -1597,31 +1597,37 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
     double kappa = 3.0;
     double mu = 0.0;
     
-    arma::vec ma_coefs(p);
-	ma_coefs(0) = 1.0;
-	for (int i=1; i<p; i++) {
-		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
-	}
-    
     // Create the parameter vector, theta
     int q = p - 1;
 	arma::vec theta(q+p+3);
     theta(0) = log(sigmay);
 	theta(1) = measerr_scale;
     theta(2)= mu;
-    for (int i=0; i<p/2; i++) {
-        theta(3+2*i) = log(qpo_cent[i]);
-        theta(4+2*i) = log(qpo_width[i]);
-    }
-    // p is odd, so add in additional value of lorentz_width
-    theta(p+2) = log(qpo_width[p/2]);
     
-    theta(arma::span(p+2,theta.n_elem-1)) = ma_coefs(arma::span(1,ma_coefs.n_elem-1));
+    // convert the PSD lorentzian parameters to quadratic terms in the AR polynomial decomposition
+    for (int i=0; i<p/2; i++) {
+        double real_part = -2.0 * arma::datum::pi * qpo_width[i];
+        double imag_part = 2.0 * arma::datum::pi * qpo_cent[i];
+        double quad_term1 = real_part * real_part + imag_part * imag_part;
+        double quad_term2 = -2.0 * real_part;
+        theta(3+2*i) = log(quad_term1);
+        theta(4+2*i) = log(quad_term2);
+    }
+    if ((p % 2) == 1) {
+        // p is odd, so add in additional value of lorentz_width
+        double real_part = -2.0 * arma::datum::pi * qpo_width[p/2];
+        theta(p+2) = log(-real_part);
+    }
+    
+    arma::vec ma_coefs(p);
+	ma_coefs(0) = 1.0;
+	for (int i=1; i<p; i++) {
+		ma_coefs(i) = boost::math::binomial_coefficient<double>(p-1, i) / pow(kappa,i);
+	}
+    theta(arma::span(p+3,theta.n_elem-1)) = ma_coefs(arma::span(1,ma_coefs.n_elem-1));
     
     std::ofstream mcmc_outfile("data/carma_mcmc.dat");
-    mcmc_outfile <<
-    "# sigma, measerr_scale, mu, loga, ma_coefs, logpost"
-    << std::endl;
+    mcmc_outfile << "# sigma, measerr_scale, mu, loga, ma_coefs, logpost" << std::endl;
     
     arma::vec sigma_samples(mcmc_sample.size());
     arma::vec scale_samples(mcmc_sample.size());
@@ -1635,8 +1641,9 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
         for (int j=0; j<p; j++) {
             ar_samples(i,j) = mcmc_sample[i](j+3);
         }
+        arma::vec ma_coefs_i = mcmc_out->ExtractMA(mcmc_sample[i]);
         for (int j=0; j<q; j++) {
-            ma_samples(i,j) = mcmc_sample[i](p+3+j);
+            ma_samples(i,j) = ma_coefs_i(j+1); // ma_coefs_i(0) = 1.0
         }
         for (int j=0; j<theta.n_elem; j++) {
             mcmc_outfile << mcmc_sample[i](j) << " ";
@@ -1653,11 +1660,11 @@ TEST_CASE("./CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) mode
     double mu_zscore = (arma::mean(mu_samples) - mu) / arma::stddev(mu_samples);
     CHECK(std::abs(mu_zscore) < 3.0);
     for (int j=0; j<p; j++) {
-        double ar_zscore = (arma::mean(ar_samples.col(j)) - theta(2+j)) / arma::stddev(ar_samples.col(j));
+        double ar_zscore = (arma::mean(ar_samples.col(j)) - theta(3+j)) / arma::stddev(ar_samples.col(j));
         CHECK(std::abs(ar_zscore) < 3.0);
     }
     for (int j=0; j<q; j++) {
-        double ma_zscore = (arma::mean(ma_samples.col(j)) - theta(p+2+j)) / arma::stddev(ma_samples.col(j));
+        double ma_zscore = (arma::mean(ma_samples.col(j)) - theta(p+3+j)) / arma::stddev(ma_samples.col(j));
         CHECK(std::abs(ma_zscore) < 3.0);
     }
 }

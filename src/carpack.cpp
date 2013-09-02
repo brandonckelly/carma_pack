@@ -327,8 +327,9 @@ arma::vec CARMA::StartingValue()
             theta(3+i) = loga(i);
         }
         
-        arma::vec ma_coefs = StartingMA();
-        theta(arma::span(p_+3,theta.n_elem-1)) = ma_coefs;
+        arma::vec log_ma_quad = StartingMA();
+        theta(arma::span(p_+3,theta.n_elem-1)) = log_ma_quad;
+        arma::vec ma_coefs = ExtractMA(theta);
         
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
@@ -372,19 +373,69 @@ arma::vec CARMA::StartingValue()
 
 // get initial guess for the moving average polynomial coefficients
 arma::vec CARMA::StartingMA() {
-    arma::vec ma_coefs(q_);
-    ma_coefs.randn();
-    return arma::abs(ma_coefs);
+    arma::vec ma_quad(q_);
+    ma_quad.randn();
+    return arma::abs(ma_quad);
 }
 
 // extract the moving-average coefficients from the CARMA parameter vector
 arma::vec CARMA::ExtractMA(arma::vec theta)
 {
-    arma::vec ma_coefs = arma::zeros(p_);
-    ma_coefs(0) = 1.0;
-    for (int i=0; i<q_; i++) {
-        ma_coefs(i+1) = theta(p_+3+i);
+    arma::cx_vec ma_roots(q_);
+    
+    // Construct the complex vector of roots of the characteristic polynomial:
+    // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
+    for (int i=0; i<q_/2; i++) {
+        // alpha(s) decomposed into its quadratic terms:
+        //   alpha(s) = (quad_term1 + quad_term2 * s + s^2) * ...
+        double quad_term1 = exp(theta(3+p_+2*i));
+        double quad_term2 = exp(theta(3+p_+2*i+1));
+        
+        double discriminant = quad_term2 * quad_term2 - 4.0 * quad_term1;
+        
+        if (discriminant > 0) {
+            // two real roots
+            double root1 = -0.5 * (quad_term2 + sqrt(discriminant));
+            double root2 = -0.5 * (quad_term2 - sqrt(discriminant));
+            ma_roots(2*i) = std::complex<double> (root1, 0.0);
+            ma_roots(2*i+1) = std::complex<double> (root2, 0.0);
+        } else {
+            double real_part = -0.5 * quad_term2;
+            double imag_part = -0.5 * sqrt(-discriminant);
+            ma_roots(2*i) = std::complex<double> (real_part, imag_part);
+            ma_roots(2*i+1) = std::complex<double> (real_part, -imag_part);
+        }
     }
+	
+    if ((p_ % 2) == 1) {
+        // p is odd, so add in additional low-frequency component
+        double real_root = -exp(theta(3+p_+q_-1));
+        ma_roots(q_-1) = std::complex<double> (real_root, 0.0);
+    }
+    
+    // calculate the coefficients of the polynomial
+    //
+    //    p(x) = x^q + c_1 * x^{q-1} + ... + c_{q-1} * x + c_q
+    //
+    // from it roots. note that poly_coefs[0] = 1.0 = c_0.
+    arma::vec poly_coefs = polycoefs(ma_roots);
+    
+    // convert coefficients to MA polynomial representation:
+    //
+    //   beta(s) = beta_q * x^q + beta_{q-1} * x^{q-1} + ... + beta_1 x + beta_0,
+    //
+    // where beta_0 = 1.0.
+    //
+    poly_coefs = poly_coefs / poly_coefs(q_); // standardize so c_q = 1 instead of c_0;
+    arma::vec ma_coefs = arma::zeros(p_);
+    
+    // poly_coefs[0]   poly_coefs[1]   ...   poly_coefs[q] = 1.0
+    //    ||                ||                     ||
+    // ma_coefs[q]    ma_coefs[q-1]    ...    ma_coefs[0]
+    for (int i=0; i<q_+1; i++) {
+        ma_coefs(i) = poly_coefs(q_-i);
+    }
+
     return ma_coefs;
 }
 
