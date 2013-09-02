@@ -357,7 +357,7 @@ arma::vec CARMA::StartingValue()
         pKFilter_->SetMA(ExtractMA(theta));
         arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
-        arma::vec ycent;
+        arma::vec ycent = y_ - mu;
         pKFilter_->SetTimeSeries(ycent);
         
         // run the kalman filter
