@@ -632,34 +632,6 @@ class CarmaSample(samplers.MCMCSample):
         return dic
 
 
-class ZCarmaSample(CarmaSample):
-    def __init__(self, time, y, ysig, sampler, filename=None):
-        super(ZCarmaSample, self).__init__(time, y, ysig, sampler, q=0, filename=filename)
-
-    def generate_from_trace(self, trace):
-        # Figure out how many AR terms we have
-        self.p = trace.shape[1] - 4
-        names = ['var', 'measerr_scale', 'mu', 'quad_coefs', 'kappa', 'ma_coefs']
-        if names != self._samples.keys():
-            idx = 0
-            # Parameters are not already in the dictionary, add them.
-            self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
-            self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
-            self._samples['mu'] = trace[:, 2]  # mean of time series
-            # AR(p) polynomial is factored as a product of quadratic terms:
-            #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
-            self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
-            # add kappa values
-            self._samples['kappa'] = trace[:, 3 + self.p]
-            # update value of q
-            self.q = self.p - 1
-            # add MA coefficients
-            ma_coefs = np.empty((trace.shape[0], self.p))
-            for k in xrange(self.p):
-                ma_coefs[:, k] = comb(self.p - 1, k) / self._samples['kappa'] ** k
-            self._samples['ma_coefs'] = ma_coefs
-
-
 class KalmanFilter(object):
     def __init__(self, time, y, yvar, sigsqr, ar_roots, ma_coefs=[1.0]):
         """
