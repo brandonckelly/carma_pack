@@ -44,9 +44,6 @@ class CarmaMCMC(object):
         self._ysig.extend(ysig)
 
         if nwalkers is None:
-            if p == 1:
-                nwalkers = 2
-            else:
                 nwalkers = max(10, p + q)
 
         if nburnin is None:
@@ -74,7 +71,7 @@ class CarmaMCMC(object):
         if self.p == 1:
             # Treat the CAR(1) case separately
             self._CppSample = carmcmcLib.run_mcmc_car1(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                       self.nwalkers, self.nthin)
+                                                       self.nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CAR1 class, convert to python object
             sample = CarSample1(self.time, self.y, self.ysig, self._CppSample)
         else:
@@ -137,19 +134,20 @@ class CarmaSample(samplers.MCMCSample):
 
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
-        self.p = trace.shape[1] - 2 - self.q
-        names = ['var', 'measerr_scale', 'quad_coefs', 'ma_coefs']
+        self.p = trace.shape[1] - 3 - self.q
+        names = ['var', 'measerr_scale', 'mu', 'quad_coefs', 'ma_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
             self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
+            self._samples['mu'] = trace[:, 2]  # model mean of time series
             # AR(p) polynomial is factored as a product of quadratic terms:
             #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
-            self._samples['quad_coefs'] = np.exp(trace[:, 2:self.p + 2])
+            self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
             if self.q > 0:
                 # Add in coefficients of the moving average polynomial
-                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 2 + self.p:]))
+                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 3 + self.p:]))
             else:
                 self._samples['ma_coefs'] = np.ones((trace.shape[0], 1))
 
@@ -180,7 +178,7 @@ class CarmaSample(samplers.MCMCSample):
             quad2 = quad_coefs[:, 2 * i + 1]
 
             discriminant = quad2 ** 2 - 4.0 * quad1
-            sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), 1j * np.sqrt(-discriminant))
+            sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), 1j * np.sqrt(np.abs(discriminant)))
             self._samples['ar_roots'][:, 2 * i] = -0.5 * (quad2 + sqrt_disc)
             self._samples['ar_roots'][:, 2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
             self._samples['psd_width'][:, 2 * i] = -np.real(self._samples['ar_roots'][:, 2 * i]) / (2.0 * np.pi)
@@ -344,26 +342,29 @@ class CarmaSample(samplers.MCMCSample):
             # use maximum a posteriori estimate
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
+            mu = self._samples['mu'][max_index]
             ar_roots = self._samples['ar_roots'][max_index]
             ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
+            mu = np.median(self._samples['mu'])
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
+            mu = np.mean(self._samples['mu'])
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
         fig = plt.figure()
         # compute the kalman filter for data only
         sp = fig.add_subplot(111)
-        kfilter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots, ma_coefs=ma_coefs)
+        kfilter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots, ma_coefs=ma_coefs)
         kmean, kvar = kfilter.filter()
         sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
-        sp.plot(self.time, kmean + self.y.mean(), '-r', label='Kalman Filter')
+        sp.plot(self.time, kmean + mu, '-r', label='Kalman Filter')
         # compute the marginal mean and variance of the predicted values
         nplot = 256
         time_predict = np.linspace(self.time.min(), self.time.max(), nplot)
@@ -392,16 +393,19 @@ class CarmaSample(samplers.MCMCSample):
             # use maximum a posteriori estimate
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
+            mu = self._samples['mu'][max_index]
             ar_roots = self._samples['ar_roots'][max_index]
             ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
+            mu = np.median(self._samples['mu'])
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
+            mu = np.mean(self._samples['mu'])
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
@@ -424,10 +428,10 @@ class CarmaSample(samplers.MCMCSample):
 
         # plot the standardized residuals and compare with the standard normal
 
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
+        kalman_filter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots,
                                      ma_coefs=ma_coefs)
         kalman_mean, kalman_var = kalman_filter.filter()
-        standardized_residuals = (self.y - self.y.mean() - kalman_mean) / np.sqrt(kalman_var)
+        standardized_residuals = (self.y - mu - kalman_mean) / np.sqrt(kalman_var)
         plt.subplot(222)
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
@@ -494,21 +498,24 @@ class CarmaSample(samplers.MCMCSample):
             # use maximum a posteriori estimate
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
+            mu = self._samples['mu'][max_index]
             ar_roots = self._samples['ar_roots'][max_index]
             ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
+            mu = np.median(self._samples['mu'])
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
+            mu = np.mean(self._samples['mu'])
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
 
         # note that KalmanFilter class assumes the time series has zero mean
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
+        kalman_filter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots,
                                      ma_coefs=ma_coefs)
 
         if np.isscalar(time):
@@ -521,7 +528,7 @@ class CarmaSample(samplers.MCMCSample):
                 yhat[i] = yhati
                 yhat_var[i] = yhat_vari
 
-        yhat += self.y.mean()  # add mean back into time series
+        yhat += mu  # add mean back into time series
 
         return yhat, yhat_var
 
@@ -544,25 +551,28 @@ class CarmaSample(samplers.MCMCSample):
             # use maximum a posteriori estimate
             max_index = self._samples['logpost'].argmax()
             sigsqr = self._samples['sigma'][max_index] ** 2
+            mu = self._samples['mu'][max_index]
             ar_roots = self._samples['ar_roots'][max_index]
             ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
             # use posterior median estimate
             sigsqr = np.median(self._samples['sigma']) ** 2
+            mu = np.median(self._samples['mu'])
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
         else:
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
+            mu = np.mean(self._samples['mu'])
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
         # note that KalmanFilter class assumes the time series has zero mean
-        kalman_filter = KalmanFilter(self.time, self.y - self.y.mean(), self.ysig ** 2, sigsqr, ar_roots,
+        kalman_filter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots,
                                      ma_coefs=ma_coefs)
 
         ysim = kalman_filter.simulate(time)
-        ysim += self.y.mean()  # add mean back into time series
+        ysim += mu  # add mean back into time series
 
         return ysim
 
@@ -590,18 +600,19 @@ class ZCarmaSample(CarmaSample):
 
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
-        self.p = trace.shape[1] - 3
-        names = ['var', 'measerr_scale', 'quad_coefs', 'kappa', 'ma_coefs']
+        self.p = trace.shape[1] - 4
+        names = ['var', 'measerr_scale', 'mu', 'quad_coefs', 'kappa', 'ma_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
             self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
+            self._samples['mu'] = trace[:, 2]  # mean of time series
             # AR(p) polynomial is factored as a product of quadratic terms:
             #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
-            self._samples['quad_coefs'] = np.exp(trace[:, 2:self.p + 2])
+            self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
             # add kappa values
-            self._samples['kappa'] = trace[:, 2 + self.p]
+            self._samples['kappa'] = trace[:, 3 + self.p]
             # update value of q
             self.q = self.p - 1
             # add MA coefficients
@@ -1099,11 +1110,12 @@ class CarSample1(CarmaSample):
         self.parameters = self._samples.keys()
 
     def generate_from_trace(self, trace):
-        names = ['sigma', 'measerr_scale', 'log_omega']
+        names = ['sigma', 'measerr_scale', 'mu', 'log_omega']
         if names != self._samples.keys():
             self._samples['var'] = trace[:, 0]
             self._samples['measerr_scale'] = trace[:, 1]
-            self._samples['log_omega'] = trace[:, 2]
+            self._samples['mu'] = trace[:, 2]
+            self._samples['log_omega'] = trace[:, 3]
 
     def _ar_roots(self):
         print "_ar_roots not supported for CAR1"

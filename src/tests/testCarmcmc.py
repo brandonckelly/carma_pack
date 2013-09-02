@@ -20,7 +20,7 @@ class TestCarpackOrder(unittest.TestCase):
     def testCar1(self):    
         sampler  = carmcmc.run_mcmc_car1(self.nSample, self.nBurnin, 
                                          self.xdata, self.ydata, self.dydata, 
-                                         self.nWalkers, self.nThin)
+                                         self.nThin)
         psampler = carmcmc.CarSample1(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, 1)
 
