@@ -57,6 +57,8 @@ class CarmaMCMC(object):
         self.nsamples = nsamples
         self.nburnin = nburnin
         self.q = q
+        if doZcarma:
+            self.q = p - 1
         self.doZcarma = doZcarma
         self.nwalkers = nwalkers
         self.nthin = nthin

@@ -123,6 +123,9 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
 	//
     
     int nparams = 3 + p + q;
+    if (do_zcarma) {
+        nparams = 3 + p;
+    }
     
 	arma::mat prop_covar(nparams,nparams);
 	prop_covar.eye();

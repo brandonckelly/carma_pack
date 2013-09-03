@@ -384,12 +384,12 @@ TEST_CASE("KalmanFilter1/Predict", "Test interpolation/extrapolation for a CAR(1
     REQUIRE(frac_diff < 1e-8);
 }
 
-TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) process") {
+TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CARMA(5,4) process") {
     std::cout << "Testing KalmanFilterp.Filter()..." << std::endl;
 
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
-    zcarma_data.load(zcarmafile, arma::raw_ascii);
+    zcarma_data.load(carmafile, arma::raw_ascii);
     
     arma::vec time = zcarma_data.col(0);
     arma::vec y = zcarma_data.col(1);
@@ -401,6 +401,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
+    int q = p - 1;
     double kappa = 3.0;
     
     // Create the parameter vector, omega
@@ -430,7 +431,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
     
-    ZCARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p);
+    CARMA zcarma_process(true, "CARMA(5)", time_, y_, yerr_, p, q);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -501,12 +502,12 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a ZCARMA(5) proces
     REQUIRE(max_asqr_cdf < 0.99); // test fails if probability of max(ACF) < 1%
 }
 
-TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARMA(5) process") {
+TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a CARMA(5,4) process") {
     std::cout << "Testing KalmanFilterp.Predict()..." << std::endl;
 
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
-    zcarma_data.load(zcarmafile, arma::raw_ascii);
+    zcarma_data.load(carmafile, arma::raw_ascii);
     
     arma::vec time = zcarma_data.col(0);
     arma::vec y = zcarma_data.col(1);
@@ -518,6 +519,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
+    int q = p - 1;
     double kappa = 3.0;
     
     // Create the parameter vector, omega
@@ -548,7 +550,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
     
-    ZCARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p);
+    CARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p, q);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -646,12 +648,12 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a ZCARM
     REQUIRE(frac_diff < 1e-6);
 }
 
-TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) process.") {
+TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CARMA(5,4) process.") {
     std::cout << "Testing KalmanFilter1.Simulate()..." << std::endl;
 
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
-    zcarma_data.load(zcarmafile, arma::raw_ascii);
+    zcarma_data.load(carmafile, arma::raw_ascii);
     
     arma::vec time = zcarma_data.col(0);
     arma::vec y = zcarma_data.col(1);
@@ -702,7 +704,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CAR(5) proc
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
     
-    ZCARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p);
+    CARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p, q);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -841,7 +843,7 @@ TEST_CASE("CAR1/logpost_test", "Make sure the that CAR1.logpost_ == Car1.GetLogP
     REQUIRE(logpost_neq_count == 0);
 }
 
-TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.GetLogPost(theta) after running MCMC sampler") {
+TEST_CASE("CARMA/logpost_test", "Make sure the that CARMA.logpost_ == CARMA.GetLogPost(theta) after running MCMC sampler") {
     std::cout << "Running CARMA/logpost_test..." << std::endl;
 
     int ny = 100;
@@ -849,19 +851,20 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that ZCARMA.logpost_ == ZCARMA.Ge
     arma::vec y = 2.0 + arma::randn<arma::vec>(ny);
     arma::vec ysig = 0.01 * arma::ones(ny);
     int p = 5;
+    int q = 4;
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
     
-    ZCARMA car5_test(true, "ZCARMA(5)", time_, y_, ysig_, p);
+    CARMA car5_test(true, "CARMA(5,4)", time_, y_, ysig_, p, q);
 
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car5_test.SetPrior(max_stdev);
     
     // setup Robust Adaptive Metropolis step object
     StudentProposal tUnit(8.0, 1.0);
-    arma::mat prop_covar(p+4,p+4);
+    arma::mat prop_covar(p+3+q,p+3+q);
     prop_covar.eye();
     int niter = 1000;
     double target_rate = 0.4;
@@ -1003,8 +1006,8 @@ TEST_CASE("CARp/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
     CHECK(nequal_std == sample_size);
 }
 
-TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
-    std::cout << "Running ZCARMA/logpost_test_mcmc..." << std::endl;
+TEST_CASE("ZCAR/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sampler matches the value calculate directly") {
+    std::cout << "Running ZCAR/logpost_test_mcmc..." << std::endl;
 
     int ny = 100;
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
@@ -1028,25 +1031,16 @@ TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC 
     std::vector<std::vector<double> > mcmc_sample2 = mcmc_out->getSamples();
     std::vector<double> logpost_samples = mcmc_out->GetLogLikes();
     
-    ZCARMA zcarma5(true, "ZCARMA(5)", time_, y_, ysig_, p);
+    ZCAR zcar5(true, "ZCAR(5)", time_, y_, ysig_, p);
     
-    /*
-    mcmc_sample[0].print("arma theta:");
-    std::cout << "std::vec theta: ";
-    for (int j=0; j<mcmc_sample2[0].size(); j++) {
-        std::cout << mcmc_sample2[0][j] << " ";
-    }
-    std::cout << std::endl;
-    */
-    
-    int nequal_zcarma = 0;
+    int nequal_zcar = 0;
     int nequal_arma = 0;
     int nequal_std = 0;
     
     for (int i=0; i<logpost_samples.size(); i++) {
         // first make sure returned logpost values are same as those calculated directly
-        zcarma5.Save(mcmc_sample[i]);
-        double logpost0 = zcarma5.LogDensity(mcmc_sample[i]);
+        zcar5.Save(mcmc_sample[i]);
+        double logpost0 = zcar5.LogDensity(mcmc_sample[i]);
         double frac_diff = std::abs(logpost0 - logpost_samples[i]) / std::abs(logpost_samples[i]);
         if (frac_diff < 1e-8) {
             nequal_zcarma++;
@@ -1065,7 +1059,7 @@ TEST_CASE("ZCARMA/logpost_test_mcmc", "Make sure log-posterior returned by MCMC 
             nequal_std++;
         }
     }
-    CHECK(nequal_zcarma == sample_size);
+    CHECK(nequal_zcar == sample_size);
     CHECK(nequal_arma == sample_size);
     CHECK(nequal_std == sample_size);
 }
@@ -1271,7 +1265,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
      */
 }
 
-TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
+TEST_CASE("ZCAR/variance", "Test the CARp::Variance method") {
     std::cout << "Running ZCARMA/variance..." << std::endl;
 
     // generate some data
@@ -1285,6 +1279,7 @@ TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
     double qpo_cent[2] = {0.2, 0.02};
     double sigma = 2.3;
     int p = 5;
+    int q = 4;
     
     // Construct the complex vector of roots of the characteristic polynomial:
     // alpha(s) = s^p + alpha_1 s^{p-1} + ... + alpha_{p-1} s + alpha_p
@@ -1305,7 +1300,7 @@ TEST_CASE("ZCARMA/variance", "Test the CARp::Variance method") {
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
     
-    ZCARMA carma_process(true, "CAR(5)", time_, y_, ysig_, p);
+    CARMA carma_process(true, "CARMA(5,4)", time_, y_, ysig_, p, q);
     double kappa = 0.7;
     // Set the moving average terms
     arma::vec ma_coefs(p);
@@ -1492,7 +1487,6 @@ TEST_CASE("./ZCAR5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCAR(5) model")
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     double measerr_scale = 1.0;
-    double kappa = 3.0;
     double mu = 0.0;
     int p = 5;
     
@@ -1557,7 +1551,7 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
     
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat carma_data;
-    carma_data.load(zcarmafile, arma::raw_ascii);
+    carma_data.load(carmafile, arma::raw_ascii);
     
     std::vector<double> time = arma::conv_to<std::vector<double> >::from(carma_data.col(0));
     std::vector<double> y = arma::conv_to<std::vector<double> >::from(carma_data.col(1));
