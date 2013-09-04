@@ -38,9 +38,9 @@ plt.ylabel('CAR(1)')
 
 # save the CAR(1) data
 car1_data = np.vstack((time, car1, yerr))
-np.savetxt("data/car1_test.dat", car1_data.transpose(), fmt='%10.5f')
+# np.savetxt("data/car1_test.dat", car1_data.transpose(), fmt='%10.5f')
 
-###### generate a CARMA(5,4) process using the Belcher et al. (1994) notation, i.e., a ZCARMA(5) process
+###### generate a CAR(5,4) process using the Belcher et al. (1994) notation, i.e., a ZCAR(5) process
 
 plt.subplot(212, sharex=ax1)
 
@@ -50,26 +50,28 @@ qpo_cent = np.array([1.0/5.0, 1.0/50.0])
 ar_roots = get_ar_roots(qpo_width, qpo_cent)
 
 # calculate moving average coefficients under z-transform of Belcher et al. (1994)
+dt = time[1:] - time[0:-1]
+# kappa = 1.0 / dt.min()
 kappa = 3.0
 ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 
 sigsqr = sigmay ** 2 / carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 print sigsqr, ar_roots, ma_coefs
-zcarma5 = carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
+zcar5 = carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
-print np.std(zcarma5), np.std(car1), np.sqrt(carma_variance(sigsqr, ar_roots, ma_coefs=ma_coefs))
+print np.std(zcar5), np.std(car1), np.sqrt(carma_variance(sigsqr, ar_roots, ma_coefs=ma_coefs))
 
-plt.plot(time, zcarma5)
+plt.plot(time, zcar5)
 
-zcarma5 += np.random.normal(0.0, yerr)
+zcar5 += np.random.normal(0.0, yerr)
 
 # save the CAR(5) data
-zcarma_data = np.vstack((time, zcarma5, yerr))
-np.savetxt("data/zcarma5_test.dat", zcarma_data.transpose(), fmt='%10.5f')
+zcarma_data = np.vstack((time, zcar5, yerr))
+np.savetxt("data/carma_test.dat", zcarma_data.transpose(), fmt='%10.5f')
 
-plt.plot(time, zcarma5, '.')
+plt.plot(time, zcar5, '.')
 plt.xlabel("Time")
-plt.ylabel("ZCARMA(5)")
+plt.ylabel("ZCAR(5)")
 plt.show()
 
 freq_max = 1.0 / np.min(time[1:] - time[0:-1])
@@ -79,7 +81,7 @@ ar_coef = np.poly(ar_roots)
 psd = power_spectrum(freq, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
 plt.loglog(freq, psd, lw=3)
 plt.xlabel('Frequency')
-plt.ylabel('PSD, ZCARMA(5)')
+plt.ylabel('PSD, ZCAR(5)')
 plt.show()
 
 # covar = np.empty((ny, ny))

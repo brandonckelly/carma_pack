@@ -14,7 +14,7 @@ class CarmaMCMC(object):
     Class for running the MCMC sampler assuming a CARMA(p,q) model.
     """
 
-    def __init__(self, time, y, ysig, p, nsamples, q=0, doZcarma=False, nwalkers=None, nburnin=None, nthin=1):
+    def __init__(self, time, y, ysig, p, nsamples, q=0, nwalkers=None, nburnin=None, nthin=1):
         """
         Constructor for the CarmaMCMC class.
 
@@ -57,7 +57,6 @@ class CarmaMCMC(object):
         self.nsamples = nsamples
         self.nburnin = nburnin
         self.q = q
-        self.doZcarma = doZcarma
         self.nwalkers = nwalkers
         self.nthin = nthin
 
@@ -76,12 +75,9 @@ class CarmaMCMC(object):
             sample = CarSample1(self.time, self.y, self.ysig, self._CppSample)
         else:
             self._CppSample = carmcmcLib.run_mcmc_carma(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                        self.p, self.q, self.nwalkers, self.doZcarma, self.nthin)
-            # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCARMA class, convert to a python object
-            if self.doZcarma:
-                sample = ZCarmaSample(self.time, self.y, self.ysig, self._CppSample)
-            else:
-                sample = CarmaSample(self.time, self.y, self.ysig, self._CppSample, q=self.q)
+                                                        self.p, self.q, self.nwalkers, False, self.nthin)
+            # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
+            sample = CarmaSample(self.time, self.y, self.ysig, self._CppSample, q=self.q)
 
         return sample
 
@@ -113,6 +109,11 @@ class CarmaSample(samplers.MCMCSample):
         self._ar_roots()
         print "Calculating coefficients of AR polynomial..."
         self._ar_coefs()
+        if self.q > 0:
+            print "Calculating coefficients of MA polynomial..."
+
+        self._ma_coefs(trace)
+
         print "Calculating sigma..."
         self._sigma_noise()
 
@@ -135,7 +136,7 @@ class CarmaSample(samplers.MCMCSample):
     def generate_from_trace(self, trace):
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 3 - self.q
-        names = ['var', 'measerr_scale', 'mu', 'quad_coefs', 'ma_coefs']
+        names = ['var', 'measerr_scale', 'mu', 'quad_coefs']
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
@@ -145,11 +146,6 @@ class CarmaSample(samplers.MCMCSample):
             # AR(p) polynomial is factored as a product of quadratic terms:
             #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
             self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
-            if self.q > 0:
-                # Add in coefficients of the moving average polynomial
-                self._samples['ma_coefs'] = np.column_stack((np.ones(trace.shape[0]), trace[:, 3 + self.p:]))
-            else:
-                self._samples['ma_coefs'] = np.ones((trace.shape[0], 1))
 
     def generate_from_file(self, filename):
         """
@@ -194,6 +190,38 @@ class CarmaSample(samplers.MCMCSample):
             self._samples['psd_centroid'][:, -1] = 0.0
             self._samples['psd_width'][:, -1] = quad_coefs[:, -1] / (2.0 * np.pi)
 
+    def _ma_coefs(self, trace):
+        """
+        Calculate the CARMA(p,q) moving average coefficients and add them to the MCMC samples.
+        """
+        nsamples = trace.shape[0]
+        if self.q == 0:
+            self._samples['ma_coefs'] = np.ones((nsamples, 1))
+        else:
+            quad_coefs = np.exp(trace[:, 3 + self.p:])
+            roots = np.empty(quad_coefs.shape, dtype=complex)
+            for i in xrange(self.q / 2):
+                quad1 = quad_coefs[:, 2 * i]
+                quad2 = quad_coefs[:, 2 * i + 1]
+
+                discriminant = quad2 ** 2 - 4.0 * quad1
+                sqrt_disc = np.where(discriminant > 0, np.sqrt(discriminant), 1j * np.sqrt(np.abs(discriminant)))
+                roots[:, 2 * i] = -0.5 * (quad2 + sqrt_disc)
+                roots[:, 2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
+
+            if self.p % 2 == 1:
+                # p is odd, so add in root from linear term
+                roots[:, -1] = -quad_coefs[:, -1]
+
+            coefs = np.empty((nsamples, self.q + 1), dtype=complex)
+            for i in xrange(nsamples):
+                coefs_i = np.poly(roots[i, :])
+                # normalize so constant in polynomial is unity, and reverse order to be consistent with MA
+                # representation
+                coefs[i, :] = (coefs_i / coefs_i[self.q])[::-1]
+
+            self._samples['ma_coefs'] = coefs.real
+
     def _ar_coefs(self):
         """
         Calculate the CARMA(p,q) autoregressive coefficients and add them to the MCMC samples.
@@ -229,7 +257,7 @@ class CarmaSample(samplers.MCMCSample):
 
             ma_sum1 = np.zeros_like(ar_roots[:, 0])
             ma_sum2 = ma_sum1.copy()
-            for l in xrange(self.q + 1):
+            for l in xrange(ma_coefs.shape[1]):
                 ma_sum1 += ma_coefs[:, l] * ar_roots[:, k] ** l
                 ma_sum2 += ma_coefs[:, l] * (-1.0 * ar_roots[:, k]) ** l
             numer = ma_sum1 * ma_sum2
@@ -299,7 +327,7 @@ class CarmaSample(samplers.MCMCSample):
                 # Note that ar_coefs[0] = 1.0.
                 ar_poly += ar_coefs[:, k] * omega ** (self.p - k)
             ar_poly += ar_coefs[:, self.p - 1] * omega + ar_coefs[:, self.p]
-            for k in xrange(self.q + 1):
+            for k in xrange(ma_coefs.shape[1]):
                 # Here we compute:
                 #   delta(omega) = ma_coefs[0] + ma_coefs[1] * omega + ... + ma_coefs[q] * omega^q
                 ma_poly += ma_coefs[:, k] * omega ** k
@@ -592,34 +620,6 @@ class CarmaSample(samplers.MCMCSample):
         dic = mean_deviance + effect_npar
 
         return dic
-
-
-class ZCarmaSample(CarmaSample):
-    def __init__(self, time, y, ysig, sampler, filename=None):
-        super(ZCarmaSample, self).__init__(time, y, ysig, sampler, q=0, filename=filename)
-
-    def generate_from_trace(self, trace):
-        # Figure out how many AR terms we have
-        self.p = trace.shape[1] - 4
-        names = ['var', 'measerr_scale', 'mu', 'quad_coefs', 'kappa', 'ma_coefs']
-        if names != self._samples.keys():
-            idx = 0
-            # Parameters are not already in the dictionary, add them.
-            self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
-            self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
-            self._samples['mu'] = trace[:, 2]  # mean of time series
-            # AR(p) polynomial is factored as a product of quadratic terms:
-            #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
-            self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
-            # add kappa values
-            self._samples['kappa'] = trace[:, 3 + self.p]
-            # update value of q
-            self.q = self.p - 1
-            # add MA coefficients
-            ma_coefs = np.empty((trace.shape[0], self.p))
-            for k in xrange(self.p):
-                ma_coefs[:, k] = comb(self.p - 1, k) / self._samples['kappa'] ** k
-            self._samples['ma_coefs'] = ma_coefs
 
 
 class KalmanFilter(object):
