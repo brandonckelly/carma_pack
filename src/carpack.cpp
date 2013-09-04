@@ -250,7 +250,8 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     arma::uvec valid_frequencies1 = arma::find(lorentz_cent < max_freq_);
 	arma::uvec valid_frequencies2 = arma::find(lorentz_width < max_freq_);
     
-    bool prior_satisfied = true;
+    double tol = 1e-4;
+    bool prior_satisfied = unique_roots(ar_roots, tol); // are the roots unique?
     
     if ( (valid_frequencies1.n_elem != lorentz_cent.n_elem) ||
         (valid_frequencies2.n_elem != lorentz_width.n_elem) ||
@@ -260,14 +261,22 @@ bool CARp::CheckPriorBounds(arma::vec theta)
         prior_satisfied = false;
     }
 	// Make sure the Lorentzian centroids are still in decreasing order
-	for (int i=1; i<p_/2; i++) {
+	for (int i=1; i<lorentz_cent.n_elem; i++) {
         double lorentz_cent_difference = lorentz_cent(i) - lorentz_cent(i-1);
 		if (lorentz_cent_difference > 1e-8) {
 			// Lorentzians are not in decreasing order, reject this proposal
 			prior_satisfied = false;
 		}
     }
-    
+    // Make sure Lorentzian widths are greater than minimum frequency for those Lorentzians with centroids
+    // less than the minimum frequency.
+    for (int i=0; i<lorentz_cent.n_elem; i++) {
+        if (lorentz_cent(i) < min_freq_) {
+            if (lorentz_width(i) < min_freq_) {
+                prior_satisfied = false;
+            }
+        }
+    }    
     return prior_satisfied;
 }
 
@@ -351,7 +360,7 @@ arma::vec CARMA::StartingValue()
         theta(0) = sqrt(yvar);
         theta(1) = measerr_scale;
         theta(2) = mu;
-        
+                
         // set the Kalman filter parameters
         pKFilter_->SetSigsqr(sigsqr);
         pKFilter_->SetOmega(ExtractAR(theta));

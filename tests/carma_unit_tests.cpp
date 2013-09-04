@@ -649,7 +649,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a CARMA
 }
 
 TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CARMA(5,4) process.") {
-    std::cout << "Testing KalmanFilter1.Simulate()..." << std::endl;
+    std::cout << "Testing KalmanFilterp.Simulate()..." << std::endl;
 
     // first grab the simulated Gaussian ZCARMA(5) data set
     arma::mat zcarma_data;
@@ -665,6 +665,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CARMA(5,4) 
     double qpo_cent[2] = {0.2, 0.02};
     double sigmay = 2.3;
     int p = 5;
+    int q = 4;
     double kappa = 3.0;
     
     // Create the parameter vector, omega
@@ -1043,7 +1044,7 @@ TEST_CASE("ZCAR/logpost_test_mcmc", "Make sure log-posterior returned by MCMC sa
         double logpost0 = zcar5.LogDensity(mcmc_sample[i]);
         double frac_diff = std::abs(logpost0 - logpost_samples[i]) / std::abs(logpost_samples[i]);
         if (frac_diff < 1e-8) {
-            nequal_zcarma++;
+            nequal_zcar++;
         }
         // now do test for arma::vec
         double this_logpost = mcmc_out->LogDensity(mcmc_sample[i]);
@@ -1480,8 +1481,8 @@ TEST_CASE("./ZCAR5/mcmc_sampler", "Test RunEnsembleCarSampler on ZCAR(5) model")
     // MCMC parameters
     int carp_order = 5;
     int nwalkers = 10;
-    int sample_size = 1000;
-    int burnin = 1000;
+    int sample_size = 50000;
+    int burnin = 25000;
     // True zcar(5) process parameters
     double qpo_width[3] = {0.01, 0.01, 0.002};
     double qpo_cent[2] = {0.2, 0.02};
@@ -1557,11 +1558,15 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
     std::vector<double> y = arma::conv_to<std::vector<double> >::from(carma_data.col(1));
     std::vector<double> yerr = arma::conv_to<std::vector<double> >::from(carma_data.col(2));
     
+    arma::vec atime = carma_data.col(0);
+    double min_freq = 1.0 / (atime.max() - atime.min());
+    std::cout << "min freq: " << min_freq << std::endl;
+    
     // MCMC parameters
     int carp_order = 5;
-    int nwalkers = 20;
+    int nwalkers = 13;
     int sample_size = 50000;
-    int burnin = 25000;
+    int burnin = 15000;
     
     // run the MCMC sampler
     std::shared_ptr<CARp> mcmc_out;

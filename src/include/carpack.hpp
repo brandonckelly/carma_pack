@@ -12,6 +12,8 @@
 #ifndef __CARPACK_HDEF__
 #define __CARPACK_HDEF__
 
+#include <boost/math/special_functions/binomial.hpp>
+#include <stdexcept>
 #include <string>
 #include <memory>
 #include <random.hpp>
@@ -121,9 +123,18 @@ public:
         return logprior;
     }
     
+    virtual void PrintOmega(OmegaType omega) {};
+    
     // compute the log-posterior
     double LogDensity(arma::vec theta)
     {
+        // Prior bounds satisfied?
+        bool prior_satisfied = CheckPriorBounds(theta);
+        if (!prior_satisfied) {
+            double logpost = -1.0 * arma::datum::inf;
+            return logpost;
+        }
+        
         OmegaType omega = ExtractAR(theta);
         arma::vec ma_coefs = ExtractMA(theta);
         double sigsqr = ExtractSigsqr(theta);
@@ -138,7 +149,17 @@ public:
         pKFilter_->SetTimeSeriesErr(proposed_yerr);
         arma::vec ycent = y_ - mu;
         pKFilter_->SetTimeSeries(ycent);
-        pKFilter_->Filter();
+        try {
+            pKFilter_->Filter();
+        } catch (std::runtime_error& e) {
+            std::cout << "Caught a runtime error when trying to run the Kalman Filter: " << e.what() << std::endl;
+            std::cout << "Rejecting this proposal..." << std::endl;
+            PrintOmega(omega);
+            bool prior_satisfied = CheckPriorBounds(theta);
+            std::cout << "Prior satisfied: " << prior_satisfied << std::endl;
+            double logpost = -1.0 * arma::datum::inf;
+            return logpost;
+        }
         
         // calculate the log-likelihood
         double logpost = 0.0;
@@ -146,14 +167,7 @@ public:
             double ycent = y_(i) - pKFilter_->mean(i) - mu;
             logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }
-        
-        // Prior bounds satisfied?
-        bool prior_satisfied = CheckPriorBounds(theta);
-        if (!prior_satisfied) {
-            logpost = -1.0 * arma::datum::inf;
-            return logpost;
-        }
-                
+
         logpost += LogPrior(theta);
         
         return logpost;
@@ -184,8 +198,8 @@ public:
     {
         max_stdev_ = max_stdev;
         arma::vec dt = time_(arma::span(1,time_.n_elem-1)) - time_(arma::span(0,time_.n_elem-2));
-        max_freq_ = 10.0 / dt.min();
-        min_freq_ = 1.0 / (10.0 * (time_.max() - time_.min()));
+        max_freq_ = 1.0 / dt.min();
+        min_freq_ = 1.0 / (time_.max() - time_.min());
     }
     
     // Return a copy of the MCMC samples
@@ -298,6 +312,10 @@ public:
 	
     // Set the bounds on the uniform prior.
     bool CheckPriorBounds(arma::vec theta);
+    
+    void PrintOmega(arma::cx_vec omega) {
+        omega.print("AR Roots:");
+    }
     
 protected:
     int p_; // Order of the CAR(p) process
