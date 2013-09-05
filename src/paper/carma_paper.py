@@ -8,7 +8,7 @@ from os import environ
 import pickle
 
 
-base_dir = environ['HOME'] + '/PycharmProjects/carma_paper/plots/'
+base_dir = environ['HOME'] + '/Projects/carma_pack/src/carma_paper/plots/'
 
 
 def run_carma_sampler(args):
