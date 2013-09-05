@@ -416,7 +416,7 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
         }
     }
 	
-    if ((p_ % 2) == 1) {
+    if ((q_ % 2) == 1) {
         // p is odd, so add in additional low-frequency component
         double real_root = -exp(theta(3+p_+q_-1));
         ma_roots(q_-1) = std::complex<double> (real_root, 0.0);
