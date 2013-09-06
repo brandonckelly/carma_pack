@@ -131,6 +131,11 @@ class CarmaSample(samplers.MCMCSample):
         self.parameters = self._samples.keys()
         self.newaxis()
 
+    def arrayToVec(self, array, arrType=carmcmcLib.vecD):
+        vec = arrType()
+        vec.extend(array)
+        return vec
+
     def set_logpost(self, logpost):
         self._samples['logpost'] = logpost  # log-posterior of the CAR(p) model
 
@@ -342,7 +347,8 @@ class CarmaSample(samplers.MCMCSample):
 
         # Plot the power spectra
         if sp == None:
-            sp = plt.subplot(111)
+            fig = plt.figure()
+            sp = fig.add_subplot(111)
 
         if plot_log:
             # plot the posterior median first
@@ -360,18 +366,12 @@ class CarmaSample(samplers.MCMCSample):
 
         return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
 
-    def plot_models(self, bestfit="median"):
-        bestfit = bestfit.lower()
-        try:
-            bestfit in ['map', 'median', 'mean']
-        except ValueError:
-            "bestfit must be one of 'map, 'median', or 'mean'"
-
+    def makeKalmanFilter(self, bestfit):
         if bestfit == 'map':
             # use maximum a posteriori estimate
             max_index = self._samples['logpost'].argmax()
-            sigsqr = self._samples['sigma'][max_index] ** 2
-            mu = self._samples['mu'][max_index]
+            sigsqr = (self._samples['sigma'][max_index] ** 2)[0]
+            mu = self._samples['mu'][max_index][0]
             ar_roots = self._samples['ar_roots'][max_index]
             ma_coefs = self._samples['ma_coefs'][max_index]
         elif bestfit == 'median':
@@ -387,25 +387,48 @@ class CarmaSample(samplers.MCMCSample):
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
+        kfilter = carmcmcLib.KalmanFilterp(self.arrayToVec(self.time), 
+                                           self.arrayToVec(self.y - mu), 
+                                           self.arrayToVec(self.ysig),
+                                           sigsqr, 
+                                           self.arrayToVec(ar_roots, carmcmcLib.vecC), 
+                                           self.arrayToVec(ma_coefs))
+        return kfilter, mu
+
+    def plot_models(self, bestfit="median", nplot=256, doShow=True):
+        bestfit = bestfit.lower()
+        try:
+            bestfit in ['map', 'median', 'mean']
+        except ValueError:
+            "bestfit must be one of 'map, 'median', or 'mean'"
+
+        kfilter, mu = self.makeKalmanFilter(bestfit)
+        kfilter.Filter()
+        kmean = np.empty(self.time.size)
+        kvar  = np.empty(self.time.size)
+        for i in xrange(self.time.size):
+            kpred = kfilter.Predict(self.time[i])
+            kmean[i] = kpred.first
+            kvar[i]  = kpred.second
+
         fig = plt.figure()
-        # compute the kalman filter for data only
         sp = fig.add_subplot(111)
-        kfilter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots, ma_coefs=ma_coefs)
-        kmean, kvar = kfilter.filter()
         sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
         sp.plot(self.time, kmean + mu, '-r', label='Kalman Filter')
         # compute the marginal mean and variance of the predicted values
-        nplot = 256
-        time_predict = np.linspace(self.time.min(), self.time.max(), nplot)
+        time_predict = np.linspace(self.time[1:].min(), self.time.max(), nplot)
         predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
-        sp.fill_between(self.time, predicted_low, predicted_high,
+        sp.fill_between(time_predict, predicted_low, predicted_high,
                         edgecolor=None, facecolor='blue', alpha=0.25)
         sp.set_xlabel('Time')
         sp.set_xlim(self.time.min(), self.time.max())
 
-    def assess_fit(self, bestfit="map", doShow=True):
+        if doShow:
+            plt.show()
+
+    def assess_fit(self, bestfit="map", nplot=256, doShow=True):
         """
         Display plots and provide useful information for assessing the quality of the CARMA(p.q) model fit.
 
@@ -418,30 +441,9 @@ class CarmaSample(samplers.MCMCSample):
         except ValueError:
             "bestfit must be one of 'map, 'median', or 'mean'"
 
-        if bestfit == 'map':
-            # use maximum a posteriori estimate
-            max_index = self._samples['logpost'].argmax()
-            sigsqr = self._samples['sigma'][max_index] ** 2
-            mu = self._samples['mu'][max_index]
-            ar_roots = self._samples['ar_roots'][max_index]
-            ma_coefs = self._samples['ma_coefs'][max_index]
-        elif bestfit == 'median':
-            # use posterior median estimate
-            sigsqr = np.median(self._samples['sigma']) ** 2
-            mu = np.median(self._samples['mu'])
-            ar_roots = np.median(self._samples['ar_roots'], axis=0)
-            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
-        else:
-            # use posterior mean as the best-fit
-            sigsqr = np.mean(self._samples['sigma'] ** 2)
-            mu = np.mean(self._samples['mu'])
-            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
-            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
-
+        fig = plt.figure()
         # compute the marginal mean and variance of the predicted values
-        nplot = 256
-        time_predict = np.linspace(self.time.min(), self.time.max(), nplot)
-        time_predict = time_predict[1:]
+        time_predict = np.linspace(self.time[1:].min(), self.time.max(), nplot)
         predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
@@ -456,11 +458,15 @@ class CarmaSample(samplers.MCMCSample):
         #plt.legend()
 
         # plot the standardized residuals and compare with the standard normal
-
-        kalman_filter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots,
-                                     ma_coefs=ma_coefs)
-        kalman_mean, kalman_var = kalman_filter.filter()
-        standardized_residuals = (self.y - mu - kalman_mean) / np.sqrt(kalman_var)
+        kfilter, mu = self.makeKalmanFilter(bestfit)
+        kfilter.Filter()
+        kmean = np.empty(self.time.size)
+        kvar  = np.empty(self.time.size)
+        for i in xrange(self.time.size):
+            kpred = kfilter.Predict(self.time[i])
+            kmean[i] = kpred.first
+            kvar[i]  = kpred.second
+        standardized_residuals = (self.y - mu - kmean) / np.sqrt(kvar)
         plt.subplot(222)
         plt.xlabel('Time')
         plt.xlim(self.time.min(), self.time.max())
@@ -523,39 +529,20 @@ class CarmaSample(samplers.MCMCSample):
         except ValueError:
             "bestfit must be one of 'map, 'median', or 'mean'"
 
-        if bestfit == 'map':
-            # use maximum a posteriori estimate
-            max_index = self._samples['logpost'].argmax()
-            sigsqr = self._samples['sigma'][max_index] ** 2
-            mu = self._samples['mu'][max_index]
-            ar_roots = self._samples['ar_roots'][max_index]
-            ma_coefs = self._samples['ma_coefs'][max_index]
-        elif bestfit == 'median':
-            # use posterior median estimate
-            sigsqr = np.median(self._samples['sigma']) ** 2
-            mu = np.median(self._samples['mu'])
-            ar_roots = np.median(self._samples['ar_roots'], axis=0)
-            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
-        else:
-            # use posterior mean as the best-fit
-            sigsqr = np.mean(self._samples['sigma'] ** 2)
-            mu = np.mean(self._samples['mu'])
-            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
-            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
-
         # note that KalmanFilter class assumes the time series has zero mean
-        kalman_filter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots,
-                                     ma_coefs=ma_coefs)
-
+        kfilter, mu = self.makeKalmanFilter(bestfit)
+        kfilter.Filter()
         if np.isscalar(time):
-            yhat, yhat_var = kalman_filter.predict(time)
+            pred = kfilter.Predict(time)
+            yhat = pred.first
+            yhat_var = pred.second
         else:
             yhat = np.empty(time.size)
             yhat_var = np.empty(time.size)
             for i in xrange(time.size):
-                yhati, yhat_vari = kalman_filter.predict(time[i])
-                yhat[i] = yhati
-                yhat_var[i] = yhat_vari
+                pred = kfilter.Predict(time[i])
+                yhat[i] = pred.first
+                yhat_var[i] = pred.second
 
         yhat += mu  # add mean back into time series
 
@@ -576,31 +563,18 @@ class CarmaSample(samplers.MCMCSample):
         except ValueError:
             "bestfit must be one of 'map, 'median', or 'mean'"
 
-        if bestfit == 'map':
-            # use maximum a posteriori estimate
-            max_index = self._samples['logpost'].argmax()
-            sigsqr = self._samples['sigma'][max_index] ** 2
-            mu = self._samples['mu'][max_index]
-            ar_roots = self._samples['ar_roots'][max_index]
-            ma_coefs = self._samples['ma_coefs'][max_index]
-        elif bestfit == 'median':
-            # use posterior median estimate
-            sigsqr = np.median(self._samples['sigma']) ** 2
-            mu = np.median(self._samples['mu'])
-            ar_roots = np.median(self._samples['ar_roots'], axis=0)
-            ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
-        else:
-            # use posterior mean as the best-fit
-            sigsqr = np.mean(self._samples['sigma'] ** 2)
-            mu = np.mean(self._samples['mu'])
-            ar_roots = np.mean(self._samples['ar_roots'], axis=0)
-            ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
-
         # note that KalmanFilter class assumes the time series has zero mean
-        kalman_filter = KalmanFilter(self.time, self.y - mu, self.ysig ** 2, sigsqr, ar_roots,
-                                     ma_coefs=ma_coefs)
+        kfilter, mu = self.makeKalmanFilter(bestfit)
+        kfilter.Filter()
+        if np.isscalar(time):
+            pred = kfilter.Predict(time)
+            ysim = pred.first
+        else:
+            ysim = np.empty(time.size)
+            for i in xrange(time.size):
+                pred = kfilter.Predict(time[i])
+                ysim[i] = pred.first
 
-        ysim = kalman_filter.simulate(time)
         ysim += mu  # add mean back into time series
 
         return ysim
@@ -623,7 +597,351 @@ class CarmaSample(samplers.MCMCSample):
         return dic
 
 
-class KalmanFilter(object):
+class CarSample1(CarmaSample):
+    def __init__(self, time, y, ysig, sampler, filename=None):
+        self.time = time  # The time values of the time series
+        self.y = y     # The measured values of the time series
+        self.ysig = ysig  # The standard deviation of the measurement errors of the time series
+        self.p = 1     # How many AR terms
+
+        self.sampler = sampler # Wrapper around C++ sampler
+        logpost = np.array(self.sampler.GetLogLikes())
+        trace = np.array(self.sampler.getSamples())
+
+        super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
+
+        print "Calculating sigma..."
+        self._sigma_noise()
+
+        # add the log-likelihoods
+        print "Calculating log-likelihoods..."
+        loglik = np.empty(logpost.size)
+        for i in xrange(logpost.size):
+            std_theta = carmcmcLib.vecD()
+            std_theta.extend(trace[i, :])
+            loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
+
+        self._samples['loglik'] = loglik
+        # make the parameter names (i.e., the keys) public so the use knows how to get them
+        self.parameters = self._samples.keys()
+        self.newaxis()
+
+    def generate_from_trace(self, trace):
+        names = ['sigma', 'measerr_scale', 'mu', 'log_omega']
+        if names != self._samples.keys():
+            self._samples['var'] = trace[:, 0]
+            self._samples['measerr_scale'] = trace[:, 1]
+            self._samples['mu'] = trace[:, 2]
+            self._samples['log_omega'] = trace[:, 3]
+
+    def _ar_roots(self):
+        print "_ar_roots not supported for CAR1"
+        return
+
+    def _ar_coefs(self):
+        print "_ar_coefs not supported for CAR1"
+        return
+
+    def _sigma_noise(self):
+        self._samples['sigma'] = np.sqrt(2.0 * self._samples['var'] * np.exp(self._samples['log_omega']))
+
+    def makeKalmanFilter(self, bestfit):
+        if bestfit == 'map':
+            # use maximum a posteriori estimate
+            max_index = self._samples['logpost'].argmax()
+            sigsqr = (self._samples['sigma'][max_index] ** 2)[0]
+            mu = self._samples['mu'][max_index][0]
+            log_omega = self._samples['log_omega'][max_index][0]
+        elif bestfit == 'median':
+            # use posterior median estimate
+            sigsqr = np.median(self._samples['sigma']) ** 2
+            mu = np.median(self._samples['mu'])
+            log_omega = np.median(self._samples['log_omega'])
+        else:
+            # use posterior mean as the best-fit
+            sigsqr = np.mean(self._samples['sigma'] ** 2)
+            mu = np.mean(self._samples['mu'])
+            log_omega = np.mean(self._samples['log_omega'])
+
+        kfilter = carmcmcLib.KalmanFilter1(self.arrayToVec(self.time), 
+                                           self.arrayToVec(self.y - mu), 
+                                           self.arrayToVec(self.ysig),
+                                           sigsqr, 
+                                           10**(log_omega))
+        return kfilter, mu
+
+    def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None, doShow=True):
+        sigmas = self._samples['sigma']
+        log_omegas = self._samples['log_omega']
+
+        nfreq = 1000
+        dt_min = self.time[1:] - self.time[0:self.time.size - 1]
+        dt_min = dt_min.min()
+        dt_max = self.time.max() - self.time.min()
+
+        # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
+        # maximum time scales probed by the time series.
+        freq_max = 1.0 / (dt_min / 2.0)
+        freq_min = (1.0 / (2.0 * dt_max))
+
+        frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
+        frequencies = np.exp(frequencies)
+        psd_credint = np.empty((nfreq, 3))
+
+        lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
+        upper = 100.0 - lower
+
+        numer = 0.5 / np.pi * sigmas ** 2
+        for i in xrange(nfreq):
+            denom = 10 ** log_omegas ** 2 + frequencies[i] ** 2
+            psd_samples = numer / denom
+
+            # Now compute credibility interval for power spectrum
+            psd_credint[i, 0] = np.percentile(psd_samples, lower, axis=0)
+            psd_credint[i, 2] = np.percentile(psd_samples, upper, axis=0)
+            psd_credint[i, 1] = np.median(psd_samples, axis=0)
+
+        # Plot the power spectra
+        if sp == None:
+            fig = plt.figure()
+            sp = fig.add_subplot(111)
+
+        if plot_log:
+            # plot the posterior median first
+            sp.loglog(frequencies, psd_credint[:, 1], color=color)
+        else:
+            sp.plot(frequencies, psd_credint[:, 1], color=color)
+
+        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
+        sp.set_xlim(frequencies.min(), frequencies.max())
+        sp.set_xlabel('Frequency')
+        sp.set_ylabel('Power Spectrum')
+        if doShow:
+            plt.show()
+
+        return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+
+    def plot_2dpdf(self, name1, name2, doShow=False):
+        print "Plotting 2d PDF"
+        trace1 = self._samples[name1]
+        trace2 = self._samples[name2]
+
+        fig = plt.figure()
+        # joint distribution
+        axJ = fig.add_axes([0.1, 0.1, 0.7, 0.7])               # [left, bottom, width, height]
+        # y histogram
+        axY = fig.add_axes([0.8, 0.1, 0.125, 0.7], sharey=axJ)
+        # x histogram
+        axX = fig.add_axes([0.1, 0.8, 0.7, 0.125], sharex=axJ)
+        axJ.plot(trace1, trace2, 'ro', ms=1, alpha=0.5)
+        axX.hist(trace1, bins=100)
+        axY.hist(trace2, orientation='horizontal', bins=100)
+        axJ.set_xlabel("%s" % (name1))
+        axJ.set_ylabel("%s" % (name2))
+        plt.setp(axX.get_xticklabels() + axX.get_yticklabels(), visible=False)
+        plt.setp(axY.get_xticklabels() + axY.get_yticklabels(), visible=False)
+        if doShow:
+            plt.show()
+        
+
+##################
+
+def get_ar_roots(qpo_width, qpo_centroid):
+    """
+    Return the roots of the characteristic polynomial of the CAR(p) process, given the lorentzian widths and centroids.
+
+    :rtype : a numpy array
+    :param qpo_width: The widths of the lorentzian functions defining the PSD.
+    :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
+    """
+    p = qpo_centroid.size + qpo_width.size
+    ar_roots = np.empty(p, dtype=complex)
+    for i in xrange(p / 2):
+        ar_roots[2 * i] = qpo_width[i] + 1j * qpo_centroid[i]
+        ar_roots[2 * i + 1] = np.conjugate(ar_roots[2 * i])
+    if p % 2 == 1:
+        # p is odd, so add in low-frequency component
+        ar_roots[-1] = qpo_width[-1]
+
+    return -2.0 * np.pi * ar_roots
+
+
+def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
+    """
+    Return the power spectrum for a CAR(p) process calculated at the input frequencies.
+
+    :param freq: The frequencies at which to calculate the PSD.
+    :param sigma: The standard deviation driving white noise.
+    :param ar_coef: The CAR(p) model autoregressive coefficients.
+    :param ma_coefs: Coefficients of the moving average polynomial
+
+    :rtype : A numpy array.
+    """
+    try:
+        len(ma_coefs) <= len(ar_coef)
+    except ValueError:
+        "Size of ma_coefs must be less or equal to size of ar_roots."
+
+    ma_poly = np.polyval(ma_coefs[::-1], 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD numerator
+    ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
+    pspec = sigma ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
+    return pspec
+
+
+def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
+    """
+    Return the autocovariance function of a CARMA(p,q) process.
+
+    :param sigsqr: The variance in the driving white noise.
+    :param ar_roots: The roots of the AR characteristic polynomial.
+    :param ma_coefs: The moving average coefficients.
+    :param lag: The lag at which to calculate the autocovariance function.
+    """
+    try:
+        len(ma_coefs) <= len(ar_roots)
+    except ValueError:
+        "Size of ma_coefs must be less or equal to size of ar_roots."
+
+    if len(ma_coefs) < len(ar_roots):
+        # add extra zeros to end of ma_coefs
+        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
+        ma_coefs[1:] = 0.0
+
+    sigma1_variance = 0.0 + 0j
+    p = ar_roots.size
+    for k in xrange(p):
+        denom_product = 1.0 + 0j
+        for l in xrange(p):
+            if l != k:
+                denom_product *= (ar_roots[l] - ar_roots[k]) * (np.conjugate(ar_roots[l]) + ar_roots[k])
+
+        denom = -2.0 * denom_product * ar_roots[k].real
+
+        ma_sum1 = 0.0 + 0j
+        ma_sum2 = 0.0 + 0j
+        for l in xrange(p):
+            ma_sum1 += ma_coefs[l] * ar_roots[k] ** l
+            ma_sum2 += ma_coefs[l] * (-1.0 * ar_roots[k]) ** l
+
+        numer = ma_sum1 * ma_sum2 * np.exp(ar_roots[k] * abs(lag))
+
+        sigma1_variance += numer / denom
+
+    return sigsqr * sigma1_variance.real
+
+
+def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
+    """
+    Generate a CARMA(p,q) process.
+
+    :param time: The time values at which to generate the CARMA(p,q) process at.
+    :param sigsqr: The variance in the driving white noise term.
+    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
+    :param ma_coefs: The moving average coefficients.
+    :rtype : A numpy array containing the simulated CARMA(p,q) process values at time.
+    """
+    try:
+        len(ma_coefs) <= len(ar_roots)
+    except ValueError:
+        "Size of ma_coefs must be less or equal to size of ar_roots."
+
+    p = len(ar_roots)
+
+    if len(ma_coefs) < p:
+        # add extra zeros to end of ma_coefs
+        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
+        ma_coefs[1:] = 0.0
+
+    time.sort()
+    # make sure process is stationary
+    try:
+        np.any(ar_roots.real < 0)
+    except ValueError:
+        "Process is not stationary, real part of roots must be negative."
+
+    # make sure the roots are unique
+    tol = 1e-8
+    roots_grid = np.meshgrid(ar_roots, ar_roots)
+    roots_grid1 = roots_grid[0].ravel()
+    roots_grid2 = roots_grid[1].ravel()
+    diff_roots = np.abs(roots_grid1 - roots_grid2) / np.abs(roots_grid1 + roots_grid2)
+    try:
+        np.any(diff_roots > tol)
+    except ValueError:
+        "Roots are not unique."
+
+    # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform
+    # quantities into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
+    EigenMat = np.ones((p, p), dtype=complex)
+    EigenMat[1, :] = ar_roots
+    for k in xrange(2, p):
+        EigenMat[k, :] = ar_roots ** k
+
+    # Input vector under the original state space representation
+    Rvector = np.zeros(p, dtype=complex)
+    Rvector[-1] = 1.0
+
+    # Input vector under rotated state space representation
+    Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
+
+    # Compute the vector of moving average coefficients in the rotated state.
+    rotated_MA_coefs = ma_coefs.dot(EigenMat)
+
+    # Calculate the stationary covariance matrix of the state vector
+    StateVar = np.empty((p, p), dtype=complex)
+    for j in xrange(p):
+        StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
+
+    # Initialize variance in one-step prediction error and the state vector
+    PredictionVar = StateVar.copy()
+    StateVector = np.zeros(p, dtype=complex)
+
+    # Convert the current state to matrices for convenience, since we'll be doing some Linear algebra.
+    StateVector = np.matrix(StateVector).T
+    StateVar = np.matrix(StateVar)
+    PredictionVar = np.matrix(PredictionVar)
+    rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
+    StateTransition = np.zeros_like(StateVector)
+    KalmanGain = np.zeros_like(StateVector)
+
+    # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
+    kalman_mean = 0.0
+    kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
+
+    # simulate the first time series value
+    y = np.empty_like(time)
+    y[0] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
+
+    # Initialize the innovations, i.e., the KF residuals
+    innovation = y[0]
+
+    for i in xrange(1, time.size):
+        # First compute the Kalman gain
+        KalmanGain = PredictionVar * rotated_MA_coefs.H / kalman_var
+        # update the state vector
+        StateVector += innovation * KalmanGain
+        # update the state one-step prediction error variance
+        PredictionVar -= kalman_var * (KalmanGain * KalmanGain.H)
+        # predict the next state, do element-wise multiplication
+        dt = time[i] - time[i - 1]
+        StateTransition = np.matrix(np.exp(ar_roots * dt)).T
+        StateVector = np.multiply(StateVector, StateTransition)
+        # update the predicted state covariance matrix
+        PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
+        # now predict the observation and its variance
+        kalman_mean = np.real(np.asscalar(rotated_MA_coefs * StateVector))
+        kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
+        # simulate the next time series value
+        y[i] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
+        # finally, update the innovation
+        innovation = y[i] - kalman_mean
+
+    return y
+
+##################
+# Deprecated
+
+class KalmanFilterDeprecated(object):
     def __init__(self, time, y, yvar, sigsqr, ar_roots, ma_coefs=[1.0]):
         """
         Constructor for Kalman Filter class.
@@ -889,314 +1207,3 @@ class KalmanFilter(object):
         return ysimulated
 
 
-def get_ar_roots(qpo_width, qpo_centroid):
-    """
-    Return the roots of the characteristic polynomial of the CAR(p) process, given the lorentzian widths and centroids.
-
-    :rtype : a numpy array
-    :param qpo_width: The widths of the lorentzian functions defining the PSD.
-    :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
-    """
-    p = qpo_centroid.size + qpo_width.size
-    ar_roots = np.empty(p, dtype=complex)
-    for i in xrange(p / 2):
-        ar_roots[2 * i] = qpo_width[i] + 1j * qpo_centroid[i]
-        ar_roots[2 * i + 1] = np.conjugate(ar_roots[2 * i])
-    if p % 2 == 1:
-        # p is odd, so add in low-frequency component
-        ar_roots[-1] = qpo_width[-1]
-
-    return -2.0 * np.pi * ar_roots
-
-
-def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
-    """
-    Return the power spectrum for a CAR(p) process calculated at the input frequencies.
-
-    :param freq: The frequencies at which to calculate the PSD.
-    :param sigma: The standard deviation driving white noise.
-    :param ar_coef: The CAR(p) model autoregressive coefficients.
-    :param ma_coefs: Coefficients of the moving average polynomial
-
-    :rtype : A numpy array.
-    """
-    try:
-        len(ma_coefs) <= len(ar_coef)
-    except ValueError:
-        "Size of ma_coefs must be less or equal to size of ar_roots."
-
-    ma_poly = np.polyval(ma_coefs[::-1], 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD numerator
-    ar_poly = np.polyval(ar_coef, 2.0 * np.pi * 1j * freq)  # Evaluate the polynomial in the PSD denominator
-    pspec = sigma ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
-    return pspec
-
-
-def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
-    """
-    Return the autocovariance function of a CARMA(p,q) process.
-
-    :param sigsqr: The variance in the driving white noise.
-    :param ar_roots: The roots of the AR characteristic polynomial.
-    :param ma_coefs: The moving average coefficients.
-    :param lag: The lag at which to calculate the autocovariance function.
-    """
-    try:
-        len(ma_coefs) <= len(ar_roots)
-    except ValueError:
-        "Size of ma_coefs must be less or equal to size of ar_roots."
-
-    if len(ma_coefs) < len(ar_roots):
-        # add extra zeros to end of ma_coefs
-        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
-        ma_coefs[1:] = 0.0
-
-    sigma1_variance = 0.0 + 0j
-    p = ar_roots.size
-    for k in xrange(p):
-        denom_product = 1.0 + 0j
-        for l in xrange(p):
-            if l != k:
-                denom_product *= (ar_roots[l] - ar_roots[k]) * (np.conjugate(ar_roots[l]) + ar_roots[k])
-
-        denom = -2.0 * denom_product * ar_roots[k].real
-
-        ma_sum1 = 0.0 + 0j
-        ma_sum2 = 0.0 + 0j
-        for l in xrange(p):
-            ma_sum1 += ma_coefs[l] * ar_roots[k] ** l
-            ma_sum2 += ma_coefs[l] * (-1.0 * ar_roots[k]) ** l
-
-        numer = ma_sum1 * ma_sum2 * np.exp(ar_roots[k] * abs(lag))
-
-        sigma1_variance += numer / denom
-
-    return sigsqr * sigma1_variance.real
-
-
-def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
-    """
-    Generate a CARMA(p,q) process.
-
-    :param time: The time values at which to generate the CARMA(p,q) process at.
-    :param sigsqr: The variance in the driving white noise term.
-    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
-    :param ma_coefs: The moving average coefficients.
-    :rtype : A numpy array containing the simulated CARMA(p,q) process values at time.
-    """
-    try:
-        len(ma_coefs) <= len(ar_roots)
-    except ValueError:
-        "Size of ma_coefs must be less or equal to size of ar_roots."
-
-    p = len(ar_roots)
-
-    if len(ma_coefs) < p:
-        # add extra zeros to end of ma_coefs
-        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
-        ma_coefs[1:] = 0.0
-
-    time.sort()
-    # make sure process is stationary
-    try:
-        np.any(ar_roots.real < 0)
-    except ValueError:
-        "Process is not stationary, real part of roots must be negative."
-
-    # make sure the roots are unique
-    tol = 1e-8
-    roots_grid = np.meshgrid(ar_roots, ar_roots)
-    roots_grid1 = roots_grid[0].ravel()
-    roots_grid2 = roots_grid[1].ravel()
-    diff_roots = np.abs(roots_grid1 - roots_grid2) / np.abs(roots_grid1 + roots_grid2)
-    try:
-        np.any(diff_roots > tol)
-    except ValueError:
-        "Roots are not unique."
-
-    # Setup the matrix of Eigenvectors for the Kalman Filter transition matrix. This allows us to transform
-    # quantities into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
-    EigenMat = np.ones((p, p), dtype=complex)
-    EigenMat[1, :] = ar_roots
-    for k in xrange(2, p):
-        EigenMat[k, :] = ar_roots ** k
-
-    # Input vector under the original state space representation
-    Rvector = np.zeros(p, dtype=complex)
-    Rvector[-1] = 1.0
-
-    # Input vector under rotated state space representation
-    Jvector = solve(EigenMat, Rvector)  # J = inv(E) * R
-
-    # Compute the vector of moving average coefficients in the rotated state.
-    rotated_MA_coefs = ma_coefs.dot(EigenMat)
-
-    # Calculate the stationary covariance matrix of the state vector
-    StateVar = np.empty((p, p), dtype=complex)
-    for j in xrange(p):
-        StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
-
-    # Initialize variance in one-step prediction error and the state vector
-    PredictionVar = StateVar.copy()
-    StateVector = np.zeros(p, dtype=complex)
-
-    # Convert the current state to matrices for convenience, since we'll be doing some Linear algebra.
-    StateVector = np.matrix(StateVector).T
-    StateVar = np.matrix(StateVar)
-    PredictionVar = np.matrix(PredictionVar)
-    rotated_MA_coefs = np.matrix(rotated_MA_coefs)  # this is a row vector, so no transpose
-    StateTransition = np.zeros_like(StateVector)
-    KalmanGain = np.zeros_like(StateVector)
-
-    # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
-    kalman_mean = 0.0
-    kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
-
-    # simulate the first time series value
-    y = np.empty_like(time)
-    y[0] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
-
-    # Initialize the innovations, i.e., the KF residuals
-    innovation = y[0]
-
-    for i in xrange(1, time.size):
-        # First compute the Kalman gain
-        KalmanGain = PredictionVar * rotated_MA_coefs.H / kalman_var
-        # update the state vector
-        StateVector += innovation * KalmanGain
-        # update the state one-step prediction error variance
-        PredictionVar -= kalman_var * (KalmanGain * KalmanGain.H)
-        # predict the next state, do element-wise multiplication
-        dt = time[i] - time[i - 1]
-        StateTransition = np.matrix(np.exp(ar_roots * dt)).T
-        StateVector = np.multiply(StateVector, StateTransition)
-        # update the predicted state covariance matrix
-        PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
-        # now predict the observation and its variance
-        kalman_mean = np.real(np.asscalar(rotated_MA_coefs * StateVector))
-        kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
-        # simulate the next time series value
-        y[i] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
-        # finally, update the innovation
-        innovation = y[i] - kalman_mean
-
-    return y
-
-
-class CarSample1(CarmaSample):
-    def __init__(self, time, y, ysig, sampler, filename=None):
-        self.time = time  # The time values of the time series
-        self.y = y     # The measured values of the time series
-        self.ysig = ysig  # The standard deviation of the measurement errors of the time series
-        self.p = 1     # How many AR terms
-
-        self.sampler = sampler # Wrapper around C++ sampler
-        logpost = np.array(self.sampler.GetLogLikes())
-        trace = np.array(self.sampler.getSamples())
-
-        super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
-
-        print "Calculating sigma..."
-        self._sigma_noise()
-
-        # add the log-likelihoods
-        print "Calculating log-likelihoods..."
-        loglik = np.empty(logpost.size)
-        for i in xrange(logpost.size):
-            std_theta = carmcmcLib.vecD()
-            std_theta.extend(trace[i, :])
-            loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
-
-        self._samples['loglik'] = loglik
-        # make the parameter names (i.e., the keys) public so the use knows how to get them
-        self.parameters = self._samples.keys()
-        self.newaxis()
-
-    def generate_from_trace(self, trace):
-        names = ['sigma', 'measerr_scale', 'mu', 'log_omega']
-        if names != self._samples.keys():
-            self._samples['var'] = trace[:, 0]
-            self._samples['measerr_scale'] = trace[:, 1]
-            self._samples['mu'] = trace[:, 2]
-            self._samples['log_omega'] = trace[:, 3]
-
-    def _ar_roots(self):
-        print "_ar_roots not supported for CAR1"
-        return
-
-    def _ar_coefs(self):
-        print "_ar_coefs not supported for CAR1"
-        return
-
-    def _sigma_noise(self):
-        self._samples['sigma'] = np.sqrt(2.0 * self._samples['var'] * np.exp(self._samples['log_omega']))
-
-    def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None):
-        sigmas = self._samples['sigma']
-        log_omegas = self._samples['log_omega']
-
-        nfreq = 1000
-        dt_min = self.time[1:] - self.time[0:self.time.size - 1]
-        dt_min = dt_min.min()
-        dt_max = self.time.max() - self.time.min()
-
-        # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
-        # maximum time scales probed by the time series.
-        freq_max = 1.0 / (dt_min / 2.0)
-        freq_min = (1.0 / (2.0 * dt_max))
-
-        frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
-        frequencies = np.exp(frequencies)
-        psd_credint = np.empty((nfreq, 3))
-
-        lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
-        upper = 100.0 - lower
-
-        numer = 0.5 / np.pi * sigmas ** 2
-        for i in xrange(nfreq):
-            denom = 10 ** log_omegas ** 2 + frequencies[i] ** 2
-            psd_samples = numer / denom
-
-            # Now compute credibility interval for power spectrum
-            psd_credint[i, 0] = np.percentile(psd_samples, lower, axis=0)
-            psd_credint[i, 2] = np.percentile(psd_samples, upper, axis=0)
-            psd_credint[i, 1] = np.median(psd_samples, axis=0)
-
-        # Plot the power spectra
-        if sp == None:
-            sp = plt.subplot(111)
-
-        if plot_log:
-            # plot the posterior median first
-            sp.loglog(frequencies, psd_credint[:, 1], color=color)
-        else:
-            sp.plot(frequencies, psd_credint[:, 1], color=color)
-
-        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
-        sp.set_xlim(frequencies.min(), frequencies.max())
-        sp.set_xlabel('Frequency')
-        sp.set_ylabel('Power Spectrum')
-
-        return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
-
-    def plot_2dpdf(self, name1, name2, doShow=False):
-        print "Plotting 2d PDF"
-        trace1 = self._samples[name1]
-        trace2 = self._samples[name2]
-
-        fig = plt.figure()
-        # joint distribution
-        axJ = fig.add_axes([0.1, 0.1, 0.7, 0.7])               # [left, bottom, width, height]
-        # y histogram
-        axY = fig.add_axes([0.8, 0.1, 0.125, 0.7], sharey=axJ)
-        # x histogram
-        axX = fig.add_axes([0.1, 0.8, 0.7, 0.125], sharex=axJ)
-        axJ.plot(trace1, trace2, 'ro', ms=1, alpha=0.5)
-        axX.hist(trace1, bins=100)
-        axY.hist(trace2, orientation='horizontal', bins=100)
-        axJ.set_xlabel("%s" % (name1))
-        axJ.set_ylabel("%s" % (name2))
-        plt.setp(axX.get_xticklabels() + axX.get_yticklabels(), visible=False)
-        plt.setp(axY.get_xticklabels() + axY.get_yticklabels(), visible=False)
-        if doShow:
-            plt.show()
-        
