@@ -210,8 +210,8 @@ class CarmaSample(samplers.MCMCSample):
                 roots[:, 2 * i] = -0.5 * (quad2 + sqrt_disc)
                 roots[:, 2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
 
-            if self.p % 2 == 1:
-                # p is odd, so add in root from linear term
+            if self.q % 2 == 1:
+                # q is odd, so add in root from linear term
                 roots[:, -1] = -quad_coefs[:, -1]
 
             coefs = np.empty((nsamples, self.q + 1), dtype=complex)

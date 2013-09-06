@@ -35,6 +35,7 @@
 		556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carma_unit_tests.cpp; path = tests/carma_unit_tests.cpp; sourceTree = "<group>"; };
 		DF4DAD10177CF6900007879A /* kfilter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kfilter.cpp; sourceTree = "<group>"; };
 		DF4DAD14177CF6BE0007879A /* kfilter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = kfilter.hpp; sourceTree = "<group>"; };
+		DF67DCD317D8F22B00DE1DCA /* testHang.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = testHang.py; sourceTree = "<group>"; };
 		DFA8DA9517712B3600C76A3E /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = "<group>"; };
 		DFA8DA9917712B6900C76A3E /* car1_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car1_test.dat; sourceTree = "<group>"; };
 		DFA8DA9A17712B6900C76A3E /* car5_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car5_test.dat; sourceTree = "<group>"; };
@@ -170,6 +171,7 @@
 		DFBDE84E1778CD3E00762288 /* examples */ = {
 			isa = PBXGroup;
 			children = (
+				DF67DCD317D8F22B00DE1DCA /* testHang.py */,
 				DFBDE84F1778CD3E00762288 /* car4_test.dat */,
 				DFBDE8501778CD3E00762288 /* testCarmcmc.py */,
 				DFBDE8511778CD3E00762288 /* testRRlyrae.py */,

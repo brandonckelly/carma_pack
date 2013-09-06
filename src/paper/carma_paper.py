@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from os import environ
 import pickle
+from scipy.misc import comb
 
 
-base_dir = environ['HOME'] + '/PycharmProjects/carma_paper/plots/'
+base_dir = environ['HOME'] + '/Projects/carma_pack/src/carma_paper/plots/'
 
 
 def run_carma_sampler(args):
@@ -73,6 +74,8 @@ def do_simulated_regular():
     ar_roots = cm.get_ar_roots(qpo_width, qpo_cent)
     ma_coefs = np.zeros(p)
     ma_coefs[0] = 1.0
+    ma_coefs[1] = 0.5
+    ma_coefs[2] = 0.25
     sigsqr = sigmay ** 2 / cm.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
     ny = 1028
@@ -167,6 +170,8 @@ def do_simulated_irregular():
     ar_roots = cm.get_ar_roots(qpo_width, qpo_cent)
     ma_coefs = np.zeros(p)
     ma_coefs[0] = 1.0
+    ma_coefs[1] = 2.5
+    ma_coefs[2] = 0.25
     sigsqr = sigmay ** 2 / cm.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
     ny = 270

@@ -851,8 +851,8 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that CARMA.logpost_ == CARMA.GetL
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = 2.0 + arma::randn<arma::vec>(ny);
     arma::vec ysig = 0.01 * arma::ones(ny);
-    int p = 5;
-    int q = 4;
+    int p = 4;
+    int q = 1;
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
@@ -1180,14 +1180,14 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     arma::vec time = arma::linspace<arma::vec>(0.0, 100.0, ny);
     arma::vec y = arma::randn<arma::vec>(ny);
     arma::vec ysig = 0.01 * arma::ones(ny);
-    int p = 9;
+    int p = 8;
     int q = 4;
     
     std::vector<double> time_ = arma::conv_to<std::vector<double> >::from(time);
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
     
-    CARMA carma_test(true, "CARMA(9,4)", time_, y_, ysig_, p, q);
+    CARMA carma_test(true, "CARMA(8,4)", time_, y_, ysig_, p, q);
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     carma_test.SetPrior(max_stdev);
     
