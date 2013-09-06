@@ -129,6 +129,7 @@ class CarmaSample(samplers.MCMCSample):
 
         # make the parameter names (i.e., the keys) public so the user knows how to get them
         self.parameters = self._samples.keys()
+        self.newaxis()
 
     def set_logpost(self, logpost):
         self._samples['logpost'] = logpost  # log-posterior of the CAR(p) model
@@ -140,9 +141,9 @@ class CarmaSample(samplers.MCMCSample):
         if names != self._samples.keys():
             idx = 0
             # Parameters are not already in the dictionary, add them.
-            self._samples['var'] = trace[:, 0] ** 2  # Variance of the CAR(p) process
+            self._samples['var'] = (trace[:, 0] ** 2)     # Variance of the CAR(p) process
             self._samples['measerr_scale'] = trace[:, 1]  # Measurement errors are scaled by this much.
-            self._samples['mu'] = trace[:, 2]  # model mean of time series
+            self._samples['mu'] = trace[:, 2]             # model mean of time series
             # AR(p) polynomial is factored as a product of quadratic terms:
             #   alpha(s) = (quad_coefs[0] + quad_coefs[1] * s + s ** 2) * ...
             self._samples['quad_coefs'] = np.exp(trace[:, 3:self.p + 3])
@@ -1108,6 +1109,7 @@ class CarSample1(CarmaSample):
         self._samples['loglik'] = loglik
         # make the parameter names (i.e., the keys) public so the use knows how to get them
         self.parameters = self._samples.keys()
+        self.newaxis()
 
     def generate_from_trace(self, trace):
         names = ['sigma', 'measerr_scale', 'mu', 'log_omega']

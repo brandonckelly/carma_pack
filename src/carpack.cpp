@@ -289,7 +289,6 @@ double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma
     
 	// Calculate the variance of a CAR(p) process
 	for (int k=0; k<alpha_roots.n_elem; k++) {
-		
 		std::complex<double> denom_product(1.0,0.0);
 		
 		for (int l=0; l<alpha_roots.n_elem; l++) {
@@ -339,7 +338,7 @@ arma::vec CARMA::StartingValue()
         arma::vec log_ma_quad = StartingMA();
         theta(arma::span(p_+3,theta.n_elem-1)) = log_ma_quad;
         arma::vec ma_coefs = ExtractMA(theta);
-        
+
         // Initial guess for model standard deviation is randomly distributed
         // around measured standard deviation of the time series
         double yvar = RandGen.scaled_inverse_chisqr(y_.n_elem-1, arma::var(y_));
@@ -349,32 +348,36 @@ arma::vec CARMA::StartingValue()
         
         arma::cx_vec alpha_roots = ARRoots(theta);
         double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0);
+        good_initials = arma::is_finite(sigsqr);
+        // Don't run kalman filter if we're already bad_initials
+
+        if (good_initials) {
+            // Get initial value of the measurement error scaling parameter by
+            // drawing from its prior.
         
-        // Get initial value of the measurement error scaling parameter by
-        // drawing from its prior.
+            double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
+            measerr_scale = std::min(measerr_scale, 1.99);
+            measerr_scale = std::max(measerr_scale, 0.51);
         
-        double measerr_scale = RandGen.scaled_inverse_chisqr(measerr_dof_, 1.0);
-        measerr_scale = std::min(measerr_scale, 1.99);
-        measerr_scale = std::max(measerr_scale, 0.51);
-        
-        theta(0) = sqrt(yvar);
-        theta(1) = measerr_scale;
-        theta(2) = mu;
+            theta(0) = sqrt(yvar);
+            theta(1) = measerr_scale;
+            theta(2) = mu;
                 
-        // set the Kalman filter parameters
-        pKFilter_->SetSigsqr(sigsqr);
-        pKFilter_->SetOmega(ExtractAR(theta));
-        pKFilter_->SetMA(ExtractMA(theta));
-        arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
-        pKFilter_->SetTimeSeriesErr(proposed_yerr);
-        arma::vec ycent = y_ - mu;
-        pKFilter_->SetTimeSeries(ycent);
+            // set the Kalman filter parameters
+            pKFilter_->SetSigsqr(sigsqr);
+            pKFilter_->SetOmega(ExtractAR(theta));
+            pKFilter_->SetMA(ExtractMA(theta));
+            arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+            pKFilter_->SetTimeSeriesErr(proposed_yerr);
+            arma::vec ycent = y_ - mu;
+            pKFilter_->SetTimeSeries(ycent);
         
-        // run the kalman filter
-        pKFilter_->Filter();
+            // run the kalman filter
+            pKFilter_->Filter();
         
-        double logpost = LogDensity(theta);
-        good_initials = arma::is_finite(logpost);
+            double logpost = LogDensity(theta);
+            good_initials = arma::is_finite(logpost);
+        }
     } // continue loop until the starting values give us a finite posterior
     
     return theta;
@@ -421,14 +424,14 @@ arma::vec CARMA::ExtractMA(arma::vec theta)
         double real_root = -exp(theta(3+p_+q_-1));
         ma_roots(q_-1) = std::complex<double> (real_root, 0.0);
     }
-    
+
     // calculate the coefficients of the polynomial
     //
     //    p(x) = x^q + c_1 * x^{q-1} + ... + c_{q-1} * x + c_q
     //
     // from it roots. note that poly_coefs[0] = 1.0 = c_0.
     arma::vec poly_coefs = polycoefs(ma_roots);
-    
+
     // convert coefficients to MA polynomial representation:
     //
     //   beta(s) = beta_q * x^q + beta_{q-1} * x^{q-1} + ... + beta_1 x + beta_0,

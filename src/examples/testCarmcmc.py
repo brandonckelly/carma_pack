@@ -5,21 +5,55 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 infile = sys.argv[1]
-x, y, dy = np.loadtxt(sys.argv[1], unpack=True)
+xv, yv, dyv = np.loadtxt(sys.argv[1], unpack=True)
 
-# Should not have to do this...
-xv         = carmcmc.vecD()
-xv.extend(x)
-yv         = carmcmc.vecD()
-yv.extend(y)
-dyv        = carmcmc.vecD()
-dyv.extend(dy)
+nSample = 500
+nBurnin = 50
+nThin   = 1
+pModel  = 3
+qModel  = 1
 
-nSample = 25000
-nBurnin = 5000
-nThin = 1
-nWalkers = 10
-pModel = 4
+carma1  = carmcmc.CarmaMCMC(xv, yv, dyv, 1, nSample, q=0, nburnin=nBurnin, nthin=nThin)
+post1   = carma1.RunMCMC()
+
+carmap  = carmcmc.CarmaMCMC(xv, yv, dyv, pModel, nSample, q=0, nburnin=nBurnin, nthin=nThin)
+postp   = carmap.RunMCMC()
+
+carmapq = carmcmc.CarmaMCMC(xv, yv, dyv, pModel, nSample, q=qModel, nburnin=nBurnin, nthin=nThin)
+postpq  = carmapq.RunMCMC()
+
+# 1-d
+post1.plot_1dpdf("mu")
+postp.plot_1dpdf("mu")
+postpq.plot_1dpdf("mu")
+
+post1.plot_1dpdf("psd_centroid")
+postp.plot_1dpdf("psd_centroid")
+postpq.plot_1dpdf("psd_centroid")
+
+import pdb; pdb.set_trace()
+
+# plot the 95% probability regions of the power spectrum
+post1.plot_power_spectrum(percentile=95.0)
+postp.plot_power_spectrum(percentile=95.0)
+postpq.plot_power_spectrum(percentile=95.0)
+
+import pdb; pdb.set_trace()
+
+# assess the fit quality
+post.assess_fit()
+
+# find out which parameters we can access
+print post.parameters
+
+# grab the MCMC samples for the roots of the autoregressive polynomial
+ar_roots = post.get_samples('ar_roots')
+
+# grab the MCMC samples for the moving average coefficients
+ma_coefs = post.get_samples('ma_coefs')
+
+
+
 
 sampler = carmcmc.run_mcmc(nSample, nBurnin, xv, yv, dyv, pModel, nWalkers, nThin)
 sample = carmcmc.CarSample(x, y, dy, sampler)

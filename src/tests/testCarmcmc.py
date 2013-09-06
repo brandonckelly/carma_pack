@@ -71,7 +71,7 @@ class TestCarpackOrder(unittest.TestCase):
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
                                           self.xdata, self.ydata, self.dydata, 
                                           pModel, qModel, self.nWalkers, True, self.nThin)
-        psampler = carmcmc.ZCarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
+        psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel)
 
         psamples  = np.array(psampler.sampler.getSamples())
