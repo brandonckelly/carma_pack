@@ -363,8 +363,9 @@ class CarmaSample(samplers.MCMCSample):
 
         if doShow:
             plt.show()
-
-        return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+        else:
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), fig
 
     def makeKalmanFilter(self, bestfit):
         if bestfit == 'map':
@@ -513,6 +514,8 @@ class CarmaSample(samplers.MCMCSample):
 
         if doShow:
             plt.show()
+        else:
+            return fig
 
     def predict_lightcurve(self, time, bestfit='median'):
         """
@@ -718,8 +721,10 @@ class CarSample1(CarmaSample):
         sp.set_ylabel('Power Spectrum')
         if doShow:
             plt.show()
-
-        return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+        else:
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), fig
+            
 
     def plot_2dpdf(self, name1, name2, doShow=False):
         print "Plotting 2d PDF"
