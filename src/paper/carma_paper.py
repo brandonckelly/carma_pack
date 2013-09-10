@@ -74,7 +74,7 @@ def do_simulated_regular():
     ar_roots = cm.get_ar_roots(qpo_width, qpo_cent)
     ma_coefs = np.zeros(p)
     ma_coefs[0] = 1.0
-    ma_coefs[1] = 0.5
+    ma_coefs[1] = 2.5
     ma_coefs[2] = 0.25
     sigsqr = sigmay ** 2 / cm.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
@@ -170,8 +170,8 @@ def do_simulated_irregular():
     ar_roots = cm.get_ar_roots(qpo_width, qpo_cent)
     ma_coefs = np.zeros(p)
     ma_coefs[0] = 1.0
-    ma_coefs[1] = 2.5
-    ma_coefs[2] = 0.25
+    ma_coefs[1] = 4.5
+    ma_coefs[2] = 1.25
     sigsqr = sigmay ** 2 / cm.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
     ny = 270
@@ -184,7 +184,7 @@ def do_simulated_irregular():
     y = mu + cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
     ysig = np.ones(ny) * y.std() / 5.0
-
+    ysig = np.ones(ny) * 1e-6
     y0 = y.copy()
     y += ysig * np.random.standard_normal(ny)
 

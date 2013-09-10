@@ -402,7 +402,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CARMA(5,4) proce
     double sigmay = 2.3;
     int p = 5;
     int q = p - 1;
-    double kappa = 3.0;
+    double kappa = 0.5;
     
     // Create the parameter vector, omega
 	arma::cx_vec ar_roots(p);
@@ -520,7 +520,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a CARMA
     double sigmay = 2.3;
     int p = 5;
     int q = p - 1;
-    double kappa = 3.0;
+    double kappa = 0.5;
     
     // Create the parameter vector, omega
 	arma::cx_vec ar_roots(p);
@@ -666,7 +666,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CARMA(5,4) 
     double sigmay = 2.3;
     int p = 5;
     int q = 4;
-    double kappa = 3.0;
+    double kappa = 0.5;
     
     // Create the parameter vector, omega
 	arma::cx_vec ar_roots(p);
@@ -1566,7 +1566,7 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
     int carp_order = 5;
     int nwalkers = 13;
     int sample_size = 50000;
-    int burnin = 15000;
+    int burnin = 25000;
     
     // run the MCMC sampler
     std::shared_ptr<CARp> mcmc_out;
@@ -1581,7 +1581,7 @@ TEST_CASE("CARMA/mcmc_sampler", "Test RunEnsembleCarSampler on CARMA(5,4) model"
     double sigmay = 2.3;
     double measerr_scale = 1.0;
     int p = 5;
-    double kappa = 3.0;
+    double kappa = 0.5;
     double mu = 0.0;
     
     // Create the parameter vector, theta

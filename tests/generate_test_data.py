@@ -52,7 +52,7 @@ ar_roots = get_ar_roots(qpo_width, qpo_cent)
 # calculate moving average coefficients under z-transform of Belcher et al. (1994)
 dt = time[1:] - time[0:-1]
 # kappa = 1.0 / dt.min()
-kappa = 3.0
+kappa = 0.5
 ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 
 sigsqr = sigmay ** 2 / carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
