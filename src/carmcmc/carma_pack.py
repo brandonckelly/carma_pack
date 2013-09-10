@@ -605,6 +605,7 @@ class CarSample1(CarmaSample):
         self.y = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.p = 1     # How many AR terms
+        self.q = 0     # How many MA terms
 
         self.sampler = sampler # Wrapper around C++ sampler
         logpost = np.array(self.sampler.GetLogLikes())
