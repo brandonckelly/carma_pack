@@ -9,13 +9,12 @@ extension_version = "0.1.0"
 extension_url = "https://github.com/bckelly80/carma_pack"
 BOOST_DIR = os.environ["BOOST_DIR"]
 ARMADILLO_DIR = os.environ["ARMADILLO_DIR"]
-YAMCMCPP_DIR = os.environ["YAMCMCPP_DIR"]
 NUMPY_DIR = os.environ["NUMPY_DIR"]
-include_dirs = [YAMCMCPP_DIR + "/include", NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include",
+include_dirs = [NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include",
                 "/usr/include/"]
 for include_dir in numpy.distutils.misc_util.get_numpy_include_dirs():
     include_dirs.append(include_dir)
-library_dirs = [YAMCMCPP_DIR + "/lib", NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR + "/lib", "/usr/lib/"]
+library_dirs = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR + "/lib", "/usr/lib/"]
 if system_name != 'Darwin':
     # /usr/lib64 does not exist under Mac OS X
     library_dirs.append("/usr/lib64")
@@ -38,10 +37,11 @@ def configuration(parent_package='', top_path=None):
     config.add_data_dir((".", "carmcmc"))
     config.add_library(
         "carmcmc",
-        sources=["carmcmc.cpp", "carpack.cpp", "kfilter.cpp"],
+        sources=["carmcmc.cpp", "carpack.cpp", "kfilter.cpp", "proposals.cpp", "samplers.cpp", "random.cpp",
+                 "steps.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp"],
+        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo"],
         extra_compiler_args=compiler_args
     )
     config.add_extension(
@@ -49,7 +49,7 @@ def configuration(parent_package='', top_path=None):
         sources=["boost_python_wrapper.cpp", "carmcmc.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "yamcmcpp", "carmcmc"],
+        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "carmcmc"],
         extra_compile_args=compiler_args
     )
     config.add_data_dir(("../../../../include", "include"))

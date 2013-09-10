@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from scipy.misc import comb
 from os import environ
-import yamcmcpp.samplers as samplers
+import samplers
 import _carmcmc as carmcmcLib
-
 
 class CarmaMCMC(object):
     """
