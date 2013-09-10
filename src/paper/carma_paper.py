@@ -9,16 +9,17 @@ import pickle
 from scipy.misc import comb
 
 
-base_dir = environ['HOME'] + '/Projects/carma_pack/src/carma_paper/plots/'
+base_dir = environ['HOME'] + '/Projects/carma_pack/src/paper/plots/'
 
 
 def run_carma_sampler(args):
 
     pmodel = args[0]
-    time, y, ysig = args[1]
+    qmodel = args[1]
+    time, y, ysig = args[2]
     nsamples = 75000
 
-    carma_mcmc = cm.CarmaMCMC(time, y, ysig, pmodel, nsamples)
+    carma_mcmc = cm.CarmaMCMC(time, y, ysig, pmodel, nsamples, q=qmodel, nburnin=25000)
     carma = carma_mcmc.RunMCMC()
 
     # remove C++ wrapper since it is not 'pickleable', as required by multiprocessing.Pool.map()
@@ -42,14 +43,23 @@ def make_sampler_plots(time, y, ysig, pmodels, file_root, pmax=9):
 
     dic = []
     pmodels = []
+    qmodels = []
     for crun in carma_run:
         dic.append(crun.DIC())
         pmodels.append(crun.p)
+        qmodels.append(crun.q)
+
+    pmodels = np.array(pmodels)
+    qmodels = np.array(qmodels)
+    dic = np.array(dic)
 
     plt.subplot(111)
-    plt.plot(pmodels, dic)
+    for i in xrange(qmodels.max()+1):
+        plt.plot(pmodels[qmodels == i], dic[qmodels == i], label='q=' + str(i))
+
     plt.xlabel('p')
     plt.ylabel('DIC')
+    plt.legend()
     print "DIC", dic
     plt.savefig(file_root + 'DIC.eps')
 
@@ -74,8 +84,8 @@ def do_simulated_regular():
     ar_roots = cm.get_ar_roots(qpo_width, qpo_cent)
     ma_coefs = np.zeros(p)
     ma_coefs[0] = 1.0
-    ma_coefs[1] = 2.5
-    ma_coefs[2] = 0.25
+    ma_coefs[1] = 4.5
+    ma_coefs[2] = 1.25
     sigsqr = sigmay ** 2 / cm.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
     ny = 1028
@@ -103,9 +113,10 @@ def do_simulated_regular():
     pool = mp.Pool(mp.cpu_count()-1)
 
     args = []
-    maxp = 9
+    maxp = 8
     for p in xrange(1, maxp + 1):
-        args.append((p, data))
+        for q in xrange(p):
+            args.append(((p, q), data))
 
     print "Running the CARMA MCMC samplers..."
 
@@ -113,23 +124,28 @@ def do_simulated_regular():
 
     dic = []
     pmodels = []
+    qmodels = []
     for crun in carma_run:
         dic.append(crun.DIC())
         pmodels.append(crun.p)
+        qmodels.append(crun.q)
+
+    pmodels = np.array(pmodels)
+    qmodels = np.array(qmodels)
+    dic = np.array(dic)
 
     plt.clf()
     plt.subplot(111)
-    plt.plot(pmodels, dic, 'k', lw=3)
+    for i in xrange(qmodels.max()+1):
+        plt.plot(pmodels[qmodels == i], dic[qmodels == i], label='q=' + str(i), lw=2)
+
+    plt.legend()
     plt.xlabel('p')
     plt.ylabel('DIC')
     print "DIC", dic
     plt.savefig(froot + 'dic.eps')
 
     carma = carma_run[np.argmin(dic)]
-
-    car7 = carma_run[6]
-    pfile = open(froot + 'car7_jones.p', 'wb')
-    pickle.dump(car7, pfile)
 
     print "order of best model is", carma.p
 
@@ -190,8 +206,8 @@ def do_simulated_irregular():
 
     data = (time, y, ysig)
 
-    car5_model = cm.CarmaMCMC(time, y, ysig, 5, 5000, doZcarma=True, nburnin=1000)
-    zcar = car5_model.RunMCMC()
+#    car5_model = cm.CarmaMCMC(time, y, ysig, 5, 5000, doZcarma=True, nburnin=1000)
+#    zcar = car5_model.RunMCMC()
 
     froot = base_dir + 'car5_irregular_'
 
@@ -212,7 +228,8 @@ def do_simulated_irregular():
     args = []
     maxp = 9
     for p in xrange(1, maxp + 1):
-        args.append((p, data))
+        for q in xrange(p):
+            args.append((p, q, data))
 
     print "Running the CARMA MCMC samplers..."
 
@@ -220,22 +237,24 @@ def do_simulated_irregular():
 
     dic = []
     pmodels = []
+    qmodels = []
     for crun in carma_run:
         dic.append(crun.DIC())
         pmodels.append(crun.p)
+        qmodels.append(crun.q)
 
     plt.clf()
     plt.subplot(111)
-    plt.plot(pmodels, dic, 'k', lw=3)
+    for i in xrange(qmodels.max()+1):
+        plt.plot(pmodels[qmodels == i], dic[qmodels == i], label='q=' + str(i), lw=2)
+
+    plt.legend()
     plt.xlabel('p')
     plt.ylabel('DIC')
     print "DIC", dic
     plt.savefig(froot + 'dic.eps')
 
     carma = carma_run[np.argmin(dic)]
-    car7 = carma_run[6]
-    pfile = open(froot + 'car7_jones.p', 'wb')
-    pickle.dump(car7, pfile)
 
     print "order of best model is", carma.p
 
