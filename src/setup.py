@@ -11,10 +11,12 @@ BOOST_DIR = os.environ["BOOST_DIR"]
 ARMADILLO_DIR = os.environ["ARMADILLO_DIR"]
 NUMPY_DIR = os.environ["NUMPY_DIR"]
 include_dirs = [NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include",
-                "/usr/include/"]
+                "/usr/include/", "include"]
+# needed to add "include" in order to build
 for include_dir in numpy.distutils.misc_util.get_numpy_include_dirs():
     include_dirs.append(include_dir)
-library_dirs = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR + "/lib", "/usr/lib/"]
+# on my systems (Linux and MAC) ARMADILLO_DIR includes libraries, no need for extra "lib" 
+library_dirs = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR, "/usr/lib/"]
 if system_name != 'Darwin':
     # /usr/lib64 does not exist under Mac OS X
     library_dirs.append("/usr/lib64")
