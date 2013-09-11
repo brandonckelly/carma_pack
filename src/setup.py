@@ -11,7 +11,7 @@ BOOST_DIR = os.environ["BOOST_DIR"]
 ARMADILLO_DIR = os.environ["ARMADILLO_DIR"]
 NUMPY_DIR = os.environ["NUMPY_DIR"]
 include_dirs = [NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include",
-                "/usr/include/"]
+                "include/", "/usr/include/"]
 for include_dir in numpy.distutils.misc_util.get_numpy_include_dirs():
     include_dirs.append(include_dir)
 library_dirs = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", ARMADILLO_DIR + "/lib", "/usr/lib/"]

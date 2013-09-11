@@ -20,7 +20,7 @@
 #include <boost/math/special_functions/binomial.hpp>
 
 // Local includes
-#include "include/carpack.hpp"
+#include <carpack.hpp>
 
 // Global random number generator object, instantiated in random.cpp
 extern boost::random::mt19937 rng;
