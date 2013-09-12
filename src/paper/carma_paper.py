@@ -116,7 +116,7 @@ def do_simulated_regular():
     maxp = 8
     for p in xrange(1, maxp + 1):
         for q in xrange(p):
-            args.append(((p, q), data))
+            args.append((p, q, data))
 
     print "Running the CARMA MCMC samplers..."
 
@@ -147,7 +147,7 @@ def do_simulated_regular():
 
     carma = carma_run[np.argmin(dic)]
 
-    print "order of best model is", carma.p
+    print "order of best model is", carma.p, carma.q
 
     plt.subplot(111)
     pgram, freq = plt.psd(y)
@@ -156,7 +156,7 @@ def do_simulated_regular():
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
-                                                                      color='SkyBlue')
+                                                                      color='SkyBlue', nsamples=10000)
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd, 'k', lw=2)
@@ -226,7 +226,7 @@ def do_simulated_irregular():
     pool = mp.Pool(mp.cpu_count()-1)
 
     args = []
-    maxp = 9
+    maxp = 3
     for p in xrange(1, maxp + 1):
         for q in xrange(p):
             args.append((p, q, data))
@@ -243,6 +243,10 @@ def do_simulated_irregular():
         pmodels.append(crun.p)
         qmodels.append(crun.q)
 
+    dic = np.array(dic)
+    pmodels = np.array(pmodels)
+    qmodels = np.array(qmodels)
+
     plt.clf()
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
@@ -256,13 +260,13 @@ def do_simulated_irregular():
 
     carma = carma_run[np.argmin(dic)]
 
-    print "order of best model is", carma.p
+    print "order of best model is", carma.p, carma.q
 
     plt.clf()
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
-                                                                      color='SkyBlue')
+                                                                      color='SkyBlue', nsamples=10000)
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd_mid, '--b', lw=2)
     ax.loglog(frequencies, psd, 'k', lw=2)
