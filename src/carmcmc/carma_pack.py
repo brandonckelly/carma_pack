@@ -395,35 +395,48 @@ class CarmaSample(samplers.MCMCSample):
                                            self.arrayToVec(ma_coefs))
         return kfilter, mu
 
-    def plot_models(self, bestfit="median", nplot=256, doShow=True):
+    def plot_models(self, bestfit="median", nplot=256, doShow=True, dtPredict=0):
         bestfit = bestfit.lower()
         try:
             bestfit in ['map', 'median', 'mean']
         except ValueError:
             "bestfit must be one of 'map, 'median', or 'mean'"
 
-        kfilter, mu = self.makeKalmanFilter(bestfit)
-        kfilter.Filter()
-        kmean = np.empty(self.time.size)
-        kvar  = np.empty(self.time.size)
-        for i in xrange(self.time.size):
-            kpred = kfilter.Predict(self.time[i])
-            kmean[i] = kpred.first
-            kvar[i]  = kpred.second
-
+        
         fig = plt.figure()
         sp = fig.add_subplot(111)
         sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
-        sp.plot(self.time, kmean + mu, '-r', label='Kalman Filter')
+
+        # The kalman filter seems to exactly recover the data, no point in this...
+        if False:
+            kfilter, mu = self.makeKalmanFilter(bestfit)
+            kfilter.Filter()
+            kmean = np.empty(self.time.size)
+            kvar  = np.empty(self.time.size)
+            for i in xrange(self.time.size):
+                kpred = kfilter.Predict(self.time[i])
+                kmean[i] = kpred.first
+                kvar[i]  = kpred.second
+            sp.plot(self.time, kmean + mu, '-r', label='Kalman Filter')
+
         # compute the marginal mean and variance of the predicted values
-        time_predict = np.linspace(self.time[1:].min(), self.time.max(), nplot)
+        time_predict = np.linspace(self.time.min(), self.time.max() + dtPredict, nplot)
         predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
+        sp.plot(time_predict, predicted_mean, '-r', label='Kalman Filter')
+
+        # NOTE we can get negative variance here in the first/last indices
+        idx = np.where(predicted_var > 0)
+        time_predict = time_predict[idx]
+        predicted_mean = predicted_mean[idx]
+        predicted_var = predicted_var[idx]
+
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
         sp.fill_between(time_predict, predicted_low, predicted_high,
-                        edgecolor=None, facecolor='blue', alpha=0.25)
+                        edgecolor=None, facecolor='blue', alpha=0.25, label="1-sigma range")
         sp.set_xlabel('Time')
         sp.set_xlim(self.time.min(), self.time.max())
+        sp.legend(loc=1)
 
         if doShow:
             plt.show()
