@@ -68,15 +68,15 @@ class CarmaMCMC(object):
         """
         if self.p == 1:
             # Treat the CAR(1) case separately
-            self._CppSample = carmcmcLib.run_mcmc_car1(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                       self.nthin)
+            cppSample = carmcmcLib.run_mcmc_car1(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
+                                                 self.nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CAR1 class, convert to python object
-            sample = CarSample1(self.time, self.y, self.ysig, self._CppSample)
+            sample = CarSample1(self.time, self.y, self.ysig, cppSample)
         else:
-            self._CppSample = carmcmcLib.run_mcmc_carma(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                        self.p, self.q, self.nwalkers, False, self.nthin)
+            cppSample = carmcmcLib.run_mcmc_carma(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
+                                                  self.p, self.q, self.nwalkers, False, self.nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
-            sample = CarmaSample(self.time, self.y, self.ysig, self._CppSample, q=self.q)
+            sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
 
         return sample
 
@@ -96,9 +96,9 @@ class CarmaSample(samplers.MCMCSample):
         self.y = y  # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
         self.q = q  # order of moving average polynomial
-        self.sampler = sampler  # Wrapper around C++ sampler
-        logpost = np.array(self.sampler.GetLogLikes())
-        trace = np.array(self.sampler.getSamples())
+
+        logpost = np.array(sampler.GetLogLikes())
+        trace = np.array(sampler.getSamples())
 
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
@@ -620,9 +620,8 @@ class CarSample1(CarmaSample):
         self.p = 1     # How many AR terms
         self.q = 0     # How many MA terms
 
-        self.sampler = sampler # Wrapper around C++ sampler
-        logpost = np.array(self.sampler.GetLogLikes())
-        trace = np.array(self.sampler.getSamples())
+        logpost = np.array(sampler.GetLogLikes())
+        trace = np.array(sampler.getSamples())
 
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
