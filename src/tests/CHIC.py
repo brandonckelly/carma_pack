@@ -9,8 +9,8 @@ buff.close()
 
 p = 5
 q = 1
-nsample = 100
-nburnin = 10
+nsample = 5000
+nburnin = 10000
 
 car = carmcmc.CarmaMCMC(x, y, dy, p, nsample, q=q, nburnin=nburnin)
 post = car.RunMCMC()
@@ -18,8 +18,9 @@ post = car.RunMCMC()
 secInDay = 3600 * 24.
 nplot = 25000
 time_predict = np.linspace(x.min(), x.max() + 100 * secInDay, nplot)
+print "getting predicted values..."
 predicted_mean, predicted_var = post.predict_lightcurve(time_predict, bestfit="med")
-import pdb; pdb.set_trace()
+# import pdb; pdb.set_trace()
 
 idx = np.where(predicted_var < 0)
 print "NEGATIVE VARIANCE", idx
