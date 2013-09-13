@@ -123,7 +123,7 @@ public:
     void Filter() {
         // Run the Kalman Filter
         Reset();
-        for (int i=1; i<time_.n_elem; i++) {
+        for (unsigned int i=1; i<time_.n_elem; i++) {
             Update();
         }
     }
@@ -144,7 +144,7 @@ public:
         arma::vec yinsert(1);
         arma::vec yerr_insert(1);
         yerr_insert(0) = 0.0;
-        for (int i=0; i<time.n_elem; i++) {
+        for (unsigned int i=0; i<time.n_elem; i++) {
             insert_idx = 0;
             // first simulate the value at time(i)
             std::pair<double, double> ypredict = this->Predict(time(i));

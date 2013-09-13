@@ -96,7 +96,7 @@ arma::vec RandomGenerator::normal(arma::mat covar)
 	
 	// Vector of random variate independently drawn from a standard normal
 	arma::vec z(covar.n_rows);
-	for (int i=0; i<z.n_elem; i++) {
+	for (unsigned int i=0; i<z.n_elem; i++) {
 		z(i) = normal_(rng);
 	}
 	

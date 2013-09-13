@@ -63,7 +63,7 @@ void AdaptiveMetro::DoStep()
     
 	// Draw a new parameter vector
 	arma::vec unit_proposal(old_value.n_rows);
-	for (int i=0; i<old_value.n_rows; i++) {
+	for (unsigned int i=0; i<old_value.n_rows; i++) {
 		// Unscaled proposal
 		unit_proposal(i) = proposal_.Draw(0.0);
 	}
@@ -115,7 +115,7 @@ void CholUpdateR1(arma::mat& L, arma::vec& v, bool downdate)
 		// Perform the downdate instead
 		sign = -1.0;
 	}
-	for (int k=0; k<L.n_rows; k++) {
+	for (unsigned int k=0; k<L.n_rows; k++) {
 		double r = sqrt( L(k,k) * L(k,k) + sign * v(k) * v(k) );
 		double c = r / L(k,k);
 		double s = v(k) / L(k,k);

@@ -38,7 +38,7 @@ void Sampler::Iterate(int number_of_iterations, bool progress) {
 	if(progress) {
 		boost::progress_display show_progress(number_of_iterations);
 		for(int iter = 0; iter < number_of_iterations; ++iter) {
-			for(int i = 0; i < steps_.size(); ++i) {
+			for(unsigned int i = 0; i < steps_.size(); ++i) {
 				steps_[i].DoStep();
 			}
 			++show_progress;
@@ -46,7 +46,7 @@ void Sampler::Iterate(int number_of_iterations, bool progress) {
 	}
 	else {
 		for(int iter = 0; iter < number_of_iterations; ++iter) {
-			for(int i = 0; i < steps_.size(); ++i) {
+			for(unsigned int i = 0; i < steps_.size(); ++i) {
 				steps_[i].DoStep();
 			}
 		}
@@ -72,7 +72,7 @@ void Sampler::Run() {
 			
 	// Setting starting value:
 	std::cout << "Setting starting values..." << std::endl;
-	for (int i = 0; i < steps_.size(); ++i) {
+	for (unsigned int i = 0; i < steps_.size(); ++i) {
 		steps_[i].Start();
 	}
 	

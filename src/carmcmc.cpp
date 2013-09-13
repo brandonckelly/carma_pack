@@ -39,7 +39,7 @@ RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vecto
 	double max_stdev = 10.0 * std::sqrt(var); // For prior: maximum standard-deviation of CAR(1) process
         
     // Report average acceptance rates at end of sampler
-    int report_iter = burnin + thin * sample_size;
+    //int report_iter = burnin + thin * sample_size;
     
     // Setup initial covariance matrix for RAM proposals. This
 	// is just a diagonal matrix with the diagonal elements equal to 0.01^2.

@@ -63,7 +63,6 @@ public:
         y_  = arma::conv_to<arma::vec>::from(y);
         time_ = arma::conv_to<arma::vec>::from(time);
         yerr_ = arma::conv_to<arma::vec>::from(yerr);
-        int ndata = time_.n_rows;
         
         // default prior bounds on the standard deviation of the time series
         SetPrior(10.0 * sqrt(arma::var(y_)));
@@ -76,7 +75,7 @@ public:
         std::stringstream ss;
         
         ss << log_posterior_;
-        for (int i=0; i<value_.n_elem; i++) {
+        for (unsigned int i=0; i<value_.n_elem; i++) {
             ss << " " << value_(i);
         }
                 
@@ -97,7 +96,7 @@ public:
         //
         log_posterior_ = 0.0;
         double mu = new_value(2);
-        for (int i=0; i<time_.n_elem; i++) {
+        for (unsigned int i=0; i<time_.n_elem; i++) {
             double ycent = y_(i) - pKFilter_->mean(i) - mu;
             log_posterior_ += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }
@@ -163,7 +162,7 @@ public:
         
         // calculate the log-likelihood
         double logpost = 0.0;
-        for (int i=0; i<time_.n_elem; i++) {
+        for (unsigned int i=0; i<time_.n_elem; i++) {
             double ycent = y_(i) - pKFilter_->mean(i) - mu;
             logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }

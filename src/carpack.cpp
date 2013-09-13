@@ -261,7 +261,7 @@ bool CARp::CheckPriorBounds(arma::vec theta)
         prior_satisfied = false;
     }
 	// Make sure the Lorentzian centroids are still in decreasing order
-	for (int i=1; i<lorentz_cent.n_elem; i++) {
+	for (unsigned int i=1; i<lorentz_cent.n_elem; i++) {
         double lorentz_cent_difference = lorentz_cent(i) - lorentz_cent(i-1);
 		if (lorentz_cent_difference > 1e-8) {
 			// Lorentzians are not in decreasing order, reject this proposal
@@ -270,7 +270,7 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     }
     // Make sure Lorentzian widths are greater than minimum frequency for those Lorentzians with centroids
     // less than the minimum frequency.
-    for (int i=0; i<lorentz_cent.n_elem; i++) {
+    for (unsigned int i=0; i<lorentz_cent.n_elem; i++) {
         if (lorentz_cent(i) < min_freq_) {
             if (lorentz_width(i) < min_freq_) {
                 prior_satisfied = false;
@@ -288,10 +288,10 @@ double CARp::Variance(arma::cx_vec alpha_roots, arma::vec ma_coefs, double sigma
     std::complex<double> numer(0.0,0.0);
     
 	// Calculate the variance of a CAR(p) process
-	for (int k=0; k<alpha_roots.n_elem; k++) {
+	for (unsigned int k=0; k<alpha_roots.n_elem; k++) {
 		std::complex<double> denom_product(1.0,0.0);
 		
-		for (int l=0; l<alpha_roots.n_elem; l++) {
+		for (unsigned int l=0; l<alpha_roots.n_elem; l++) {
 			if (l != k) {
 				denom_product *= (alpha_roots(l) - alpha_roots(k)) * 
                 (std::conj(alpha_roots(l)) + alpha_roots(k));
@@ -584,7 +584,7 @@ arma::vec polycoefs(arma::cx_vec roots)
     
     coefs(0) = 1.0; // Coefficient for highest order term is set to one
     
-    for (int i=0; i<roots.n_elem; i++) {
+    for (unsigned int i=0; i<roots.n_elem; i++) {
         // Calculate the coefficients using a recursion formula
         coefs(arma::span(1,i+1)) = coefs(arma::span(1,i+1)) - roots(i) * coefs(arma::span(0,i));
     }

@@ -82,13 +82,14 @@ public:
 
     
 protected:
-    // Temperature value, used when doing tempered steps. By default this is one.
-    double temperature_;
 	/// Should this variable be tracked?
 	bool track_;
 	/// Name of variable for tracking purposes.
 	std::string label_;
-    double log_posterior_; // The log of the posterior distribution
+    // Temperature value, used when doing tempered steps. By default this is one.
+    double temperature_;
+    // The log of the posterior distribution
+    double log_posterior_; 
 };
 
 // Templated abstract parameter class. Users should subclass the Parameter class because the
