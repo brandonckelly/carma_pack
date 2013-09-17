@@ -1,0 +1,92 @@
+I successfully installed carmcmc on Linux CentOS6. 
+
+Compilers:
+
+The version of the C compiler matters. My default system 
+(CentOS5) has an old version gcc 4.1.2 and this does not support
+c++11/c++0x. These arguments require gcc v.4.3 and higher and the
+most recent version available is 4.8.1.
+
+I decided to use the system gcc compiler on CentOS6 version 4.4.7
+
+1/ Building BOOST libraries:
+
+* get the tar file from 
+http://www.boost.org/doc/libs/1_54_0/more/getting_started/unix-variants.html#get-boost)
+
+and follow the installation instruction in "Sec.5.1 Easy Build and Install" on the same web 
+page. This step can take about an hour.
+
+cd /data/qednew/Software/boost_source/boost_1_54_0
+
+Make sure the python version is correct. I'm using the anaconda version installed on a local disk
+
+set path=(/data/waimea2/Software/anaconda/bin $path)
+
+The first command ./bootstrap.sh builds the project-config.jam file
+which can be edited. Before the build step which is long this file should be checked for
+the correct versions of all the directories.
+
+./bootstrap.sh --prefix=/data/qednew/Software/boost
+
+# bootstrap creates a config jam file - can be checked and edited
+# b2 builds boost and option install copies the files to the installation location.
+Now build and install
+
+./b2 install
+
+setenv BOOST_DIR /data/qednew/Software/boost
+
+2/Download and install Armadillo 
+http://arma.sourceforge.net/download.html
+
+cmake -DCMAKE_INSTALL_PREFIX=/data/qednew/Software/armadillo -DBOOST_ROOT=$BOOST_DIR/  .
+make install
+
+setenv ARMADILLO_DIR /data/qednew/Software/armadillo
+
+3/ In order to check if BOOST libraries work I needed to run tests described 
+in this web page:
+
+http://www.boost.org/doc/libs/1_41_0/more/getting_started/unix-variants.html#library-naming
+
+It was good to check "boost_regexe example". It is not python library, so this checks the basic system links etc.
+LD_LIBRARY_PATH has to be set for both BOOST and Armadillo. 
+
+setenv LD_LIBRARY_PATH /data/qednew/Software/boost/lib:${LD_LIBRARY_PATH}
+setenv LD_LIBRARY_PATH /data/qednew/Software/armadillo/lib:${LD_LIBRARY_PATH}
+
+
+4/ Build and install carma_pack
+
+First setup the variables if they are not set. Check if they point to /lib and /include.
+These variables are used in setup.py to locate libraries
+
+setenv BOOST_DIR /data/qednew/Software/boost
+setenv ARMADILLO_DIR /data/qednew/Software/armadillo
+
+Numpy is used at compile stage, so this is also needed:
+
+setenv NUMPY_DIR /data/waimea2/Software/anaconda
+
+Download ZIP file from the GitHub repository and unzip the file.
+
+Install carmcmc python module by going to the src directory of carpack 
+
+cd /data/qednew/Software/carma_pack-master/src
+python setup.py install
+
+>>> I tried the trick below, but it did not work
+>>> setenv LD_RUN_PATH /data/qednew/Software/boost/lib:/data/qednew/Software/armadillo/lib
+>>> It needs some more work with setup.py
+
+5/ need to install "acor"
+pip install acor
+
+6/ try the example testCarmcmc.py
+
+setenv LD_LIBRARY_PATH /data/qednew/Software/boost/lib:${LD_LIBRARY_PATH}
+setenv LD_LIBRARY_PATH /data/qednew/Software/armadillo/lib:${LD_LIBRARY_PATH}
+
+cd tests
+python testCarmcmc.py
