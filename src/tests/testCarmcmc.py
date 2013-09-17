@@ -25,12 +25,12 @@ class TestCarpackOrder(unittest.TestCase):
         psampler = carmcmc.CarSample1(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, 1)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
 
@@ -42,12 +42,12 @@ class TestCarpackOrder(unittest.TestCase):
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
@@ -58,12 +58,12 @@ class TestCarpackOrder(unittest.TestCase):
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel+qModel)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
@@ -75,12 +75,12 @@ class TestCarpackOrder(unittest.TestCase):
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
  
