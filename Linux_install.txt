@@ -1,4 +1,5 @@
-I successfully installed carmcmc on Linux CentOS6. 
+Local installation on Linux CentOS6 
+
 
 Compilers:
 
