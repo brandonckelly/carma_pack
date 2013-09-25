@@ -19,6 +19,7 @@
 #include "include/carmcmc.hpp"
 #include "include/carpack.hpp"
 #include "include/kfilter.hpp"
+#include "include/ceres.hpp"
 
 using namespace boost::python;
 
@@ -113,4 +114,8 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("Filter", &KalmanFilterp::Filter)
         .def("Predict", &KalmanFilterp::Predict)
     ; 
+
+    // ceres.hpp
+    def("RunCeres", RunCeres);
+   
 };
