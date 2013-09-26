@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>11B3EE16-83C4-498D-8355-2F46B88714D6</string>
+	<key>IDESourceControlProjectName</key>
+	<string>carma_pack</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</key>
+		<string>https://github.com/bckelly80/carma_pack.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>carma_pack.xcodeproj/project.xcworkspace</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>https://github.com/bckelly80/carma_pack.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>110</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</string>
+			<key>IDESourceControlWCCName</key>
+			<string>carma_pack</string>
+		</dict>
+	</array>
+</dict>
+</plist>
