@@ -21,16 +21,16 @@ class TestCarpackOrder(unittest.TestCase):
     def testCar1(self):    
         sampler  = carmcmc.run_mcmc_car1(self.nSample, self.nBurnin, 
                                          self.xdata, self.ydata, self.dydata, 
-                                         self.nThin)
+                                         self.nThin, carmcmc.vecD())
         psampler = carmcmc.CarSample1(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, 1)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
 
@@ -38,32 +38,32 @@ class TestCarpackOrder(unittest.TestCase):
         qModel  = 0
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
                                           self.xdata, self.ydata, self.dydata, 
-                                          pModel, qModel, self.nWalkers, False, self.nThin)
+                                          pModel, qModel, self.nWalkers, False, self.nThin, carmcmc.vecD())
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
     def testCarpq(self, pModel=3, qModel=2):
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
                                           self.xdata, self.ydata, self.dydata, 
-                                          pModel, qModel, self.nWalkers, False, self.nThin)
+                                          pModel, qModel, self.nWalkers, False, self.nThin, carmcmc.vecD())
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel+qModel)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
@@ -71,16 +71,16 @@ class TestCarpackOrder(unittest.TestCase):
         qModel  = 0
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
                                           self.xdata, self.ydata, self.dydata, 
-                                          pModel, qModel, self.nWalkers, True, self.nThin)
+                                          pModel, qModel, self.nWalkers, True, self.nThin, carmcmc.vecD())
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel)
 
-        psamples  = np.array(psampler.sampler.getSamples())
-        ploglikes = np.array(psampler.sampler.GetLogLikes())
+        psamples  = np.array(sampler.getSamples())
+        ploglikes = np.array(sampler.GetLogLikes())
         sample0   = carmcmc.vecD()
         sample0.extend(psamples[0])
-        logprior0 = psampler.sampler.getLogPrior(sample0)
-        loglike0  = psampler.sampler.getLogDensity(sample0)
+        logprior0 = sampler.getLogPrior(sample0)
+        loglike0  = sampler.getLogDensity(sample0)
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
  
@@ -101,8 +101,8 @@ class TestCarpackOrder(unittest.TestCase):
         pModel  = 4
         qModel  = 0
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
-                                          self.xdata, self.ydata, self.dydata, 
-                                          pModel, qModel, self.nWalkers, False, self.nThin)
+                                         self.xdata, self.ydata, self.dydata, 
+                                         pModel, qModel, self.nWalkers, False, self.nThin, carmcmc.vecD())
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         sigsqr   = (psampler._samples["sigma"][0]**2)[0]
         ma_coefs = carmcmc.vecD()
@@ -217,6 +217,26 @@ class TestCarpackOrder(unittest.TestCase):
             postp.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
             postpqo.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
             postpqe.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
+
+    def testCeres(self):
+        nSample = 100
+        nBurnin = 0
+        nThin   = 0  # Needs to be == 0
+        pModel  = 3
+        qModel  = 1
+        nWalker = 1  # Needs to be > 0
         
+        soln    = carmcmc.RunCeres(self.xdata, self.ydata, self.dydata, pModel, qModel, False, False)
+
+        cpp1    = carmcmc.run_mcmc_carma(nSample, nBurnin, self.xdata, self.ydata, self.dydata, 
+                                         pModel, qModel, nWalker, False, nThin, carmcmc.vecD())
+        sample1 = cpp1.getSamples()
+
+        cpp2    = carmcmc.run_mcmc_carma(nSample, nBurnin, self.xdata, self.ydata, self.dydata, 
+                                         pModel, qModel, nWalker, False, nThin, soln)
+        sample2 = cpp2.getSamples()
+        self.assertAlmostEqual(np.sum(np.array(soln)-np.array(sample2[0])), 0.0)
+        
+
 if __name__ == "__main__":
     unittest.main()

@@ -28,7 +28,8 @@
 #include <carmcmc.hpp>
 
 std::shared_ptr<CAR1>
-RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int thin)
+RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, 
+               int thin, const std::vector<double>& init)
 {
     int p = 1;    
     double sum = std::accumulate(y.begin(), y.end(), 0.0);
@@ -68,7 +69,9 @@ RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vecto
     CarModel.AddStep( new AdaptiveMetro(Car1Par, RAMProp, prop_covar, target_rate, burnin) );
 
     // Now run the MCMC sampler.
-	CarModel.Run();
+    arma::vec armaInit = arma::conv_to<arma::vec>::from(init);
+    CarModel.Run(armaInit);
+
     std::shared_ptr<CAR1> retObject = std::make_shared<CAR1>(Car1Par);
     return retObject;
 }
@@ -76,7 +79,7 @@ RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vecto
 std::shared_ptr<CARp>
 RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y,
                 std::vector<double> yerr, int p, int q, int nwalkers, bool do_zcarma,
-                int thin)
+                int thin, const std::vector<double>& init)
 {
     assert(p > 1);
     double sum = std::accumulate(y.begin(), y.end(), 0.0);
@@ -155,8 +158,8 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
     
     // Now run the MCMC sampler. The samples will be dumped in the
     // output file provided by the user.
-    
-	CarModel.Run();
+    arma::vec armaInit = arma::conv_to<arma::vec>::from(init);
+    CarModel.Run(armaInit);
     
     std::shared_ptr<CARp> retObject;
 

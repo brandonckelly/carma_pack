@@ -54,7 +54,9 @@ void Sampler::Iterate(int number_of_iterations, bool progress) {
 }
 
 //Run the MCMC sampling procedure, including burning in, sampling, thinning, displaying progress, and saving results.
-void Sampler::Run() {
+// init optionally includes a starting position
+// TODO: insanity checks on inits size, etc
+void Sampler::Run(arma::vec init) {
 	// Timer
 	boost::timer timer;
 	current_iter_ = 0;
@@ -73,7 +75,12 @@ void Sampler::Run() {
 	// Setting starting value:
 	std::cout << "Setting starting values..." << std::endl;
 	for (unsigned int i = 0; i < steps_.size(); ++i) {
-		steps_[i].Start();
+        if (init.n_elem > 0) {
+            static_cast<Parameter<arma::vec> *>(steps_[i].GetParPointer())->Save(init);
+        }
+        else {
+            steps_[i].Start();
+        }
 	}
 	
 	// Burn in
