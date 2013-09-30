@@ -43,7 +43,7 @@ class CarmaMCMC(object):
         self._ysig.extend(ysig)
 
         if nwalkers is None:
-                nwalkers = max(10, p + q)
+            nwalkers = max(10, p + q)
 
         if nburnin is None:
             nburnin = nsamples / 2
@@ -364,7 +364,7 @@ class CarmaSample(samplers.MCMCSample):
             plt.show()
             return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
         else:
-            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), fig
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), sp.get_figure()
 
     def makeKalmanFilter(self, bestfit):
         if bestfit == 'map':

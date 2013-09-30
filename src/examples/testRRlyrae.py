@@ -1,5 +1,4 @@
 import sys, os
-import yamcmcpp 
 import carmcmc 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,13 +53,37 @@ def doit(args):
     return samplep
     
 
+def testCeres(args):
+    pModel   = int(args[0])
+    x, y, dy = args[1]
+    nSample    = 10000
+    nBurnin    = 1000
+    nThin      = 1
+        
+    # For ceres
+    xv         = carmcmc.vecD()
+    xv.extend(x)
+    yv         = carmcmc.vecD()
+    yv.extend(y)
+    dyv        = carmcmc.vecD()
+    dyv.extend(dy)
+    soln1      = carmcmc.RunCeres1(xv, yv, dyv, False, carmcmc.vecD())
+    soln       = carmcmc.RunCeres(xv, yv, dyv, pModel, 0, False, False, carmcmc.vecD())
+
+    car        = carmcmc.CarmaMCMC(x, y, dy, pModel, nSample, nburnin=nBurnin)
+    post1      = car.RunMCMC()
+    post2      = car.RunMCMC(soln)
+
+
 if __name__ == "__main__":
-    u, g, r, i, z = loadData("1640797.txt")
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__) ), "1640797.txt")
+    u, g, r, i, z = loadData(path)
+
+    samplep = testCeres((3, r))
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     pool.map(int, range(multiprocessing.cpu_count())) 
-
-    samplep = doit((2, r))
+    #samplep = doit((2, r))
     # import pdb; pdb.set_trace()
 
     print "did CAR model of order ", samplep.p

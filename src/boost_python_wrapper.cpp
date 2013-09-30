@@ -116,6 +116,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
     ; 
 
     // ceres.hpp
-    def("RunCeres", RunCeres);
+    def("RunCeres1", RunCeres1);
+    def("RunCeres",  RunCeres);
    
 };

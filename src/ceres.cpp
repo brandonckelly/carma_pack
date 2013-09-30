@@ -6,6 +6,7 @@
 #include <carpack.hpp>
 #include <ceres.hpp>
 #include <ceres/dynamic_autodiff_cost_function.h>
+#include "ceres/internal/scoped_ptr.h"
 
 using ceres::CostFunction;
 using ceres::NumericDiffCostFunction;
@@ -17,8 +18,57 @@ using ceres::Solve;
 using ceres::Solver;
 
 std::vector<double>
+RunCeres1(std::vector<double> time, std::vector<double> y, std::vector<double> yerr, 
+          bool use_cauchy, const std::vector<double>& init) {
+
+    double sum = std::accumulate(y.begin(), y.end(), 0.0);
+    double mean = sum / y.size();
+    double sq_sum = std::inner_product(y.begin(), y.end(), y.begin(), 0.0);
+    double var = (sq_sum / y.size() - mean * mean);
+	double max_stdev = 10.0 * std::sqrt(var); // For prior: maximum standard-deviation 
+    
+    std::shared_ptr<CAR1> car;
+    car = std::shared_ptr<CAR1>(new CAR1(true, "CAR(1)", time, y, yerr));    
+    car->SetPrior(max_stdev);
+    arma::vec theta = car->StartingValue();
+    if (init.size() == theta.n_elem) {
+        // Check that input paramters are the right size; if so, override StartingValues
+        theta = arma::conv_to<arma::vec>::from(init);
+    }
+    
+    Problem problem;
+    std::vector<double*> params;
+    for (unsigned int i = 0; i < theta.n_elem; i++) {
+        double* param = new double(theta[i]);
+        params.push_back(param);
+    }
+    int npars = params.size();
+
+    problem.AddResidualBlock(CreateCarpRuntimeNumericDiffCostFunction(new CarCostFunction<CAR1>(car, npars),
+                                                                      ceres::CENTRAL, 1e-6),
+                             NULL, params);
+    
+    
+    ceres::Solver::Options options;
+    //options.linear_solver_type = ceres::DENSE_SCHUR;
+    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    options.minimizer_type     = ceres::LINE_SEARCH;
+    options.minimizer_progress_to_stdout = true;
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+    std::cout << summary.FullReport() << "\n";
+
+    std::vector<double> solution(npars);
+    for (int i = 0; i < npars; i++) {
+        solution[i] = *params[i];
+    }
+          
+    return solution;
+}
+
+std::vector<double>
 RunCeres(std::vector<double> time, std::vector<double> y, std::vector<double> yerr, 
-         int p, int q, bool do_zcarma, bool use_cauchy) {
+         int p, int q, bool do_zcarma, bool use_cauchy, const std::vector<double>& init) {
 
     double sum = std::accumulate(y.begin(), y.end(), 0.0);
     double mean = sum / y.size();
@@ -39,6 +89,12 @@ RunCeres(std::vector<double> time, std::vector<double> y, std::vector<double> ye
     }
     car->SetPrior(max_stdev);
     arma::vec theta = car->StartingValue();
+    std::cout << "CAW " << init.size() << " " << theta.n_elem << std::endl;
+
+    if (init.size() == theta.n_elem) {
+        // Check that input paramters are the right size; if so, override StartingValues
+        theta = arma::conv_to<arma::vec>::from(init);
+    }
     
     Problem problem;
     std::vector<double*> params;
@@ -48,7 +104,7 @@ RunCeres(std::vector<double> time, std::vector<double> y, std::vector<double> ye
     }
     int npars = params.size();
 
-    problem.AddResidualBlock(CreateCarpRuntimeNumericDiffCostFunction(new CarpCostFunction(car, npars),
+    problem.AddResidualBlock(CreateCarpRuntimeNumericDiffCostFunction(new CarCostFunction<CARp>(car, npars),
                                                                       ceres::CENTRAL, 1e-6),
                              NULL, params);
     
@@ -62,10 +118,51 @@ RunCeres(std::vector<double> time, std::vector<double> y, std::vector<double> ye
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << "\n";
 
+    std::vector<double> cparams(npars);
     std::vector<double> solution(npars);
     for (int i = 0; i < npars; i++) {
+        cparams[i]  = *params[i];
         solution[i] = *params[i];
     }
+
+    /*
+    ceres::internal::scoped_ptr<CostFunction> cfs[1];
+    cfs[0].reset(CreateCarpRuntimeNumericDiffCostFunction(new CarpCostFunction(car, npars),
+                                                          ceres::CENTRAL, 1e-6));
+    CostFunction *cost_function = cfs[0].get();
+
+    double *parameters[] = { params[0], };
+    double residuals[1];
+    std::vector<double> jacobian0(npars*npars);
+    double *jacobians[1] = { &jacobian0[0], };
+    cost_function->Evaluate(&parameters[0], &residuals[0], &jacobians[0]);
+    for (int i = 0; i < npars; i++) {
+        for (int j = 0; j < npars; j++) {
+            std::cout << "Cov:" << i << " " << j << " " << jacobians[j + npars*i];
+        }
+        std::cout << std::endl;
+    }
+    */
+
+    /*
+    double *covariance_xx[] = { covariance_x[0] };
+    ceres::Covariance::Options coptions;
+    ceres::Covariance covariance(coptions);
+    std::vector<std::pair<const double*, const double*> > covariance_blocks;
+    covariance_blocks.push_back(std::make_pair(parameters, parameters));
+    CHECK(covariance.Compute(covariance_blocks, &problem));
+    std::vector<double*> covariance_x(npars*npars);
+    double *covariance_xx[] = { covariance_x[0] };
+    covariance.GetCovarianceBlock(parameters[0], parameters[0], covariance_xx[0]);
+    for (int i = 0; i < npars; i++) {
+        for (int j = 0; j < npars; j++) {
+            std::cout << "Cov:" << i << " " << j << " " << covariance_xx[j + npars*i];
+        }
+        std::cout << std::endl;
+    }
+    */
+
+          
     return solution;
 }
 
@@ -105,6 +202,8 @@ bool RuntimeNumericDiffCostFunction::Evaluate(double const* const* parameters,
     }
     
     for (unsigned int block = 0; block < block_sizes.size(); ++block) {
+        std::cout << "JAC BLOCK " << block << std::endl;
+
         if (!jacobians[block]) {
             // No jacobian requested for this parameter / residual pair.
             continue;
