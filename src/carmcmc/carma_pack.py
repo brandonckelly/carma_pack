@@ -8,6 +8,7 @@ from os import environ
 import samplers
 import _carmcmc as carmcmcLib
 
+
 class CarmaMCMC(object):
     """
     Class for running the MCMC sampler assuming a CARMA(p,q) model.
