@@ -22,9 +22,6 @@ def run_carma_sampler(args):
     carma_mcmc = cm.CarmaMCMC(time, y, ysig, pmodel, nsamples, q=qmodel, nburnin=25000)
     carma = carma_mcmc.RunMCMC()
 
-    # remove C++ wrapper since it is not 'pickleable', as required by multiprocessing.Pool.map()
-    del carma.sampler
-
     return carma
 
 
@@ -55,11 +52,17 @@ def make_sampler_plots(time, y, ysig, pmodels, file_root, pmax=9):
 
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
-        plt.plot(pmodels[qmodels == i], dic[qmodels == i], label='q=' + str(i))
-
+        if i == qmodels.max():
+            marker = 's'
+        else:
+            markers = '-'
+        plt.plot(pmodels[qmodels == i], dic[qmodels == i], marker, label='q=' + str(i))
+    plt.plot(pmodels[qmodels == qmodels.max()], dic[qmodels == qmodels.max()])
+    plt.xlim(0, pmodels.max() + 1)
     plt.xlabel('p')
     plt.ylabel('DIC')
     plt.legend()
+    plt.show()
     print "DIC", dic
     plt.savefig(file_root + 'DIC.eps')
 
@@ -67,7 +70,7 @@ def make_sampler_plots(time, y, ysig, pmodels, file_root, pmax=9):
 
     print "order of best model is", carma.p
 
-    carma.plot_power_spectrum(percentile=95.0, nsamples=10000)
+    carma.plot_power_spectrum(percentile=95.0, nsamples=5000)
     plt.savefig(file_root + 'PSD.eps')
 
     carma.assess_fit()
@@ -137,11 +140,11 @@ def do_simulated_regular():
     plt.clf()
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
-        plt.plot(pmodels[qmodels == i], dic[qmodels == i], label='q=' + str(i), lw=2)
-
+        plt.plot(pmodels[qmodels == i], dic[qmodels == i], 's-', label='q=' + str(i), lw=2)
     plt.legend()
     plt.xlabel('p')
     plt.ylabel('DIC')
+    plt.xlim(0, pmodels.max() + 1)
     print "DIC", dic
     plt.savefig(froot + 'dic.eps')
 
@@ -156,7 +159,7 @@ def do_simulated_regular():
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
-                                                                      color='SkyBlue', nsamples=10000)
+                                                                      color='SkyBlue', nsamples=5000)
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd, 'k', lw=2)
@@ -226,12 +229,15 @@ def do_simulated_irregular():
     pool = mp.Pool(mp.cpu_count()-1)
 
     args = []
-    maxp = 3
+    maxp = 7
     for p in xrange(1, maxp + 1):
         for q in xrange(p):
             args.append((p, q, data))
 
     print "Running the CARMA MCMC samplers..."
+
+
+    # carma_run = run_carma_sampler(args[0])
 
     carma_run = pool.map(run_carma_sampler, args)
 
@@ -250,11 +256,11 @@ def do_simulated_irregular():
     plt.clf()
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
-        plt.plot(pmodels[qmodels == i], dic[qmodels == i], label='q=' + str(i), lw=2)
-
+        plt.plot(pmodels[qmodels == i], dic[qmodels == i], 's-', label='q=' + str(i), lw=2)
     plt.legend()
     plt.xlabel('p')
     plt.ylabel('DIC')
+    plt.xlim(0, pmodels.max() + 1)
     print "DIC", dic
     plt.savefig(froot + 'dic.eps')
 
@@ -266,7 +272,7 @@ def do_simulated_irregular():
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
-                                                                      color='SkyBlue', nsamples=10000)
+                                                                      color='SkyBlue', nsamples=5000)
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd_mid, '--b', lw=2)
     ax.loglog(frequencies, psd, 'k', lw=2)

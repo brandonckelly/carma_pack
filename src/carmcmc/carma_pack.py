@@ -323,27 +323,28 @@ class CarmaSample(samplers.MCMCSample):
         upper = 100.0 - lower
 
         # Compute the PSDs from the MCMC samples
-        for i in xrange(nfreq):
-            omega = 2.0 * np.pi * 1j * frequencies[i]
-            ar_poly = np.zeros(nsamples, dtype=complex)
-            ma_poly = ar_poly.copy()
-            for k in xrange(self.p - 1):
-                # Here we compute:
-                #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
-                # Note that ar_coefs[0] = 1.0.
-                ar_poly += ar_coefs[:, k] * omega ** (self.p - k)
-            ar_poly += ar_coefs[:, self.p - 1] * omega + ar_coefs[:, self.p]
-            for k in xrange(ma_coefs.shape[1]):
-                # Here we compute:
-                #   delta(omega) = ma_coefs[0] + ma_coefs[1] * omega + ... + ma_coefs[q] * omega^q
-                ma_poly += ma_coefs[:, k] * omega ** k
+        omega = 2.0 * np.pi * 1j * frequencies
+        ar_poly = np.zeros((nfreq, nsamples), dtype=complex)
+        ma_poly = np.zeros_like(ar_poly)
+        for k in xrange(self.p):
+            # Here we compute:
+            #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
+            # Note that ar_coefs[0] = 1.0.
+            argrid, omgrid = np.meshgrid(ar_coefs[:, k], omega)
+            ar_poly += argrid * (omega ** (self.p - k))
+        ar_poly += ar_coefs[:, self.p]
+        for k in xrange(ma_coefs.shape[1]):
+            # Here we compute:
+            #   delta(omega) = ma_coefs[0] + ma_coefs[1] * omega + ... + ma_coefs[q] * omega^q
+            magrid, omgrid = np.meshgrid(ma_coefs[:, k], omega)
+            ma_poly += magrid * (omgrid ** k)
 
-            psd_samples = sigmas ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
+        psd_samples = sigmas ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
 
-            # Now compute credibility interval for power spectrum
-            psd_credint[i, 0] = np.percentile(psd_samples, lower)
-            psd_credint[i, 2] = np.percentile(psd_samples, upper)
-            psd_credint[i, 1] = np.median(psd_samples)
+        # Now compute credibility interval for power spectrum
+        psd_credint[:, 0] = np.percentile(psd_samples, lower, axis=1)
+        psd_credint[:, 2] = np.percentile(psd_samples, upper, axis=1)
+        psd_credint[:, 1] = np.median(psd_samples, axis=1)
 
         # Plot the power spectra
         if sp == None:
