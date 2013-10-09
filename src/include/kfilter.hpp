@@ -112,8 +112,11 @@ public:
         
     double GetConst() { return yconst_; }
     double GetSlope() { return yslope_; }
-    
-    /* 
+
+    std::vector<double> GetMeanSvec() { return arma::conv_to<std::vector<double> >::from(mean); }
+    std::vector<double> GetVarSvec() { return arma::conv_to<std::vector<double> >::from(var); }
+
+    /*
      Methods to perform the Kalman Filter operations 
      */
     virtual void Reset() = 0;
@@ -129,7 +132,7 @@ public:
     }
     
     // simulate a CARMA process, conditional on the measured time series
-    arma::vec Simulate(arma::vec time) {
+    std::vector<double> Simulate(arma::vec time) {
         // first save old values since we will overwrite them later
         arma::vec time0 = time_;
         arma::vec y0 = y_;
@@ -177,7 +180,7 @@ public:
         mean.zeros(time_.n_elem);
         var.zeros(time_.n_elem);
         
-        return ysimulated;
+        return arma::conv_to<std::vector<double> >::from(ysimulated);
     }
     
     // Methods needed for interpolation and backcasting
@@ -360,6 +363,13 @@ public:
     std::pair<double, double> Predict(double time);
     void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
     void UpdateCoefs();
+    
+    std::vector<double> Simulate(std::vector<double> time) {
+        arma::vec armatime = arma::conv_to<arma::vec>::from(time);
+        arma::vec armasimulate = KalmanFilter<arma::cx_vec>::Simulate(armatime);
+        std::vector<double> vecsimulate = arma::conv_to<std::vector<double> >::from(armasimulate);
+        return vecsimulate;
+    }
     
 private:
     // parameters

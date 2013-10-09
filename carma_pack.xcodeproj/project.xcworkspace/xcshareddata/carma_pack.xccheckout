@@ -5,31 +5,19 @@
 	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
 	<false/>
 	<key>IDESourceControlProjectIdentifier</key>
-<<<<<<< HEAD
-	<string>1431CDE9-32E3-4685-ADAA-131756869716</string>
-=======
-	<string>11B3EE16-83C4-498D-8355-2F46B88714D6</string>
->>>>>>> 28eb561c277c8b0e4cfb628157c21c92c529b02d
+	<string>FA30591D-AB13-4028-B3A6-93817302E838</string>
 	<key>IDESourceControlProjectName</key>
 	<string>carma_pack</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
-<<<<<<< HEAD
-		<key>A7CD999D-E48F-4A7B-8AC2-1CEC4EE81AE4</key>
-=======
-		<key>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</key>
->>>>>>> 28eb561c277c8b0e4cfb628157c21c92c529b02d
+		<key>E151CF60-65D6-4BBD-9FAB-866F002C1A04</key>
 		<string>https://github.com/bckelly80/carma_pack.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
 	<string>carma_pack.xcodeproj/project.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
-<<<<<<< HEAD
-		<key>A7CD999D-E48F-4A7B-8AC2-1CEC4EE81AE4</key>
-=======
-		<key>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</key>
->>>>>>> 28eb561c277c8b0e4cfb628157c21c92c529b02d
+		<key>E151CF60-65D6-4BBD-9FAB-866F002C1A04</key>
 		<string>../..</string>
 	</dict>
 	<key>IDESourceControlProjectURL</key>
@@ -37,22 +25,14 @@
 	<key>IDESourceControlProjectVersion</key>
 	<integer>110</integer>
 	<key>IDESourceControlProjectWCCIdentifier</key>
-<<<<<<< HEAD
-	<string>A7CD999D-E48F-4A7B-8AC2-1CEC4EE81AE4</string>
-=======
-	<string>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</string>
->>>>>>> 28eb561c277c8b0e4cfb628157c21c92c529b02d
+	<string>E151CF60-65D6-4BBD-9FAB-866F002C1A04</string>
 	<key>IDESourceControlProjectWCConfigurations</key>
 	<array>
 		<dict>
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>
 			<key>IDESourceControlWCCIdentifierKey</key>
-<<<<<<< HEAD
-			<string>A7CD999D-E48F-4A7B-8AC2-1CEC4EE81AE4</string>
-=======
-			<string>BE0C0568-D95E-4ACD-99FC-3A0AEC726BCB</string>
->>>>>>> 28eb561c277c8b0e4cfb628157c21c92c529b02d
+			<string>E151CF60-65D6-4BBD-9FAB-866F002C1A04</string>
 			<key>IDESourceControlWCCName</key>
 			<string>carma_pack</string>
 		</dict>

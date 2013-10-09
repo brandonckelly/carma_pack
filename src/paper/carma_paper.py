@@ -229,7 +229,7 @@ def do_simulated_irregular():
     pool = mp.Pool(mp.cpu_count()-1)
 
     args = []
-    maxp = 7
+    maxp = 3
     for p in xrange(1, maxp + 1):
         for q in xrange(p):
             args.append((p, q, data))

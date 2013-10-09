@@ -715,7 +715,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CARMA(5,4) 
     int nsim = 200;
     arma::vec tsim = arma::linspace<arma::vec>(tsim_min, tsim_max, nsim);
         
-    arma::vec ysim = Kfilter.Simulate(tsim);
+    arma::vec ysim(Kfilter.Simulate(arma::conv_to<std::vector<double> >::from(tsim)));
     
     // construct covariance matrix of (tpredict,time)
     arma::mat covar(ny+nsim,ny+nsim);

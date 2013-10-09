@@ -331,7 +331,7 @@ class CarmaSample(samplers.MCMCSample):
             #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
             # Note that ar_coefs[0] = 1.0.
             argrid, omgrid = np.meshgrid(ar_coefs[:, k], omega)
-            ar_poly += argrid * (omega ** (self.p - k))
+            ar_poly += argrid * (omgrid ** (self.p - k))
         ar_poly += ar_coefs[:, self.p]
         for k in xrange(ma_coefs.shape[1]):
             # Here we compute:
@@ -339,7 +339,7 @@ class CarmaSample(samplers.MCMCSample):
             magrid, omgrid = np.meshgrid(ma_coefs[:, k], omega)
             ma_poly += magrid * (omgrid ** k)
 
-        psd_samples = sigmas ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
+        psd_samples = np.squeeze(sigmas) ** 2 * np.abs(ma_poly) ** 2 / np.abs(ar_poly) ** 2
 
         # Now compute credibility interval for power spectrum
         psd_credint[:, 0] = np.percentile(psd_samples, lower, axis=1)
@@ -364,9 +364,12 @@ class CarmaSample(samplers.MCMCSample):
 
         if doShow:
             plt.show()
-            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+
+        if sp == None:
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies, fig)
         else:
-            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), fig
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+
 
     def makeKalmanFilter(self, bestfit):
         if bestfit == 'map':
@@ -475,12 +478,8 @@ class CarmaSample(samplers.MCMCSample):
         # plot the standardized residuals and compare with the standard normal
         kfilter, mu = self.makeKalmanFilter(bestfit)
         kfilter.Filter()
-        kmean = np.empty(self.time.size)
-        kvar  = np.empty(self.time.size)
-        for i in xrange(self.time.size):
-            kpred = kfilter.Predict(self.time[i])
-            kmean[i] = kpred.first
-            kvar[i]  = kpred.second
+        kmean = np.asarray(kfilter.GetMean())
+        kvar = np.asarray(kfilter.GetVar())
         standardized_residuals = (self.y - mu - kmean) / np.sqrt(kvar)
         plt.subplot(222)
         plt.xlabel('Time')
@@ -583,15 +582,13 @@ class CarmaSample(samplers.MCMCSample):
         # note that KalmanFilter class assumes the time series has zero mean
         kfilter, mu = self.makeKalmanFilter(bestfit)
         kfilter.Filter()
+        vtime = carmcmcLib.vecD()
         if np.isscalar(time):
-            pred = kfilter.Predict(time)
-            ysim = pred.first
+            vtime.append(time)
         else:
-            ysim = np.empty(time.size)
-            for i in xrange(time.size):
-                pred = kfilter.Predict(time[i])
-                ysim[i] = pred.first
+            vtime.extend(time)
 
+        ysim = np.asarray(kfilter.Simulate(vtime))
         ysim += mu  # add mean back into time series
 
         return ysim

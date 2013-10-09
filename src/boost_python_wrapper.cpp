@@ -104,6 +104,8 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("Simulate", &KalmanFilter1::Simulate)
         .def("Filter", &KalmanFilter1::Filter)
         .def("Predict", &KalmanFilter1::Predict)
+        .def("GetMean", &KalmanFilter1::GetMeanSvec)
+        .def("GetVar", &KalmanFilter1::GetVarSvec)
     ;
     class_<KalmanFilterp, bases<KalmanFilter<arma::cx_vec> >, std::shared_ptr<KalmanFilterp> >("KalmanFilterp", no_init)
         .def(init<std::vector<double>,std::vector<double>,std::vector<double> >())
@@ -112,5 +114,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("Simulate", &KalmanFilterp::Simulate)
         .def("Filter", &KalmanFilterp::Filter)
         .def("Predict", &KalmanFilterp::Predict)
-    ; 
+        .def("GetMean", &KalmanFilterp::GetMeanSvec)
+        .def("GetVar", &KalmanFilterp::GetVarSvec)
+    ;
 };
