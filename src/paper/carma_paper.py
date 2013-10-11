@@ -95,7 +95,7 @@ def do_simulated_regular():
     time = np.arange(0.0, ny)
     y0 = cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
-    ysig = np.ones(ny) * np.sqrt(1e-3)
+    ysig = np.ones(ny) * np.sqrt(1e-2)
 
     y = y0 + ysig * np.random.standard_normal(ny)
 
@@ -202,8 +202,8 @@ def do_simulated_irregular():
 
     y = mu + cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
-    ysig = np.ones(ny) * y.std() / 5.0
-    # ysig = np.ones(ny) * 1e-6
+    # ysig = np.ones(ny) * y.std() / 5.0
+    ysig = np.ones(ny) * 1e-6
     y0 = y.copy()
     y += ysig * np.random.standard_normal(ny)
 
