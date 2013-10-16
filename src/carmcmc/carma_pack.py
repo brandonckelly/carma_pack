@@ -9,7 +9,7 @@ import multiprocessing
 import _carmcmc as carmcmcLib
 
 
-class CarmaMCMC(object):
+class CarmaModel(object):
     """
     Class for running the MCMC sampler assuming a CARMA(p,q) model.
     """
