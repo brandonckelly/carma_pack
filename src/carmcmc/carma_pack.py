@@ -3,8 +3,7 @@ __author__ = 'Brandon C. Kelly'
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
-from scipy.misc import comb
-from os import environ
+from scipy.optimize import basinhopping
 import samplers
 import _carmcmc as carmcmcLib
 
@@ -14,7 +13,7 @@ class CarmaMCMC(object):
     Class for running the MCMC sampler assuming a CARMA(p,q) model.
     """
 
-    def __init__(self, time, y, ysig, p, nsamples, q=0, nwalkers=None, nburnin=None, nthin=1):
+    def __init__(self, time, y, ysig, nsamples, p=1, q=0, nwalkers=None, nburnin=None, nthin=1):
         """
         Constructor for the CarmaMCMC class.
 
@@ -81,10 +80,49 @@ class CarmaMCMC(object):
 
         return sample
 
-    def get_mle(self):
-        pass
+    def _floglik(self, theta, args):
+        CppCarma, = args
+        theta_vec = carmcmcLib.vecD()
+        theta_vec.extend(theta)
+        logdens = CppCarma.getLogDensity(theta)
+        return -logdens
 
-    def choose_order(self, pmax, qmax=None, pqlist=None):
+    class _BHStep(object):
+        def __init__(self, stepsize=1.0):
+            self.stepsize = stepsize
+
+        def __call__(self, theta):
+            s = self.stepsize
+            theta = np.random.uniform(-s, s, theta.shape)
+            # Don't adapt step size for measurement error scale parameter
+            theta[1] = np.random.uniform(0.9, 1.1)
+
+    def get_map(self):
+
+        # get a CARMA process object by running the MCMC sampler for a very short period. This will provide the initial
+        # guess and the function to compute the log-posterior
+        nsamples = 1
+        nburnin = 100
+        if self.p == 1:
+            # Treat the CAR(1) case separately
+            CarmaProcess = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig, 1)
+        else:
+            CarmaProcess = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
+                                                     self.p, self.q, self.nwalkers, False, 1)
+
+        initial_theta = CarmaProcess.getSamples()
+        initial_theta = np.array(initial_theta[0])
+        initial_theta[1] = 1.0  # initial guess for measurement error scale parameter
+
+        # get maximum a posteriori (MAP) estimate
+        minimizer_kwargs = {'method': 'BFGS', 'jac': False, 'args': (CarmaProcess,)}
+        custom_step = self._BHStep()
+        MAP = basinhopping(self._floglik, initial_theta, minimizer_kwargs=minimizer_kwargs, niter=1000,
+                           disp=True, stepsize=1.0, T=10.0, take_step=custom_step)
+
+        return MAP
+
+    def choose_order(self, pmax, qmax=None, pqlist=None, njobs=-1):
         pass
 
 
