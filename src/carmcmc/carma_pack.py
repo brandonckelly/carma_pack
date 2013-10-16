@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from scipy.optimize import basinhopping
 import samplers
+import multiprocessing
 import _carmcmc as carmcmcLib
 
 
@@ -97,18 +98,20 @@ class CarmaMCMC(object):
             # Don't adapt step size for measurement error scale parameter
             theta[1] = np.random.uniform(0.9, 1.1)
 
-    def get_map(self):
+    def get_map(self, pq):
 
         # get a CARMA process object by running the MCMC sampler for a very short period. This will provide the initial
         # guess and the function to compute the log-posterior
         nsamples = 1
         nburnin = 100
-        if self.p == 1:
+        p = pq[0]
+        q = pq[1]
+        if p == 1:
             # Treat the CAR(1) case separately
             CarmaProcess = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig, 1)
         else:
             CarmaProcess = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
-                                                     self.p, self.q, self.nwalkers, False, 1)
+                                                     p, q, self.nwalkers, False, 1)
 
         initial_theta = CarmaProcess.getSamples()
         initial_theta = np.array(initial_theta[0])
@@ -122,8 +125,44 @@ class CarmaMCMC(object):
 
         return MAP
 
-    def choose_order(self, pmax, qmax=None, pqlist=None, njobs=-1):
-        pass
+    def choose_order(self, pmax, qmax=None, pqlist=None, njobs=1):
+
+        if qmax is None:
+            qmax = pmax - 1
+
+        try:
+            pmax > qmax
+        except ValueError:
+            " Order of AR polynomial, p, must be larger than order of MA polynimial, q."
+
+        if pqlist is None:
+            pqlist = []
+            for p in xrange(pmax):
+                for q in xrange(qmax):
+                    pqlist.append((p, q))
+
+        if njobs == -1:
+            njobs = multiprocessing.cpu_count()
+
+        pool = multiprocessing.Pool(njobs)
+        MAPs = pool.map(self.get_map, pqlist)
+
+        best_AICc = 1e300
+        best_MAP = MAPs[0]
+        for MAP, pq in zip(MAPs, pqlist):
+            nparams = 2 + pq[0] + pq[1]
+            deviance = 2.0 * MAP.fun
+            this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (self.time.size - nparams - 1.0)
+            if this_AICc < best_AICc:
+                # new optimum found, save values
+                best_MAP = MAP
+                best_AICc = this_AICc
+                self.p = pq[0]
+                self.q = pq[1]
+
+        print 'Model with best AICc has p =', self.p, ' and q = ', self.q
+
+        return best_MAP
 
 
 class CarmaSample(samplers.MCMCSample):
