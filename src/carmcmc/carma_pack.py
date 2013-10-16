@@ -60,7 +60,7 @@ class CarmaMCMC(object):
         self.nwalkers = nwalkers
         self.nthin = nthin
 
-    def RunMCMC(self):
+    def run_mcmc(self):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
 
@@ -80,6 +80,12 @@ class CarmaMCMC(object):
             sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
 
         return sample
+
+    def get_mle(self):
+        pass
+
+    def choose_order(self, pmax, qmax=None, pqlist=None):
+        pass
 
 
 class CarmaSample(samplers.MCMCSample):
