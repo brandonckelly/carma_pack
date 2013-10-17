@@ -170,7 +170,7 @@ class CarmaSample(samplers.MCMCSample):
     Class for storing and analyzing the MCMC samples of a CARMA(p,q) model.
     """
 
-    def __init__(self, time, y, ysig, sampler, q=0, filename=None):
+    def __init__(self, time, y, ysig, sampler, q=0, filename=None, MAP=None):
         """
         Constructor for the CarmaSample class.
 
@@ -213,6 +213,80 @@ class CarmaSample(samplers.MCMCSample):
         # make the parameter names (i.e., the keys) public so the user knows how to get them
         self.parameters = self._samples.keys()
         self.newaxis()
+
+        self.map = {}
+        if MAP is not None:
+            # add maximum a posteriori estimate
+            self.add_map(MAP)
+
+    def add_map(self, MAP):
+        self.map = {'logpost': MAP.fun, 'var': MAP.x[0] ** 2, 'measerr_scale': MAP.x[1], 'mu': MAP.x[2]}
+
+        # add AR polynomial roots and PSD lorentzian parameters
+        quad_coefs = MAP.x[3:self.p + 3]
+        ar_roots = np.zeros(self.p, dtype=complex)
+        psd_width = np.zeros(self.p)
+        psd_cent = np.zeros(self.p)
+
+        for i in xrange(self.p / 2):
+            quad1 = quad_coefs[2 * i]
+            quad2 = quad_coefs[2 * i + 1]
+
+            discriminant = quad2 ** 2 - 4.0 * quad1
+            if discriminant > 0:
+                sqrt_disc = np.sqrt(discriminant)
+            else:
+                sqrt_disc = 1j * np.sqrt(np.abs(discriminant))
+
+            ar_roots[2 * i] = -0.5 * (quad2 + sqrt_disc)
+            ar_roots[2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
+            psd_width[2 * i] = -np.real(ar_roots[2 * i]) / (2.0 * np.pi)
+            psd_cent[2 * i] = np.abs(np.imag(ar_roots[2 * i])) / (2.0 * np.pi)
+            psd_width[2 * i + 1] = -np.real(ar_roots[2 * i + 1]) / (2.0 * np.pi)
+            psd_cent[2 * i + 1] = np.abs(np.imag(ar_roots[2 * i + 1])) / (2.0 * np.pi)
+
+        if self.p % 2 == 1:
+            # p is odd, so add in root from linear term
+            ar_roots[-1] = -quad_coefs[-1]
+            psd_cent[-1] = 0.0
+            psd_width[-1] = quad_coefs[-1] / (2.0 * np.pi)
+
+        self.map['ar_roots'] = ar_roots
+        self.map['psd_width'] = psd_width
+        self.map['psd_cent'] = psd_cent
+        self.map['ar_coefs'] = np.poly(ar_roots).real
+
+        # now calculate the moving average coefficients
+        if self.q == 0:
+            self.map['ma_coefs'] = 1.0
+        else:
+            quad_coefs = np.exp(MAP.x[3 + self.p:])
+            ma_roots = np.empty(quad_coefs.size, dtype=complex)
+            for i in xrange(self.q / 2):
+                quad1 = quad_coefs[:, 2 * i]
+                quad2 = quad_coefs[:, 2 * i + 1]
+
+                discriminant = quad2 ** 2 - 4.0 * quad1
+                if discriminant > 0:
+                    sqrt_disc = np.sqrt(discriminant)
+                else:
+                    sqrt_disc = 1j * np.sqrt(np.abs(discriminant))
+
+                ma_roots[2 * i] = -0.5 * (quad2 + sqrt_disc)
+                ma_roots[2 * i + 1] = -0.5 * (quad2 - sqrt_disc)
+
+            if self.q % 2 == 1:
+                # q is odd, so add in root from linear term
+                ma_roots[-1] = -quad_coefs[-1]
+
+            ma_coefs = np.poly(ma_roots)
+            # normalize so constant in polynomial is unity, and reverse order to be consistent with MA
+            # representation
+            self.map['ma_coefs'] = np.real(ma_coefs / ma_coefs[self.q])[::-1]
+
+        # finally, calculate sigma, the standard deviation in the driving white noise
+        unit_var = carma_variance(1.0, self.map['ar_roots'], self.map['ma_coefs'])
+        self.map['sigma'] = np.sqrt(self.map['var'] / unit_var.real)
 
     def arrayToVec(self, array, arrType=carmcmcLib.vecD):
         vec = arrType()
