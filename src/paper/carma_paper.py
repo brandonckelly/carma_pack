@@ -96,6 +96,7 @@ def do_simulated_regular():
     y0 = cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
     ysig = np.ones(ny) * np.sqrt(1e-2)
+    ysig = np.ones(ny) * np.sqrt(1e-6)
 
     y = y0 + ysig * np.random.standard_normal(ny)
 
@@ -113,29 +114,38 @@ def do_simulated_regular():
 
     ar_coef = np.poly(ar_roots)
 
-    pool = mp.Pool(mp.cpu_count()-1)
+    print 'Getting maximum-likelihood estimates...'
 
-    args = []
-    maxp = 8
-    for p in xrange(1, maxp + 1):
-        for q in xrange(p):
-            args.append((p, q, data))
+    carma_model = cm.CarmaModel(time, y, ysig, 10)
+    pmax = 5
+    MAP = carma_model.choose_order(pmax)
 
-    print "Running the CARMA MCMC samplers..."
+    mcmc_sample = carma_model.run_mcmc()
+    carma_sample = cm.CarmaSample(time, y, ysig, mcmc_sample, q=carma_model.q, MAP=MAP)
 
-    carma_run = pool.map(run_carma_sampler, args)
-
-    dic = []
-    pmodels = []
-    qmodels = []
-    for crun in carma_run:
-        dic.append(crun.DIC())
-        pmodels.append(crun.p)
-        qmodels.append(crun.q)
-
-    pmodels = np.array(pmodels)
-    qmodels = np.array(qmodels)
-    dic = np.array(dic)
+    #pool = mp.Pool(mp.cpu_count()-1)
+    #
+    #args = []
+    #maxp = 8
+    #for p in xrange(1, maxp + 1):
+    #    for q in xrange(p):
+    #        args.append((p, q, data))
+    #
+    #print "Running the CARMA MCMC samplers..."
+    #
+    #carma_run = pool.map(run_carma_sampler, args)
+    #
+    #dic = []
+    #pmodels = []
+    #qmodels = []
+    #for crun in carma_run:
+    #    dic.append(crun.DIC())
+    #    pmodels.append(crun.p)
+    #    qmodels.append(crun.q)
+    #
+    #pmodels = np.array(pmodels)
+    #qmodels = np.array(qmodels)
+    #dic = np.array(dic)
 
     plt.clf()
     plt.subplot(111)

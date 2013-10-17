@@ -278,7 +278,8 @@ public:
     // Constructor
     CARp() {}
     CARp(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p,
-         double temperature=1.0): CARMA_Base<arma::cx_vec>(track, name, time, y, yerr, temperature), p_(p)
+         double temperature=1.0, bool order_lorentzians=true): CARMA_Base<arma::cx_vec>(track, name, time, y, yerr, temperature),
+        p_(p), order_lorentz_(order_lorentzians)
 	{
         pKFilter_ = std::make_shared<KalmanFilterp>(time_, y_, yerr_);
 		value_.set_size(p_+3);
@@ -319,6 +320,7 @@ public:
     
 protected:
     int p_; // Order of the CAR(p) process
+    bool order_lorentz_; // preserve the ordering of the lorentzian centroids?
 private:
     arma::vec ma_coefs_;
 };
@@ -360,7 +362,7 @@ public:
 	// Constructor //
     CARMA() {}
 	CARMA(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int p, int q,
-          double temperature=1.0) : CARp(track, name, time, y, yerr, p, temperature), q_(q)
+          double temperature=1.0, bool order_lorentzians=true) : CARp(track, name, time, y, yerr, p, temperature, order_lorentzians), q_(q)
     {
         BOOST_ASSERT_MSG(q < p, "Order of moving average polynomial must be less than order of autoregressive polynomial");
         value_.set_size(p_+q_+3);

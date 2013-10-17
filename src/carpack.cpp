@@ -20,7 +20,7 @@
 #include <boost/math/special_functions/binomial.hpp>
 
 // Local includes
-#include <carpack.hpp>
+#include "carpack.hpp"
 
 // Global random number generator object, instantiated in random.cpp
 extern boost::random::mt19937 rng;
@@ -260,23 +260,27 @@ bool CARp::CheckPriorBounds(arma::vec theta)
         // Value are outside of prior bounds
         prior_satisfied = false;
     }
-	// Make sure the Lorentzian centroids are still in decreasing order
-	for (int i=1; i<lorentz_cent.n_elem; i++) {
-        double lorentz_cent_difference = lorentz_cent(i) - lorentz_cent(i-1);
-		if (lorentz_cent_difference > 1e-8) {
-			// Lorentzians are not in decreasing order, reject this proposal
-			prior_satisfied = false;
-		}
-    }
-    // Make sure Lorentzian widths are greater than minimum frequency for those Lorentzians with centroids
-    // less than the minimum frequency.
-    for (int i=0; i<lorentz_cent.n_elem; i++) {
-        if (lorentz_cent(i) < min_freq_) {
-            if (lorentz_width(i) < min_freq_) {
+    
+    if (order_lorentz_) {
+        // Make sure the Lorentzian centroids are still in decreasing order
+        for (int i=1; i<lorentz_cent.n_elem; i++) {
+            double lorentz_cent_difference = lorentz_cent(i) - lorentz_cent(i-1);
+            if (lorentz_cent_difference > 1e-8) {
+                // Lorentzians are not in decreasing order, reject this proposal
                 prior_satisfied = false;
             }
         }
-    }    
+    }
+
+//    // Make sure Lorentzian widths are greater than minimum frequency for those Lorentzians with centroids
+//    // less than the minimum frequency.
+//    for (int i=0; i<lorentz_cent.n_elem; i++) {
+//        if (lorentz_cent(i) < min_freq_) {
+//            if (lorentz_width(i) < min_freq_) {
+//                prior_satisfied = false;
+//            }
+//        }
+//    }    
     return prior_satisfied;
 }
 

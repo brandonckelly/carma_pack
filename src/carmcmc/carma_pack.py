@@ -14,7 +14,7 @@ class CarmaModel(object):
     Class for running the MCMC sampler assuming a CARMA(p,q) model.
     """
 
-    def __init__(self, time, y, ysig, nsamples, p=1, q=0, nwalkers=None, nburnin=None, nthin=1):
+    def __init__(self, time, y, ysig, p=1, q=0):
         """
         Constructor for the CarmaMCMC class.
 
@@ -43,60 +43,112 @@ class CarmaModel(object):
         self._ysig = carmcmcLib.vecD()
         self._ysig.extend(ysig)
 
-        if nwalkers is None:
-                nwalkers = max(10, p + q)
-
-        if nburnin is None:
-            nburnin = nsamples / 2
-
         # save parameters
         self.time = time
         self.y = y
         self.ysig = ysig
         self.p = p
-        self.nsamples = nsamples
-        self.nburnin = nburnin
         self.q = q
-        self.nwalkers = nwalkers
-        self.nthin = nthin
 
-    def run_mcmc(self):
+    def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1, order_lorentzians=True):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
 
         :return: Either a CarmaSample, ZCarmaSample, or CarSample1 object, depending on the values of self.p and
                  self.doZcarma.
         """
+
+        if nwalkers is None:
+            nwalkers = max(10, self.p + self.q)
+
+        if nburnin is None:
+            nburnin = nsamples / 2
+
         if self.p == 1:
             # Treat the CAR(1) case separately
-            cppSample = carmcmcLib.run_mcmc_car1(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                 self.nthin)
+            cppSample = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig,
+                                                 nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CAR1 class, convert to python object
             sample = CarSample1(self.time, self.y, self.ysig, cppSample)
         else:
-            cppSample = carmcmcLib.run_mcmc_carma(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
-                                                  self.p, self.q, self.nwalkers, False, self.nthin)
+            cppSample = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
+                                                  self.p, self.q, nwalkers, False, nthin, order_lorentzians)
             # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
             sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
 
         return sample
 
     def _floglik(self, theta, args):
-        CppCarma, = args
+        CppCarma = args
         theta_vec = carmcmcLib.vecD()
         theta_vec.extend(theta)
-        logdens = CppCarma.getLogDensity(theta)
+        logdens = CppCarma.getLogDensity(theta_vec)
+        #if ~np.isfinite(logdens):
+        #    print 'theta:', theta
+        #    print 'logdens:', logdens
+
         return -logdens
 
     class _BHStep(object):
-        def __init__(self, stepsize=1.0):
+        def __init__(self, stepsize=0.5):
             self.stepsize = stepsize
 
         def __call__(self, theta):
             s = self.stepsize
-            theta = np.random.uniform(-s, s, theta.shape)
+            theta[0] = np.random.lognormal(np.log(theta[0]), 0.1)
+            theta[2:] += s * np.random.standard_t(4, theta.size - 2)
             # Don't adapt step size for measurement error scale parameter
-            theta[1] = np.random.uniform(0.9, 1.1)
+            theta[1] = 1.0
+            return theta
+
+    class _BHBounds(object):
+        def __init__(self, varmin=-1e3, varmax=1e9):
+            self.varmin = varmin
+            self.varmax = varmax
+
+        def __call__(self, **kwargs):
+            x = kwargs['x_new']
+            loglik = kwargs['f_new']
+            var = x[0]
+            tmax = bool(var <= self.varmax)
+            tmin = bool(var >= self.varmin)
+            if tmax and tmin and np.isfinite(loglik):
+                acceptable = True
+            else:
+                acceptable = False
+            return acceptable
+
+    class _psd_constraints(object):
+        def __init__(self, max_freq, p):
+            self.max_freq = max_freq
+            self.p = p
+
+        def __call__(self, theta):
+            # constraint is that Lorentzian centroids and widths must be < max_freq
+            quad_coefs = np.exp(theta[3:self.p + 3])
+            psd_params = self.psd_params(quad_coefs)
+            return self.max_freq - psd_params
+
+        def psd_params(self, quad_coefs):
+            psd_params = np.zeros(self.p)
+            for i in xrange(self.p / 2):
+                quad1 = quad_coefs[2 * i]
+                quad2 = quad_coefs[2 * i + 1]
+
+                discriminant = quad2 ** 2 - 4.0 * quad1
+                if discriminant > 0:
+                    sqrt_disc = np.sqrt(discriminant)
+                    psd_params[2 * i] = np.abs(-0.5 * (quad2 + sqrt_disc))
+                    psd_params[2 * i + 1] = np.abs(-0.5 * (quad2 - sqrt_disc))
+                else:
+                    psd_params[2 * i] = 0.5 * np.abs(quad2) / (2.0 * np.pi)
+                    psd_params[2 * i + 1] = 0.5 * np.sqrt(np.abs(discriminant)) / (2.0 * np.pi)
+
+            if self.p % 2 == 1:
+                # p is odd, so add in root from linear term
+                psd_params[-1] = quad_coefs[-1] / (2.0 * np.pi)
+
+            return psd_params
 
     def get_map(self, pq):
 
@@ -111,21 +163,50 @@ class CarmaModel(object):
             CarmaProcess = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig, 1)
         else:
             CarmaProcess = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
-                                                     p, q, self.nwalkers, False, 1)
+                                                     p, q, self.nwalkers, False, 1, False)
 
         initial_theta = CarmaProcess.getSamples()
         initial_theta = np.array(initial_theta[0])
         initial_theta[1] = 1.0  # initial guess for measurement error scale parameter
 
+        # set bounds on parameters
+        ysigma = self.y.std()
+        dt = self.time[1:] - self.time[:-1]
+        max_freq = 1.0 / dt.min()
+        min_freq = 1.0 / (self.time.max() - self.time.min())
+        step_size = 0.25 * np.log(max_freq / min_freq)
+        theta_bnds = [(0.0, 10.0 * ysigma)]
+        theta_bnds.append((0.6, 1.9))
+        theta_bnds.append((None, None))
+        if p == 1:
+            theta_bnds.append((np.log(min_freq), np.log(max_freq)))
+        else:
+            theta_bnds.extend([(None, None)] * (p + q))
+        # set constraints on PSD parameters
+        cons = []
+        for piter in xrange(p):
+            cons.append({'type': 'ineq', 'fun': lambda x: self._psd_constraints(x)[piter]})
+
         # get maximum a posteriori (MAP) estimate
-        minimizer_kwargs = {'method': 'BFGS', 'jac': False, 'args': (CarmaProcess,)}
-        custom_step = self._BHStep()
-        MAP = basinhopping(self._floglik, initial_theta, minimizer_kwargs=minimizer_kwargs, niter=1000,
+        minimizer_kwargs = {'method': 'COBYLA', 'bounds': theta_bnds, 'constraints': cons, 'args': [CarmaProcess]}
+        custom_step = self._BHStep(stepsize=step_size)
+        if p == 1:
+            niter = 10
+        else:
+            niter = 1000
+        MAP = basinhopping(self._floglik, initial_theta, minimizer_kwargs=minimizer_kwargs, niter=niter,
                            disp=True, stepsize=1.0, T=10.0, take_step=custom_step)
+
+        print MAP.message
 
         return MAP
 
     def choose_order(self, pmax, qmax=None, pqlist=None, njobs=1):
+
+        try:
+            pmax > 0
+        except ValueError:
+            "Order of AR polynomial must be at least 1."
 
         if qmax is None:
             qmax = pmax - 1
@@ -137,22 +218,31 @@ class CarmaModel(object):
 
         if pqlist is None:
             pqlist = []
-            for p in xrange(pmax):
-                for q in xrange(qmax):
+            for p in xrange(1, pmax):
+                for q in xrange(p):
                     pqlist.append((p, q))
 
         if njobs == -1:
             njobs = multiprocessing.cpu_count()
 
-        pool = multiprocessing.Pool(njobs)
-        MAPs = pool.map(self.get_map, pqlist)
+        if njobs == 1:
+            MAPs = []
+            for pq in pqlist:
+                MAP = self.get_map(pq)
+                MAPs.append(MAP)
+        else:
+            # use multiple processors
+            pool = multiprocessing.Pool(njobs)
+            MAPs = pool.map(self.get_map, pqlist)
 
         best_AICc = 1e300
         best_MAP = MAPs[0]
+        print 'p, q, AICc:'
         for MAP, pq in zip(MAPs, pqlist):
             nparams = 2 + pq[0] + pq[1]
             deviance = 2.0 * MAP.fun
             this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (self.time.size - nparams - 1.0)
+            print pq[0], pq[1], this_AICc
             if this_AICc < best_AICc:
                 # new optimum found, save values
                 best_MAP = MAP
@@ -223,7 +313,7 @@ class CarmaSample(samplers.MCMCSample):
         self.map = {'logpost': MAP.fun, 'var': MAP.x[0] ** 2, 'measerr_scale': MAP.x[1], 'mu': MAP.x[2]}
 
         # add AR polynomial roots and PSD lorentzian parameters
-        quad_coefs = MAP.x[3:self.p + 3]
+        quad_coefs = np.exp(MAP.x[3:self.p + 3])
         ar_roots = np.zeros(self.p, dtype=complex)
         psd_width = np.zeros(self.p)
         psd_cent = np.zeros(self.p)
