@@ -24,8 +24,8 @@
 #include <samplers.hpp>
 #include <steps.hpp>
 #include <parameters.hpp>
-#include "carpack.hpp"
-#include "carmcmc.hpp"
+#include "include/carpack.hpp"
+#include "include/carmcmc.hpp"
 
 std::shared_ptr<CAR1>
 RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int thin)
@@ -76,7 +76,7 @@ RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vecto
 std::shared_ptr<CARp>
 RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y,
                 std::vector<double> yerr, int p, int q, int nwalkers, bool do_zcarma,
-                int thin, bool order_lorentzians)
+                int thin)
 {
     assert(p > 1);
     double sum = std::accumulate(y.begin(), y.end(), 0.0);
@@ -99,10 +99,10 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
         if (!do_zcarma) {
             if (q == 0) {
                 // just doing a CAR(p) model
-                CarEnsemble.AddObject(new CARp(false, "CAR(p) Parameters", time, y, yerr, p, temp_ladder(i), order_lorentzians));
+                CarEnsemble.AddObject(new CARp(false, "CAR(p) Parameters", time, y, yerr, p, temp_ladder(i)));
             } else {
                 // doing a CARMA(p,q) model
-                CarEnsemble.AddObject(new CARMA(false, "CARMA(p,q) Parameters", time, y, yerr, p, q, temp_ladder(i), order_lorentzians));
+                CarEnsemble.AddObject(new CARMA(false, "CARMA(p,q) Parameters", time, y, yerr, p, q, temp_ladder(i)));
             }
         } else {
             // doing a ZCARMA(p) model

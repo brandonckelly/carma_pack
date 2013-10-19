@@ -67,7 +67,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
     ;
 
     class_<CARp, bases<CARMA_Base<arma::vec> >, std::shared_ptr<CARp> >("CARp", no_init)
-        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double>,optional<bool> >())
+        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
         .def("getLogPrior", &CARp::getLogPrior)
         .def("getLogDensity", &CARp::getLogDensity)
         .def("getSamples", &CARp::getSamples)
@@ -75,7 +75,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
     ;
 
     class_<CARMA, bases<CARp>, std::shared_ptr<CARMA> >("CARMA", no_init)
-        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,int,optional<double>,optional<bool> >())
+        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,int,optional<double> >())
         .def("getLogPrior", &CARMA::getLogPrior)
         .def("getLogDensity", &CARMA::getLogDensity)
         .def("getSamples", &CARMA::getSamples)

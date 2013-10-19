@@ -83,9 +83,9 @@ class CarmaModel(object):
         theta_vec = carmcmcLib.vecD()
         theta_vec.extend(theta)
         logdens = CppCarma.getLogDensity(theta_vec)
-        #if ~np.isfinite(logdens):
-        #    print 'theta:', theta
-        #    print 'logdens:', logdens
+        if ~np.isfinite(logdens):
+            print 'theta:', theta
+            print 'logdens:', logdens
 
         return -logdens
 
@@ -138,8 +138,8 @@ class CarmaModel(object):
                 discriminant = quad2 ** 2 - 4.0 * quad1
                 if discriminant > 0:
                     sqrt_disc = np.sqrt(discriminant)
-                    psd_params[2 * i] = np.abs(-0.5 * (quad2 + sqrt_disc))
-                    psd_params[2 * i + 1] = np.abs(-0.5 * (quad2 - sqrt_disc))
+                    psd_params[2 * i] = np.abs(-0.5 * (quad2 + sqrt_disc)) / (2.0 * np.pi)
+                    psd_params[2 * i + 1] = np.abs(-0.5 * (quad2 - sqrt_disc)) / (2.0 * np.pi)
                 else:
                     psd_params[2 * i] = 0.5 * np.abs(quad2) / (2.0 * np.pi)
                     psd_params[2 * i + 1] = 0.5 * np.sqrt(np.abs(discriminant)) / (2.0 * np.pi)
@@ -156,6 +156,7 @@ class CarmaModel(object):
         # guess and the function to compute the log-posterior
         nsamples = 1
         nburnin = 100
+        nwalkers = 10
         p = pq[0]
         q = pq[1]
         if p == 1:
@@ -163,7 +164,7 @@ class CarmaModel(object):
             CarmaProcess = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig, 1)
         else:
             CarmaProcess = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
-                                                     p, q, self.nwalkers, False, 1, False)
+                                                     p, q, nwalkers, False, 1)
 
         initial_theta = CarmaProcess.getSamples()
         initial_theta = np.array(initial_theta[0])
@@ -173,30 +174,34 @@ class CarmaModel(object):
         ysigma = self.y.std()
         dt = self.time[1:] - self.time[:-1]
         max_freq = 1.0 / dt.min()
+        max_freq = 0.9 * max_freq
         min_freq = 1.0 / (self.time.max() - self.time.min())
         step_size = 0.25 * np.log(max_freq / min_freq)
-        theta_bnds = [(0.0, 10.0 * ysigma)]
+        theta_bnds = [(ysigma / 1e4, 10.0 * ysigma)]
         theta_bnds.append((0.6, 1.9))
         theta_bnds.append((None, None))
+
         if p == 1:
             theta_bnds.append((np.log(min_freq), np.log(max_freq)))
-        else:
-            theta_bnds.extend([(None, None)] * (p + q))
-        # set constraints on PSD parameters
-        cons = []
-        for piter in xrange(p):
-            cons.append({'type': 'ineq', 'fun': lambda x: self._psd_constraints(x)[piter]})
-
-        # get maximum a posteriori (MAP) estimate
-        minimizer_kwargs = {'method': 'COBYLA', 'bounds': theta_bnds, 'constraints': cons, 'args': [CarmaProcess]}
-        custom_step = self._BHStep(stepsize=step_size)
-        if p == 1:
             niter = 10
         else:
+            for piter in xrange(p/2):
+                theta_bnds.append((None, 0.99 * 2.0 * np.log(4.0 * np.pi * max_freq)))
+                theta_bnds.append((None, 0.99 * np.log(4.0 * np.pi * max_freq)))
+            if p % 2 == 1:
+                theta_bnds.append((None, 0.99 * np.log(4.0 * np.pi * max_freq)))
+
             niter = 1000
+
+        if p > 1:
+            for tbnd in theta_bnds:
+                print(tbnd)
+
+        minimizer_kwargs = {'method': 'L-BFGS-B', 'bounds': theta_bnds, 'args': [CarmaProcess]}
+        custom_step = self._BHStep(stepsize=step_size)
+        # get maximum a posteriori estimate
         MAP = basinhopping(self._floglik, initial_theta, minimizer_kwargs=minimizer_kwargs, niter=niter,
                            disp=True, stepsize=1.0, T=10.0, take_step=custom_step)
-
         print MAP.message
 
         return MAP

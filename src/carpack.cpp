@@ -20,7 +20,7 @@
 #include <boost/math/special_functions/binomial.hpp>
 
 // Local includes
-#include "carpack.hpp"
+#include "include/carpack.hpp"
 
 // Global random number generator object, instantiated in random.cpp
 extern boost::random::mt19937 rng;
@@ -258,10 +258,18 @@ bool CARp::CheckPriorBounds(arma::vec theta)
         (ysigma > max_stdev_) || (ysigma < 0) ||
         (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
         // Value are outside of prior bounds
+        
+        std::cout << "prior bounds violated" << std::endl;
+        std::cout << "# of valid centroids: " << valid_frequencies1.n_elem << std::endl;
+        std::cout << "# of valid widths: " << valid_frequencies2.n_elem << std::endl;
+        std::cout << "max_freq: " << max_freq_ << std::endl;
+        lorentz_cent.print("centroid");
+        lorentz_width.print("width");
+        
         prior_satisfied = false;
     }
     
-    if (order_lorentz_) {
+    if (order_lorentzians_) {
         // Make sure the Lorentzian centroids are still in decreasing order
         for (int i=1; i<lorentz_cent.n_elem; i++) {
             double lorentz_cent_difference = lorentz_cent(i) - lorentz_cent(i-1);
