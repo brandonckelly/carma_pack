@@ -72,6 +72,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("getLogDensity", &CARp::getLogDensity)
         .def("getSamples", &CARp::getSamples)
         .def("GetLogLikes", &CARp::GetLogLikes)
+        .def("SetMLE", &CARp::SetMLE)
     ;
 
     class_<CARMA, bases<CARp>, std::shared_ptr<CARMA> >("CARMA", no_init)
@@ -80,6 +81,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("getLogDensity", &CARMA::getLogDensity)
         .def("getSamples", &CARMA::getSamples)
         .def("GetLogLikes", &CARMA::GetLogLikes)
+        .def("SetMLE", &CARMA::SetMLE)
     ;
 
 //    class_<ZCARMA, bases<CARp>, std::shared_ptr<ZCARMA> >("ZCARMA", no_init)

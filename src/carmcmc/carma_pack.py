@@ -3,7 +3,7 @@ __author__ = 'Brandon C. Kelly'
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
-from scipy.optimize import basinhopping
+from scipy.optimize import minimize
 import samplers
 import multiprocessing
 import _carmcmc as carmcmcLib
@@ -33,7 +33,7 @@ class CarmaModel(object):
         try:
             p > q
         except ValueError:
-            " Order of AR polynomial, p, must be larger than order of MA polynimial, q."
+            " Order of AR polynomial, p, must be larger than order of MA polynomial, q."
 
         # convert input to std::vector<double> extension class
         self._time = carmcmcLib.vecD()
@@ -72,141 +72,37 @@ class CarmaModel(object):
             sample = CarSample1(self.time, self.y, self.ysig, cppSample)
         else:
             cppSample = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
-                                                  self.p, self.q, nwalkers, False, nthin, order_lorentzians)
-            # run_mcmc_car1 returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
+                                                  self.p, self.q, nwalkers, False, nthin)
+            # run_mcmc_car returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
             sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
 
         return sample
 
-    def _floglik(self, theta, args):
-        CppCarma = args
-        theta_vec = carmcmcLib.vecD()
-        theta_vec.extend(theta)
-        logdens = CppCarma.getLogDensity(theta_vec)
-        if ~np.isfinite(logdens):
-            print 'theta:', theta
-            print 'logdens:', logdens
+    def get_map(self, p, q, ntrials=100, njobs=1):
 
-        return -logdens
+        if njobs == -1:
+            njobs = multiprocessing.cpu_count()
 
-    class _BHStep(object):
-        def __init__(self, stepsize=0.5):
-            self.stepsize = stepsize
+        args = [(p, q, self.time, self.y, self.ysig)] * ntrials
 
-        def __call__(self, theta):
-            s = self.stepsize
-            theta[0] = np.random.lognormal(np.log(theta[0]), 0.1)
-            theta[2:] += s * np.random.standard_t(4, theta.size - 2)
-            # Don't adapt step size for measurement error scale parameter
-            theta[1] = 1.0
-            return theta
-
-    class _BHBounds(object):
-        def __init__(self, varmin=-1e3, varmax=1e9):
-            self.varmin = varmin
-            self.varmax = varmax
-
-        def __call__(self, **kwargs):
-            x = kwargs['x_new']
-            loglik = kwargs['f_new']
-            var = x[0]
-            tmax = bool(var <= self.varmax)
-            tmin = bool(var >= self.varmin)
-            if tmax and tmin and np.isfinite(loglik):
-                acceptable = True
-            else:
-                acceptable = False
-            return acceptable
-
-    class _psd_constraints(object):
-        def __init__(self, max_freq, p):
-            self.max_freq = max_freq
-            self.p = p
-
-        def __call__(self, theta):
-            # constraint is that Lorentzian centroids and widths must be < max_freq
-            quad_coefs = np.exp(theta[3:self.p + 3])
-            psd_params = self.psd_params(quad_coefs)
-            return self.max_freq - psd_params
-
-        def psd_params(self, quad_coefs):
-            psd_params = np.zeros(self.p)
-            for i in xrange(self.p / 2):
-                quad1 = quad_coefs[2 * i]
-                quad2 = quad_coefs[2 * i + 1]
-
-                discriminant = quad2 ** 2 - 4.0 * quad1
-                if discriminant > 0:
-                    sqrt_disc = np.sqrt(discriminant)
-                    psd_params[2 * i] = np.abs(-0.5 * (quad2 + sqrt_disc)) / (2.0 * np.pi)
-                    psd_params[2 * i + 1] = np.abs(-0.5 * (quad2 - sqrt_disc)) / (2.0 * np.pi)
-                else:
-                    psd_params[2 * i] = 0.5 * np.abs(quad2) / (2.0 * np.pi)
-                    psd_params[2 * i + 1] = 0.5 * np.sqrt(np.abs(discriminant)) / (2.0 * np.pi)
-
-            if self.p % 2 == 1:
-                # p is odd, so add in root from linear term
-                psd_params[-1] = quad_coefs[-1] / (2.0 * np.pi)
-
-            return psd_params
-
-    def get_map(self, pq):
-
-        # get a CARMA process object by running the MCMC sampler for a very short period. This will provide the initial
-        # guess and the function to compute the log-posterior
-        nsamples = 1
-        nburnin = 100
-        nwalkers = 10
-        p = pq[0]
-        q = pq[1]
-        if p == 1:
-            # Treat the CAR(1) case separately
-            CarmaProcess = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig, 1)
+        if njobs == 1:
+            MAPs = map(_get_map_single, args)
         else:
-            CarmaProcess = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
-                                                     p, q, nwalkers, False, 1)
+            # use multiple processors
+            pool = multiprocessing.Pool(njobs)
+            MAPs = pool.map(_get_map_single, args)
 
-        initial_theta = CarmaProcess.getSamples()
-        initial_theta = np.array(initial_theta[0])
-        initial_theta[1] = 1.0  # initial guess for measurement error scale parameter
+        best_MAP = MAPs[0]
+        for MAP in MAPs:
+            if MAP.fun < best_MAP.fun:  # note that MAP.fun is -loglik since we use scipy.optimize.minimize
+                # new MLE found, save this value
+                best_MAP = MAP
 
-        # set bounds on parameters
-        ysigma = self.y.std()
-        dt = self.time[1:] - self.time[:-1]
-        max_freq = 1.0 / dt.min()
-        max_freq = 0.9 * max_freq
-        min_freq = 1.0 / (self.time.max() - self.time.min())
-        step_size = 0.25 * np.log(max_freq / min_freq)
-        theta_bnds = [(ysigma / 1e4, 10.0 * ysigma)]
-        theta_bnds.append((0.6, 1.9))
-        theta_bnds.append((None, None))
+        print best_MAP.message
 
-        if p == 1:
-            theta_bnds.append((np.log(min_freq), np.log(max_freq)))
-            niter = 10
-        else:
-            for piter in xrange(p/2):
-                theta_bnds.append((None, 0.99 * 2.0 * np.log(4.0 * np.pi * max_freq)))
-                theta_bnds.append((None, 0.99 * np.log(4.0 * np.pi * max_freq)))
-            if p % 2 == 1:
-                theta_bnds.append((None, 0.99 * np.log(4.0 * np.pi * max_freq)))
+        return best_MAP
 
-            niter = 1000
-
-        if p > 1:
-            for tbnd in theta_bnds:
-                print(tbnd)
-
-        minimizer_kwargs = {'method': 'L-BFGS-B', 'bounds': theta_bnds, 'args': [CarmaProcess]}
-        custom_step = self._BHStep(stepsize=step_size)
-        # get maximum a posteriori estimate
-        MAP = basinhopping(self._floglik, initial_theta, minimizer_kwargs=minimizer_kwargs, niter=niter,
-                           disp=True, stepsize=1.0, T=10.0, take_step=custom_step)
-        print MAP.message
-
-        return MAP
-
-    def choose_order(self, pmax, qmax=None, pqlist=None, njobs=1):
+    def choose_order(self, pmax, qmax=None, pqlist=None, njobs=1, ntrials=100):
 
         try:
             pmax > 0
@@ -223,22 +119,14 @@ class CarmaModel(object):
 
         if pqlist is None:
             pqlist = []
-            for p in xrange(1, pmax):
+            for p in xrange(1, pmax+1):
                 for q in xrange(p):
                     pqlist.append((p, q))
 
-        if njobs == -1:
-            njobs = multiprocessing.cpu_count()
-
-        if njobs == 1:
-            MAPs = []
-            for pq in pqlist:
-                MAP = self.get_map(pq)
-                MAPs.append(MAP)
-        else:
-            # use multiple processors
-            pool = multiprocessing.Pool(njobs)
-            MAPs = pool.map(self.get_map, pqlist)
+        MAPs = []
+        for pq in pqlist:
+            MAP = self.get_map(pq[0], pq[1], ntrials=ntrials, njobs=njobs)
+            MAPs.append(MAP)
 
         best_AICc = 1e300
         best_MAP = MAPs[0]
@@ -258,6 +146,60 @@ class CarmaModel(object):
         print 'Model with best AICc has p =', self.p, ' and q = ', self.q
 
         return best_MAP
+
+
+def _get_map_single(args):
+
+    p, q, time, y, ysig = args
+
+    nsamples = 1
+    nburnin = 25
+    nwalkers = 10
+
+    # get a CARMA process object by running the MCMC sampler for a very short period. This will provide the initial
+    # guess and the function to compute the log-posterior
+    tvec = arrayToVec(time)  # convert to std::vector<double> object for input into C++ wrapper
+    yvec = arrayToVec(y)
+    ysig_vec = arrayToVec(ysig)
+    if p == 1:
+        # Treat the CAR(1) case separately
+        CarmaProcess = carmcmcLib.run_mcmc_car1(nsamples, nburnin, tvec, yvec, ysig_vec, 1)
+    else:
+        CarmaProcess = carmcmcLib.run_mcmc_carma(nsamples, nburnin, tvec, yvec, ysig_vec,
+                                                 p, q, nwalkers, False, 1)
+
+    initial_theta = CarmaProcess.getSamples()
+    initial_theta = np.array(initial_theta[0])
+    initial_theta[1] = 1.0  # initial guess for measurement error scale parameter
+
+    # set bounds on parameters
+    ysigma = y.std()
+    dt = time[1:] - time[:-1]
+    max_freq = 1.0 / dt.min()
+    max_freq = 0.9 * max_freq
+    min_freq = 1.0 / (time.max() - time.min())
+    theta_bnds = [(ysigma / 1e4, 10.0 * ysigma)]
+    theta_bnds.append((0.9, 1.1))
+    theta_bnds.append((None, None))
+
+    if p == 1:
+        theta_bnds.append((np.log(min_freq), np.log(max_freq)))
+    else:
+        theta_bnds.extend([(None, None)] * (p + q))
+        CarmaProcess.SetMLE(True)  # ignore the prior bounds when calculating CarmaProcess.getLogDensity
+
+    thisMAP = minimize(_carma_loglik, initial_theta, args=(CarmaProcess,), method="L-BFGS-B", bounds=theta_bnds)
+
+    return thisMAP
+
+
+def _carma_loglik(theta, args):
+    CppCarma = args
+    # convert from logit(measerr_scale)
+    theta_vec = carmcmcLib.vecD()
+    theta_vec.extend(theta)
+    logdens = CppCarma.getLogDensity(theta_vec)
+    return -logdens
 
 
 class CarmaSample(samplers.MCMCSample):
@@ -382,11 +324,6 @@ class CarmaSample(samplers.MCMCSample):
         # finally, calculate sigma, the standard deviation in the driving white noise
         unit_var = carma_variance(1.0, self.map['ar_roots'], self.map['ma_coefs'])
         self.map['sigma'] = np.sqrt(self.map['var'] / unit_var.real)
-
-    def arrayToVec(self, array, arrType=carmcmcLib.vecD):
-        vec = arrType()
-        vec.extend(array)
-        return vec
 
     def set_logpost(self, logpost):
         self._samples['logpost'] = logpost  # log-posterior of the CAR(p) model
@@ -644,12 +581,12 @@ class CarmaSample(samplers.MCMCSample):
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
 
-        kfilter = carmcmcLib.KalmanFilterp(self.arrayToVec(self.time), 
-                                           self.arrayToVec(self.y - mu), 
-                                           self.arrayToVec(self.ysig),
+        kfilter = carmcmcLib.KalmanFilterp(arrayToVec(self.time),
+                                           arrayToVec(self.y - mu),
+                                           arrayToVec(self.ysig),
                                            sigsqr, 
-                                           self.arrayToVec(ar_roots, carmcmcLib.vecC), 
-                                           self.arrayToVec(ma_coefs))
+                                           arrayToVec(ar_roots, carmcmcLib.vecC),
+                                           arrayToVec(ma_coefs))
         return kfilter, mu
 
     def plot_models(self, bestfit="median", nplot=256, doShow=True, dtPredict=0):
@@ -863,6 +800,12 @@ class CarmaSample(samplers.MCMCSample):
         return dic
 
 
+def arrayToVec(array, arrType=carmcmcLib.vecD):
+    vec = arrType()
+    vec.extend(array)
+    return vec
+
+
 class CarSample1(CarmaSample):
     def __init__(self, time, y, ysig, sampler, filename=None):
         self.time = time  # The time values of the time series
@@ -929,9 +872,9 @@ class CarSample1(CarmaSample):
             mu = np.mean(self._samples['mu'])
             log_omega = np.mean(self._samples['log_omega'])
 
-        kfilter = carmcmcLib.KalmanFilter1(self.arrayToVec(self.time), 
-                                           self.arrayToVec(self.y - mu), 
-                                           self.arrayToVec(self.ysig),
+        kfilter = carmcmcLib.KalmanFilter1(arrayToVec(self.time),
+                                           arrayToVec(self.y - mu),
+                                           arrayToVec(self.ysig),
                                            sigsqr, 
                                            10**(log_omega))
         return kfilter, mu

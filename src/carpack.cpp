@@ -145,6 +145,7 @@ arma::vec CARp::StartingValue()
     arma::vec theta(p_+3);
     
     bool good_initials = false;
+    int iguess_count = 0;
     while (!good_initials) {
 
         arma::vec loga = StartingAR();
@@ -185,6 +186,11 @@ arma::vec CARp::StartingValue()
         
         double logpost = LogDensity(theta);
         good_initials = arma::is_finite(logpost);
+        
+        iguess_count++;
+        if (iguess_count > 200) {
+            std::cout << "Tried 200 initial guesses, still trying..." << std::endl;
+        }
     } // continue loop until the starting values give us a finite posterior
     
     return theta;
@@ -239,6 +245,8 @@ arma::vec CARp::StartingAR() {
 // check prior bounds
 bool CARp::CheckPriorBounds(arma::vec theta)
 {
+    if (ignore_prior_) {return true;}
+
     double ysigma = theta(0);
     double measerr_scale = theta(1);
     arma::cx_vec ar_roots = ExtractAR(theta);
@@ -259,13 +267,16 @@ bool CARp::CheckPriorBounds(arma::vec theta)
         (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
         // Value are outside of prior bounds
         
-        std::cout << "prior bounds violated" << std::endl;
-        std::cout << "# of valid centroids: " << valid_frequencies1.n_elem << std::endl;
-        std::cout << "# of valid widths: " << valid_frequencies2.n_elem << std::endl;
-        std::cout << "max_freq: " << max_freq_ << std::endl;
-        lorentz_cent.print("centroid");
-        lorentz_width.print("width");
-        
+//        std::cout << "prior bounds violated" << std::endl;
+//        std::cout << "# of valid centroids: " << valid_frequencies1.n_elem << std::endl;
+//        std::cout << "# of valid widths: " << valid_frequencies2.n_elem << std::endl;
+//        std::cout << "max_freq: " << max_freq_ << std::endl;
+//        std::cout << "min_freq: " << min_freq_ << std::endl;
+//        lorentz_cent.print("centroid");
+//        lorentz_width.print("width");
+//        std::cout << "ysigma: " << ysigma << ", max_stdev: " << max_stdev_ << std::endl;
+//        std::cout << "measerr_scale: " << measerr_scale << std::endl;
+//        
         prior_satisfied = false;
     }
     

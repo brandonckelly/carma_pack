@@ -117,8 +117,8 @@ def do_simulated_regular():
     print 'Getting maximum-likelihood estimates...'
 
     carma_model = cm.CarmaModel(time, y, ysig, 10)
-    pmax = 5
-    MAP = carma_model.choose_order(pmax)
+    pmax = 3
+    MAP = carma_model.choose_order(pmax, njobs=-1)
 
     mcmc_sample = carma_model.run_mcmc()
     carma_sample = cm.CarmaSample(time, y, ysig, mcmc_sample, q=carma_model.q, MAP=MAP)
