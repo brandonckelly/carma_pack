@@ -292,7 +292,7 @@ public:
 		value_.set_size(p_+3);
         ma_coefs_ = arma::zeros(p);
         ma_coefs_(0) = 1.0;
-        order_lorentzians_ = false;
+        order_lorentzians_ = true;
         pKFilter_->SetMA(ma_coefs_);
 	}
     

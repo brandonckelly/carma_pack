@@ -50,7 +50,7 @@ class CarmaModel(object):
         self.p = p
         self.q = q
 
-    def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1, order_lorentzians=True):
+    def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
 
@@ -129,6 +129,7 @@ class CarmaModel(object):
             MAPs.append(MAP)
 
         best_AICc = 1e300
+        AICc = []
         best_MAP = MAPs[0]
         print 'p, q, AICc:'
         for MAP, pq in zip(MAPs, pqlist):
@@ -136,6 +137,7 @@ class CarmaModel(object):
             deviance = 2.0 * MAP.fun
             this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (self.time.size - nparams - 1.0)
             print pq[0], pq[1], this_AICc
+            AICc.append(this_AICc)
             if this_AICc < best_AICc:
                 # new optimum found, save values
                 best_MAP = MAP
@@ -145,7 +147,7 @@ class CarmaModel(object):
 
         print 'Model with best AICc has p =', self.p, ' and q = ', self.q
 
-        return best_MAP
+        return best_MAP, pqlist, AICc
 
 
 def _get_map_single(args):
@@ -257,7 +259,7 @@ class CarmaSample(samplers.MCMCSample):
             self.add_map(MAP)
 
     def add_map(self, MAP):
-        self.map = {'logpost': MAP.fun, 'var': MAP.x[0] ** 2, 'measerr_scale': MAP.x[1], 'mu': MAP.x[2]}
+        self.map = {'loglik': -MAP.fun, 'var': MAP.x[0] ** 2, 'measerr_scale': MAP.x[1], 'mu': MAP.x[2]}
 
         # add AR polynomial roots and PSD lorentzian parameters
         quad_coefs = np.exp(MAP.x[3:self.p + 3])
