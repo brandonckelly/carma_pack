@@ -242,10 +242,12 @@ class CarmaSample(samplers.MCMCSample):
         # add the log-likelihoods
         print "Calculating log-likelihoods..."
         loglik = np.empty(logpost.size)
+        sampler.SetMLE(True)
         for i in xrange(logpost.size):
             std_theta = carmcmcLib.vecD()
             std_theta.extend(trace[i, :])
-            loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
+            # loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
+            loglik[i] = sampler.getLogDensity(std_theta)
 
         self._samples['loglik'] = loglik
 
