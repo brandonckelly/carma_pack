@@ -304,8 +304,8 @@ class CarmaSample(samplers.MCMCSample):
             quad_coefs = np.exp(MAP.x[3 + self.p:])
             ma_roots = np.empty(quad_coefs.size, dtype=complex)
             for i in xrange(self.q / 2):
-                quad1 = quad_coefs[:, 2 * i]
-                quad2 = quad_coefs[:, 2 * i + 1]
+                quad1 = quad_coefs[2 * i]
+                quad2 = quad_coefs[2 * i + 1]
 
                 discriminant = quad2 ** 2 - 4.0 * quad1
                 if discriminant > 0:

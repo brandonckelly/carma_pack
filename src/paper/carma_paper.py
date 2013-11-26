@@ -7,27 +7,15 @@ import multiprocessing as mp
 from os import environ
 import pickle
 from scipy.misc import comb
+from astropy.io import fits
 
 
-base_dir = environ['HOME'] + '/Projects/carma_pack/src/paper/plots/'
-
-
-def run_carma_sampler(args):
-
-    pmodel = args[0]
-    qmodel = args[1]
-    time, y, ysig = args[2]
-    nsamples = 75000
-
-    carma_mcmc = cm.CarmaMCMC(time, y, ysig, pmodel, nsamples, q=qmodel, nburnin=25000)
-    carma = carma_mcmc.RunMCMC()
-
-    return carma
-
+base_dir = environ['HOME'] + '/Projects/carma_pack/src/paper/'
+data_dir = base_dir + 'data/'
 
 def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
 
-    froot = base_dir + file_root
+    froot = base_dir + 'plots/' + file_root
 
     print 'Getting maximum-likelihood estimates...'
 
@@ -74,14 +62,14 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
 
     print 'Assessing the fit quality...'
     fig = carma_sample.assess_fit(doShow=False)
-    #ax_again = fig.add_subplot(1, 1, 1)
-    #ax_again.set_title(title)
-    #if do_mags:
-    #    ylims = ax_again.get_ylim()
-    #    ax_again.set_ylim(ylims[1], ylims[0])
-    #    ax_again.set_ylabel('magnitude')
-    #else:
-    #    ax_again.set_ylabel('log flux')
+    ax_again = fig.add_subplot(2, 2, 1)
+    ax_again.set_title(title)
+    if do_mags:
+        ylims = ax_again.get_ylim()
+        ax_again.set_ylim(ylims[1], ylims[0])
+        ax_again.set_ylabel('magnitude')
+    else:
+        ax_again.set_ylabel('Flux')
     plt.savefig(froot + 'fit_quality.eps')
 
     return carma_sample
@@ -89,7 +77,7 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
 
 def do_simulated_regular():
 
-    # first generate some data assuming a CAR(5) process on a uniform grid
+    # first generate some data assuming a CARMA(5,3) process on a uniform grid
     sigmay = 2.3  # dispersion in lightcurve
     p = 5  # order of AR polynomial
     qpo_width = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
@@ -110,14 +98,14 @@ def do_simulated_regular():
 
     y = y0 + ysig * np.random.standard_normal(ny)
 
-    froot = base_dir + 'car5_regular_'
+    froot = base_dir + 'plots/car5_regular_'
 
     plt.subplot(111)
     plt.plot(time, y0, 'k-')
     plt.plot(time, y, '.')
     plt.xlim(time.min(), time.max())
     plt.xlabel('Time')
-    plt.ylabel('CAR(5) Process')
+    plt.ylabel('CARMA(5,3) Process')
     plt.savefig(froot + 'tseries.eps')
 
     ar_coef = np.poly(ar_roots)
@@ -179,7 +167,7 @@ def do_simulated_regular():
 
 def do_simulated_irregular():
 
-    # first generate some data assuming a CAR(5) process on a uniform grid
+    # first generate some data assuming a CARMA(5,3) process on a uniform grid
     sigmay = 2.3  # dispersion in lightcurve
     p = 5  # order of AR polynomial
     mu = 17.0  # mean of time series
@@ -208,7 +196,7 @@ def do_simulated_irregular():
 
     data = (time, y, ysig)
 
-    froot = base_dir + 'car5_irregular_'
+    froot = base_dir + 'plots/car5_irregular_'
 
     plt.subplot(111)
     for i in xrange(3):
@@ -217,7 +205,7 @@ def do_simulated_irregular():
 
     plt.xlim(time.min(), time.max())
     plt.xlabel('Time')
-    plt.ylabel('CAR(5) Process')
+    plt.ylabel('CARMA(5,3) Process')
     plt.savefig(froot + 'tseries.eps')
 
     ar_coef = np.poly(ar_roots)
@@ -292,7 +280,7 @@ def do_simulated_irregular():
         plt.plot(time[90*i:90*(i+1)], y[90*i:90*(i+1)], 'bo')
 
     plt.xlabel('Time')
-    plt.ylabel('CAR(5) Process')
+    plt.ylabel('CARMA(5,3) Process')
     plt.xlim(time_predict.min(), time_predict.max())
     plt.legend()
     plt.savefig(froot + 'interp.eps')
@@ -301,31 +289,68 @@ def do_simulated_irregular():
 def do_AGN_Stripe82():
 
     s82_id = '1627677'
-    data_dir = environ['HOME'] + '/data/variability/stripe82/QSO_S82/'
     data = np.genfromtxt(data_dir + s82_id)
+    # do r-band data
     jdate = data[:, 6]
     rmag = data[:, 7]
     rerr = data[:, 8]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar', do_mags=True)
+    carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar, r-band',
+                                      do_mags=True)
 
 
 def do_AGN_Kepler():
 
     sname = 'Zw 229-15'
-    data_dir = environ['HOME'] + '/data/variability/kepler/'
-    data = np.genfromtxt(data_dir + 'zw229_kepler.dat')
-    jdate = data[:, 0]
-    flux = np.log10(data[:, 1])
-    ferr = data[:, 2] / data[:, 1]
+    data = fits.open(data_dir + 'zw229_long2.fits')[1].data
+    jdate = data['time']
+    flux = data['SAP_FLUX']
+    ferr = data['SAP_FLUX_ERR']
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), flux, ferr, 9, 'zw229_', sname)
+    keep = np.isfinite(jdate)
+    jdate = jdate[keep]
+    jdate -= jdate.min()
+    flux = flux[keep]
+    ferr = ferr[keep]
+    carma_sample = make_sampler_plots(jdate, flux, ferr, 9, 'zw229_', sname)
+
+    # transform the flux through end matching
+    tflux = flux - flux[0]
+    slope = (tflux[-1] - tflux[0]) / (jdate[-1] - jdate[0])
+    tflux -= slope * jdate
+
+    plt.subplot(111)
+    pgram, freq = plt.psd(tflux, NFFT=512)
+    plt.clf()
+
+    ax = plt.subplot(111)
+    print 'Getting bounds on PSD...'
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
+    ax.loglog(frequencies, psd_mle, '--b', lw=2)
+    noise_level = np.mean(ferr ** 2)
+    ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
+    ax.set_ylim(bottom=noise_level / 100.0)
+    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+    ax.set_xlabel('Frequency')
+    ax.set_ylabel('Power Spectral Density')
+
+    plt.savefig(base_dir + 'plots/zw229_psd.eps')
+
+    plt.clf()
+    carma_sample.plot_1dpdf('measerr_scale')
+    plt.savefig(base_dir + 'plots/zw229_measerr_scale.eps')
+    measerr_scale = carma_sample.get_samples('measerr_scale')
+    print "95% credibility interval on Kepler measurement error scale parameter:", np.percentile(measerr_scale, 2.5), \
+        np.percentile(measerr_scale, 97.5)
 
 
 def do_AGN_Xray():
 
     sname = 'MCG-6-30-15'
-    data_dir = environ['HOME'] + '/data/variability/xray/mcg63015/'
     data = np.genfromtxt(data_dir + 'lcurve_rxte_xmm.dat')
     jdate = data[:, 0]
     flux = data[:, 1]
@@ -334,7 +359,32 @@ def do_AGN_Xray():
     carma_sample = make_sampler_plots(jdate - jdate.min(), flux, ferr, 9, 'mcg63015_', sname)
 
 
+def do_RRLyrae():
+
+    dtype = np.dtype([("mjd", np.float), ("filt", np.str, 1), ("mag", np.float), ("dmag", np.float)])
+    data = np.loadtxt(data_dir + 'RRLyrae.txt', comments="#", dtype=dtype)
+
+    # do g-band light curve
+    gIdx = np.where(data["filt"] == "g")
+    jdate = data['mjd'][gIdx]
+    gmag = data['mag'][gIdx]
+    gerr = data['dmag'][gIdx]
+
+    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 7, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True)
+
+
+def do_OGLE_LPV():
+    pass
+
+
+def compare_LPV_QSO():
+    pass
+
+
+
+
 if __name__ == "__main__":
-    # do_simulated_regular()
-    # do_simulated_irregular()
-    do_AGN_Stripe82()
+    do_simulated_regular()
+    do_simulated_irregular()
+    # do_AGN_Stripe82()
+    do_AGN_Kepler()
