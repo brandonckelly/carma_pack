@@ -326,7 +326,7 @@ class CarmaSample(samplers.MCMCSample):
             self.map['ma_coefs'] = np.real(ma_coefs / ma_coefs[self.q])[::-1]
 
         # finally, calculate sigma, the standard deviation in the driving white noise
-        unit_var = carma_variance(1.0, self.map['ar_roots'], self.map['ma_coefs'])
+        unit_var = carma_variance(1.0, self.map['ar_roots'], np.atleast_1d(self.map['ma_coefs']))
         self.map['sigma'] = np.sqrt(self.map['var'] / unit_var.real)
 
     def set_logpost(self, logpost):
@@ -654,7 +654,7 @@ class CarmaSample(samplers.MCMCSample):
 
         fig = plt.figure()
         # compute the marginal mean and variance of the predicted values
-        time_predict = np.linspace(self.time[1:].min(), self.time.max(), nplot)
+        time_predict = np.linspace(1.001 * self.time.min(), self.time.max(), nplot)
         predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
@@ -691,7 +691,6 @@ class CarmaSample(samplers.MCMCSample):
         expected_pdf = expected_pdf / expected_pdf.max() * 0.4 * self.time.max()
         plt.plot(expected_pdf, bin_edges, 'DarkOrange', lw=2)
         plt.plot(self.time, standardized_residuals, '.k')
-
 
         # plot the autocorrelation function of the residuals and compare with the 95% confidence intervals for white
         # noise

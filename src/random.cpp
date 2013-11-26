@@ -17,7 +17,7 @@
 // generating all random variates for a MCMC sampler. The default random
 // number generator is the Mersenne Twister mt19937 from the BOOST library.
 
-boost::random::mt19937 rng;
+boost::random::mt19937 rng(time(NULL));
 
 
 // Method to set the seed of the global random number generator.
