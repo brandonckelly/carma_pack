@@ -25,56 +25,66 @@ def run_carma_sampler(args):
     return carma
 
 
-def make_sampler_plots(time, y, ysig, pmodels, file_root, pmax=9):
+def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
 
     froot = base_dir + file_root
-    data = (time, y, ysig)
 
-    pool = mp.Pool(mp.cpu_count()-1)
+    print 'Getting maximum-likelihood estimates...'
 
-    args = []
-    for p in xrange(1, pmax + 1):
-        args.append((p, data))
+    carma_model = cm.CarmaModel(time, y, ysig)
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=-1)
 
-    carma_run = pool.map(run_carma_sampler, args)
+    # convert lists to a numpy arrays, easier to manipulate
+    pqarray = np.array(pqlist)
+    pmodels = pqarray[:, 0]
+    qmodels = pqarray[:, 1]
+    AICc = np.array(AIC_list)
 
-    dic = []
-    pmodels = []
-    qmodels = []
-    for crun in carma_run:
-        dic.append(crun.DIC())
-        pmodels.append(crun.p)
-        qmodels.append(crun.q)
-
-    pmodels = np.array(pmodels)
-    qmodels = np.array(qmodels)
-    dic = np.array(dic)
-
+    plt.clf()
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
-        if i == qmodels.max():
-            marker = 's'
-        else:
-            markers = '-'
-        plt.plot(pmodels[qmodels == i], dic[qmodels == i], marker, label='q=' + str(i))
-    plt.plot(pmodels[qmodels == qmodels.max()], dic[qmodels == qmodels.max()])
-    plt.xlim(0, pmodels.max() + 1)
+        plt.plot(pmodels[qmodels == i], AICc[qmodels == i], 's-', label='q=' + str(i), lw=2)
+    plt.legend(loc=9)
     plt.xlabel('p')
-    plt.ylabel('DIC')
-    plt.legend()
-    plt.show()
-    print "DIC", dic
-    plt.savefig(file_root + 'DIC.eps')
+    plt.ylabel('AICc(p,q)')
+    plt.xlim(0, pmodels.max() + 1)
+    plt.title(title)
+    plt.savefig(froot + 'aic.eps')
+    plt.close()
 
-    carma = carma_run[np.argmin(dic)]
+    nsamples = 50000
+    carma_sample = carma_model.run_mcmc(nsamples)
+    carma_sample.add_map(MAP)
 
-    print "order of best model is", carma.p
+    ax = plt.subplot(111)
+    print 'Getting bounds on PSD...'
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    ax.loglog(frequencies, psd_mle, '--b', lw=2)
+    noise_level = np.mean(ysig ** 2)
+    ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
+    ax.set_ylim(bottom=noise_level / 100.0)
+    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+    ax.set_xlabel('Frequency')
+    ax.set_ylabel('Power Spectral Density')
+    plt.title(title)
+    plt.savefig(froot + 'psd.eps')
 
-    carma.plot_power_spectrum(percentile=95.0, nsamples=5000)
-    plt.savefig(file_root + 'PSD.eps')
+    print 'Assessing the fit quality...'
+    fig = carma_sample.assess_fit(doShow=False)
+    #ax_again = fig.add_subplot(1, 1, 1)
+    #ax_again.set_title(title)
+    #if do_mags:
+    #    ylims = ax_again.get_ylim()
+    #    ax_again.set_ylim(ylims[1], ylims[0])
+    #    ax_again.set_ylabel('magnitude')
+    #else:
+    #    ax_again.set_ylabel('log flux')
+    plt.savefig(froot + 'fit_quality.eps')
 
-    carma.assess_fit()
-    plt.savefig(file_root + 'fit_quality.eps')
+    return carma_sample
 
 
 def do_simulated_regular():
@@ -99,8 +109,6 @@ def do_simulated_regular():
     # ysig = np.ones(ny) * np.sqrt(1e-6)
 
     y = y0 + ysig * np.random.standard_normal(ny)
-
-    data = (time, y, ysig)
 
     froot = base_dir + 'car5_regular_'
 
@@ -290,6 +298,43 @@ def do_simulated_irregular():
     plt.savefig(froot + 'interp.eps')
 
 
+def do_AGN_Stripe82():
+
+    s82_id = '1627677'
+    data_dir = environ['HOME'] + '/data/variability/stripe82/QSO_S82/'
+    data = np.genfromtxt(data_dir + s82_id)
+    jdate = data[:, 6]
+    rmag = data[:, 7]
+    rerr = data[:, 8]
+
+    carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar', do_mags=True)
+
+
+def do_AGN_Kepler():
+
+    sname = 'Zw 229-15'
+    data_dir = environ['HOME'] + '/data/variability/kepler/'
+    data = np.genfromtxt(data_dir + 'zw229_kepler.dat')
+    jdate = data[:, 0]
+    flux = np.log10(data[:, 1])
+    ferr = data[:, 2] / data[:, 1]
+
+    carma_sample = make_sampler_plots(jdate - jdate.min(), flux, ferr, 9, 'zw229_', sname)
+
+
+def do_AGN_Xray():
+
+    sname = 'MCG-6-30-15'
+    data_dir = environ['HOME'] + '/data/variability/xray/mcg63015/'
+    data = np.genfromtxt(data_dir + 'lcurve_rxte_xmm.dat')
+    jdate = data[:, 0]
+    flux = data[:, 1]
+    ferr = data[:, 2]
+
+    carma_sample = make_sampler_plots(jdate - jdate.min(), flux, ferr, 9, 'mcg63015_', sname)
+
+
 if __name__ == "__main__":
     # do_simulated_regular()
-    do_simulated_irregular()
+    # do_simulated_irregular()
+    do_AGN_Stripe82()

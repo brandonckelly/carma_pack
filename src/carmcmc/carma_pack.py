@@ -676,6 +676,7 @@ class CarmaSample(samplers.MCMCSample):
         standardized_residuals = (self.y - mu - kmean) / np.sqrt(kvar)
         plt.subplot(222)
         plt.xlabel('Time')
+        plt.ylabel('Standardized Residuals')
         plt.xlim(self.time.min(), self.time.max())
 
         # Now add the histogram of values to the standardized residuals plot
