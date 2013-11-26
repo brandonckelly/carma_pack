@@ -24,8 +24,8 @@
 #include <samplers.hpp>
 #include <steps.hpp>
 #include <parameters.hpp>
-#include <carpack.hpp>
-#include <carmcmc.hpp>
+#include "include/carpack.hpp"
+#include "include/carmcmc.hpp"
 
 std::shared_ptr<CAR1>
 RunCar1Sampler(int sample_size, int burnin, std::vector<double> time, std::vector<double> y, std::vector<double> yerr, int thin)

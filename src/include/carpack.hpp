@@ -56,6 +56,9 @@ public:
     CARMA_Base(bool track, std::string name, std::vector<double> time, std::vector<double> y, std::vector<double> yerr,
                double temperature=1.0) : Parameter<arma::vec>(track, name, temperature)
     {
+        // default is to do Bayesian inference
+        ignore_prior_ = false;
+        
         // Set the degrees of freedom for the prior on the measurement error scaling parameter
         measerr_dof_ = 50;
         
@@ -63,7 +66,6 @@ public:
         y_  = arma::conv_to<arma::vec>::from(y);
         time_ = arma::conv_to<arma::vec>::from(time);
         yerr_ = arma::conv_to<arma::vec>::from(yerr);
-        int ndata = time_.n_rows;
         
         // default prior bounds on the standard deviation of the time series
         SetPrior(10.0 * sqrt(arma::var(y_)));
@@ -175,6 +177,8 @@ public:
     
     bool virtual CheckPriorBounds(arma::vec theta)
     {
+        if (ignore_prior_) {return true;}
+        
         double ysigma = theta(0);
         double measerr_scale = theta(1);
         bool prior_satisfied = true;
@@ -225,6 +229,9 @@ public:
         return LogDensity(armaVec);
     }
     
+    // set flag for maximum-likelihood estimation
+    void SetMLE(bool ignore_prior) {ignore_prior_ = ignore_prior;}
+    
 protected:
     // time series data
     arma::vec time_;
@@ -237,6 +244,7 @@ protected:
 	double max_freq_; // Maximum value of omega = 1 / tau
 	double min_freq_; // Minimum value of omega = 1 / tau
 	int measerr_dof_; // Degrees of freedom for prior on measurement error scaling parameter
+    bool ignore_prior_; // If true, then do maximum-likelihood estimation
 };
 
 // class for a CAR(1) process
@@ -284,6 +292,7 @@ public:
 		value_.set_size(p_+3);
         ma_coefs_ = arma::zeros(p);
         ma_coefs_(0) = 1.0;
+        order_lorentzians_ = true;
         pKFilter_->SetMA(ma_coefs_);
 	}
     
@@ -319,6 +328,7 @@ public:
     
 protected:
     int p_; // Order of the CAR(p) process
+    bool order_lorentzians_; // force the lorentzian centroids to be in order?
 private:
     arma::vec ma_coefs_;
 };

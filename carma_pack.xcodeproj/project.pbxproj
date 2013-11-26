@@ -16,6 +16,10 @@
 		DFF1EDB017BD8FAB00B3A2AC /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */; };
 		DFF1EDB317BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */; };
 		DFF1EDB517BD90EF00B3A2AC /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */; };
+		DFF5F73718414DBC00E74CA1 /* proposals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73318414DBC00E74CA1 /* proposals.cpp */; };
+		DFF5F73818414DBC00E74CA1 /* random.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73418414DBC00E74CA1 /* random.cpp */; };
+		DFF5F73918414DBC00E74CA1 /* samplers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73518414DBC00E74CA1 /* samplers.cpp */; };
+		DFF5F73A18414DBC00E74CA1 /* steps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73618414DBC00E74CA1 /* steps.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -65,6 +69,15 @@
 		DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libboost_system.dylib; path = ../../lib/libboost_system.dylib; sourceTree = "<group>"; };
 		DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.3.91.0.dylib; path = ../../lib/libarmadillo.3.91.0.dylib; sourceTree = "<group>"; };
 		DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libyamcmcpp.dylib; path = ../../lib/libyamcmcpp.dylib; sourceTree = "<group>"; };
+		DFF5F72E18414DA600E74CA1 /* parameters.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = parameters.hpp; sourceTree = "<group>"; };
+		DFF5F72F18414DA600E74CA1 /* proposals.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = proposals.hpp; sourceTree = "<group>"; };
+		DFF5F73018414DA600E74CA1 /* random.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = random.hpp; sourceTree = "<group>"; };
+		DFF5F73118414DA600E74CA1 /* samplers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = samplers.hpp; sourceTree = "<group>"; };
+		DFF5F73218414DA600E74CA1 /* steps.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = steps.hpp; sourceTree = "<group>"; };
+		DFF5F73318414DBC00E74CA1 /* proposals.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = proposals.cpp; sourceTree = "<group>"; };
+		DFF5F73418414DBC00E74CA1 /* random.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = random.cpp; sourceTree = "<group>"; };
+		DFF5F73518414DBC00E74CA1 /* samplers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = samplers.cpp; sourceTree = "<group>"; };
+		DFF5F73618414DBC00E74CA1 /* steps.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = steps.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +119,10 @@
 		DFBDE83A1778CD3E00762288 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				DFF5F73318414DBC00E74CA1 /* proposals.cpp */,
+				DFF5F73418414DBC00E74CA1 /* random.cpp */,
+				DFF5F73518414DBC00E74CA1 /* samplers.cpp */,
+				DFF5F73618414DBC00E74CA1 /* steps.cpp */,
 				DFBDE83B1778CD3E00762288 /* boost_python_wrapper.cpp */,
 				DFBDE83C1778CD3E00762288 /* build */,
 				DFBDE8451778CD3E00762288 /* carma_pack.1 */,
@@ -182,6 +199,11 @@
 		DFBDE8521778CD3E00762288 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				DFF5F72E18414DA600E74CA1 /* parameters.hpp */,
+				DFF5F72F18414DA600E74CA1 /* proposals.hpp */,
+				DFF5F73018414DA600E74CA1 /* random.hpp */,
+				DFF5F73118414DA600E74CA1 /* samplers.hpp */,
+				DFF5F73218414DA600E74CA1 /* steps.hpp */,
 				DF4DAD14177CF6BE0007879A /* kfilter.hpp */,
 				DFBDE8531778CD3E00762288 /* carmcmc.hpp */,
 				DFBDE8541778CD3E00762288 /* carpack.hpp */,
@@ -280,7 +302,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */,
+				DFF5F73A18414DBC00E74CA1 /* steps.cpp in Sources */,
 				DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */,
+				DFF5F73818414DBC00E74CA1 /* random.cpp in Sources */,
+				DFF5F73918414DBC00E74CA1 /* samplers.cpp in Sources */,
+				DFF5F73718414DBC00E74CA1 /* proposals.cpp in Sources */,
 				DFBDE8641778CD6700762288 /* carpack.cpp in Sources */,
 				DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */,
 			);

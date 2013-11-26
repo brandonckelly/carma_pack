@@ -96,6 +96,7 @@ def do_simulated_regular():
     y0 = cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
     ysig = np.ones(ny) * np.sqrt(1e-2)
+    # ysig = np.ones(ny) * np.sqrt(1e-6)
 
     y = y0 + ysig * np.random.standard_normal(ny)
 
@@ -113,44 +114,32 @@ def do_simulated_regular():
 
     ar_coef = np.poly(ar_roots)
 
-    pool = mp.Pool(mp.cpu_count()-1)
+    print 'Getting maximum-likelihood estimates...'
 
-    args = []
-    maxp = 8
-    for p in xrange(1, maxp + 1):
-        for q in xrange(p):
-            args.append((p, q, data))
+    carma_model = cm.CarmaModel(time, y, ysig)
+    pmax = 7
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=-1)
 
-    print "Running the CARMA MCMC samplers..."
-
-    carma_run = pool.map(run_carma_sampler, args)
-
-    dic = []
-    pmodels = []
-    qmodels = []
-    for crun in carma_run:
-        dic.append(crun.DIC())
-        pmodels.append(crun.p)
-        qmodels.append(crun.q)
-
-    pmodels = np.array(pmodels)
-    qmodels = np.array(qmodels)
-    dic = np.array(dic)
+    # convert lists to a numpy arrays, easier to manipulate
+    pqarray = np.array(pqlist)
+    pmodels = pqarray[:, 0]
+    qmodels = pqarray[:, 1]
+    AICc = np.array(AIC_list)
 
     plt.clf()
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
-        plt.plot(pmodels[qmodels == i], dic[qmodels == i], 's-', label='q=' + str(i), lw=2)
+        plt.plot(pmodels[qmodels == i], AICc[qmodels == i], 's-', label='q=' + str(i), lw=2)
     plt.legend()
     plt.xlabel('p')
-    plt.ylabel('DIC')
+    plt.ylabel('AICc(p,q)')
     plt.xlim(0, pmodels.max() + 1)
-    print "DIC", dic
-    plt.savefig(froot + 'dic.eps')
+    plt.savefig(froot + 'aic.eps')
+    plt.close()
 
-    carma = carma_run[np.argmin(dic)]
-
-    print "order of best model is", carma.p, carma.q
+    nsamples = 50000
+    carma_sample = carma_model.run_mcmc(nsamples)
+    carma_sample.add_map(MAP)
 
     plt.subplot(111)
     pgram, freq = plt.psd(y)
@@ -158,12 +147,14 @@ def do_simulated_regular():
 
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
-    psd_low, psd_hi, psd_mid, frequencies = carma.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
-                                                                      color='SkyBlue', nsamples=5000)
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd, 'k', lw=2)
-    ax.loglog(frequencies, psd_mid, '--b', lw=2)
+    ax.loglog(frequencies, psd_mle, '--b', lw=2)
     noise_level = np.mean(ysig ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
@@ -174,7 +165,7 @@ def do_simulated_regular():
     plt.savefig(froot + 'psd.eps')
 
     print 'Assessing the fit quality...'
-    carma.assess_fit(doShow=False)
+    carma_sample.assess_fit(doShow=False)
     plt.savefig(froot + 'fit_quality.eps')
 
 
@@ -202,8 +193,8 @@ def do_simulated_irregular():
 
     y = mu + cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
 
-    # ysig = np.ones(ny) * y.std() / 5.0
-    ysig = np.ones(ny) * 1e-6
+    ysig = np.ones(ny) * y.std() / 5.0
+    # ysig = np.ones(ny) * 1e-6
     y0 = y.copy()
     y += ysig * np.random.standard_normal(ny)
 
@@ -223,55 +214,42 @@ def do_simulated_irregular():
 
     ar_coef = np.poly(ar_roots)
 
-    pool = mp.Pool(mp.cpu_count()-1)
+    print 'Getting maximum-likelihood estimates...'
 
-    args = []
-    maxp = 8
-    for p in xrange(1, maxp + 1):
-        for q in xrange(p):
-            args.append((p, q, data))
+    carma_model = cm.CarmaModel(time, y, ysig)
+    pmax = 7
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=-1)
 
-    print "Running the CARMA MCMC samplers..."
-
-
-    # carma_run = run_carma_sampler(args[0])
-
-    carma_run = pool.map(run_carma_sampler, args)
-
-    dic = []
-    pmodels = []
-    qmodels = []
-    for crun in carma_run:
-        dic.append(crun.DIC())
-        pmodels.append(crun.p)
-        qmodels.append(crun.q)
-
-    dic = np.array(dic)
-    pmodels = np.array(pmodels)
-    qmodels = np.array(qmodels)
+    # convert lists to a numpy arrays, easier to manipulate
+    pqarray = np.array(pqlist)
+    pmodels = pqarray[:, 0]
+    qmodels = pqarray[:, 1]
+    AICc = np.array(AIC_list)
 
     plt.clf()
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
-        plt.plot(pmodels[qmodels == i], dic[qmodels == i], 's-', label='q=' + str(i), lw=2)
+        plt.plot(pmodels[qmodels == i], AICc[qmodels == i], 's-', label='q=' + str(i), lw=2)
     plt.legend()
     plt.xlabel('p')
-    plt.ylabel('DIC')
+    plt.ylabel('AICc(p,q)')
     plt.xlim(0, pmodels.max() + 1)
-    print "DIC", dic
-    plt.savefig(froot + 'dic.eps')
+    plt.savefig(froot + 'aic.eps')
+    plt.close()
 
-    carma = carma_run[np.argmin(dic)]
-
-    print "order of best model is", carma.p, carma.q
+    nsamples = 50000
+    carma_sample = carma_model.run_mcmc(nsamples)
+    carma_sample.add_map(MAP)
 
     plt.clf()
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
-    psd_low, psd_hi, psd_mid, frequencies = carma.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
-                                                                      color='SkyBlue', nsamples=5000)
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
-    ax.loglog(frequencies, psd_mid, '--b', lw=2)
+    ax.loglog(frequencies, psd_mle, '--b', lw=2)
     ax.loglog(frequencies, psd, 'k', lw=2)
     noise_level = np.mean(ysig ** 2) * dt.min()
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
@@ -283,14 +261,14 @@ def do_simulated_irregular():
     plt.savefig(froot + 'psd.eps')
 
     print 'Assessing the fit quality...'
-    carma.assess_fit(doShow=False)
+    carma_sample.assess_fit(doShow=False)
     plt.savefig(froot + 'fit_quality.eps')
 
     # compute the marginal mean and variance of the predicted values
     nplot = 1028
     time_predict = np.linspace(time.min(), 1.25 * time.max(), nplot)
     time_predict = time_predict[1:]
-    predicted_mean, predicted_var = carma.predict_lightcurve(time_predict, bestfit='map')
+    predicted_mean, predicted_var = carma_sample.predict_lightcurve(time_predict, bestfit='map')
     predicted_low = predicted_mean - np.sqrt(predicted_var)
     predicted_high = predicted_mean + np.sqrt(predicted_var)
 
@@ -313,5 +291,5 @@ def do_simulated_irregular():
 
 
 if __name__ == "__main__":
-    do_simulated_regular()
+    # do_simulated_regular()
     do_simulated_irregular()

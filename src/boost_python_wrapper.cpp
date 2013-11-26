@@ -72,6 +72,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("getLogDensity", &CARp::getLogDensity)
         .def("getSamples", &CARp::getSamples)
         .def("GetLogLikes", &CARp::GetLogLikes)
+        .def("SetMLE", &CARp::SetMLE)
     ;
 
     class_<CARMA, bases<CARp>, std::shared_ptr<CARMA> >("CARMA", no_init)
@@ -80,16 +81,17 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("getLogDensity", &CARMA::getLogDensity)
         .def("getSamples", &CARMA::getSamples)
         .def("GetLogLikes", &CARMA::GetLogLikes)
+        .def("SetMLE", &CARMA::SetMLE)
     ;
 
-    class_<ZCARMA, bases<CARp>, std::shared_ptr<ZCARMA> >("ZCARMA", no_init)
-        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
-        .def("getLogPrior", &ZCARMA::getLogPrior)
-        .def("getLogDensity", &ZCARMA::getLogDensity)
-        .def("getSamples", &ZCARMA::getSamples)
-        .def("GetLogLikes", &ZCARMA::GetLogLikes)
-    ;
- 
+//    class_<ZCARMA, bases<CARp>, std::shared_ptr<ZCARMA> >("ZCARMA", no_init)
+//        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
+//        .def("getLogPrior", &ZCARMA::getLogPrior)
+//        .def("getLogDensity", &ZCARMA::getLogDensity)
+//        .def("getSamples", &ZCARMA::getSamples)
+//        .def("GetLogLikes", &ZCARMA::GetLogLikes)
+//    ;
+// 
     // carmcmc.hpp
     def("run_mcmc_car1", RunCar1Sampler);
     def("run_mcmc_carma", RunCarmaSampler);

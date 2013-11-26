@@ -431,7 +431,7 @@ TEST_CASE("KalmanFilterp/Filter", "Test the Kalman Filter for a CARMA(5,4) proce
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
     
-    CARMA zcarma_process(true, "CARMA(5)", time_, y_, yerr_, p, q);
+    CARMA zcarma_process(true, "CARMA(5)", time_, y_, yerr_, p, q, true);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -550,7 +550,7 @@ TEST_CASE("KalmanFilterp/Predict", "Test interpolation/extrapolation for a CARMA
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
     
-    CARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p, q);
+    CARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p, q, true);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -705,7 +705,7 @@ TEST_CASE("KalmanFilter/Simulate", "Test Simulated time series for a CARMA(5,4) 
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> yerr_ = arma::conv_to<std::vector<double> >::from(yerr);
     
-    CARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p, q);
+    CARMA zcarma_process(true, "ZCARMA(5)", time_, y_, yerr_, p, q, true);
     double sigsqr = sigmay * sigmay / zcarma_process.Variance(ar_roots, ma_coefs, 1.0);
     Kfilter.SetSigsqr(sigsqr);
     
@@ -858,7 +858,7 @@ TEST_CASE("CARMA/logpost_test", "Make sure the that CARMA.logpost_ == CARMA.GetL
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
     
-    CARMA car5_test(true, "CARMA(5,4)", time_, y_, ysig_, p, q);
+    CARMA car5_test(true, "CARMA(5,4)", time_, y_, ysig_, p, q, true);
 
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     car5_test.SetPrior(max_stdev);
@@ -1187,7 +1187,7 @@ TEST_CASE("CARMA/prior_bounds", "Make sure CARMA::LogDensity return -infinity wh
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
     
-    CARMA carma_test(true, "CARMA(8,4)", time_, y_, ysig_, p, q);
+    CARMA carma_test(true, "CARMA(8,4)", time_, y_, ysig_, p, q, true);
     double max_stdev = 10.0 * arma::stddev(y); // For prior: maximum standard-deviation of CAR(1) process
     carma_test.SetPrior(max_stdev);
     
@@ -1301,7 +1301,7 @@ TEST_CASE("ZCAR/variance", "Test the CARp::Variance method") {
     std::vector<double> y_ = arma::conv_to<std::vector<double> >::from(y);
     std::vector<double> ysig_ = arma::conv_to<std::vector<double> >::from(ysig);
     
-    CARMA carma_process(true, "CARMA(5,4)", time_, y_, ysig_, p, q);
+    CARMA carma_process(true, "CARMA(5,4)", time_, y_, ysig_, p, q, true);
     double kappa = 0.7;
     // Set the moving average terms
     arma::vec ma_coefs(p);
