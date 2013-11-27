@@ -50,6 +50,8 @@ class CarmaModel(object):
         self.p = p
         self.q = q
 
+        self._pool = multiprocessing.Pool()
+
     def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
@@ -89,8 +91,10 @@ class CarmaModel(object):
             MAPs = map(_get_map_single, args)
         else:
             # use multiple processors
-            pool = multiprocessing.Pool(njobs)
-            MAPs = pool.map(_get_map_single, args)
+            self._pool = multiprocessing.Pool(njobs)
+            # warm up the pool
+            self._pool.map(int, range(multiprocessing.cpu_count()))
+            MAPs = self._pool.map(_get_map_single, args)
 
         best_MAP = MAPs[0]
         for MAP in MAPs:

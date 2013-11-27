@@ -8,10 +8,13 @@ from os import environ
 import pickle
 from scipy.misc import comb
 from astropy.io import fits
+import multiprocessing
 
 
 base_dir = environ['HOME'] + '/Projects/carma_pack/src/paper/'
 data_dir = base_dir + 'data/'
+
+nthreads = multiprocessing.cpu_count()
 
 def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
 
@@ -350,8 +353,8 @@ def do_AGN_Kepler():
 
 def do_AGN_Xray():
 
-    sname = 'MCG-6-30-15'
-    data = np.genfromtxt(data_dir + 'lcurve_rxte_xmm.dat')
+    sname = 'MCG-6-30-15, X-ray'
+    data = np.genfromtxt(data_dir + 'mcg-6-30-15_rxte_xmm.dat')
     jdate = data[:, 0]
     flux = data[:, 1]
     ferr = data[:, 2]
@@ -374,7 +377,13 @@ def do_RRLyrae():
 
 
 def do_OGLE_LPV():
-    pass
+    sname = 'LPV, RGB, i-band'
+    data = np.genfromtxt(data_dir + 'OGLE-LMC-LPV-00007.dat')
+    jdate = data[:, 0]
+    imag = data[:, 1]
+    ierr = data[:, 2]
+
+    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 7, 'ogle_lpv_rgb_', sname, do_mags=True)
 
 
 def compare_LPV_QSO():
@@ -387,4 +396,5 @@ if __name__ == "__main__":
     do_simulated_regular()
     do_simulated_irregular()
     # do_AGN_Stripe82()
-    do_AGN_Kepler()
+    # do_AGN_Kepler()
+    do_AGN_Xray()
