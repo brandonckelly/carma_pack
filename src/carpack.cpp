@@ -257,12 +257,14 @@ bool CARp::CheckPriorBounds(arma::vec theta)
     // Find the set of Frequencies satisfying the prior bounds
     arma::uvec valid_frequencies1 = arma::find(lorentz_cent < max_freq_);
 	arma::uvec valid_frequencies2 = arma::find(lorentz_width < max_freq_);
+    arma::uvec valid_frequencies3 = arma::find(lorentz_width > min_freq_);
     
     double tol = 1e-4;
     bool prior_satisfied = unique_roots(ar_roots, tol); // are the roots unique?
     
     if ( (valid_frequencies1.n_elem != lorentz_cent.n_elem) ||
         (valid_frequencies2.n_elem != lorentz_width.n_elem) ||
+        (valid_frequencies3.n_elem != lorentz_width.n_elem) ||
         (ysigma > max_stdev_) || (ysigma < 0) ||
         (measerr_scale < 0.5) || (measerr_scale > 2.0) ) {
         // Value are outside of prior bounds
