@@ -57,13 +57,17 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
         plt.plot(pmodels[qmodels == i], AICc[qmodels == i], 's-', label='q=' + str(i), lw=2)
-    plt.legend(loc=3)
+    plt.legend(loc='best')
     plt.xlabel('p')
     plt.ylabel('AICc(p,q)')
     plt.xlim(0, pmodels.max() + 1)
     plt.title(title)
     plt.savefig(froot + 'aic.eps')
     plt.close()
+
+    # make sure to change these back!!!!
+    # carma_model.p = 6
+    # carma_model.q = 5
 
     nsamples = 50000
     carma_sample = carma_model.run_mcmc(nsamples)
@@ -408,7 +412,7 @@ def do_AGN_Xray():
     jdate = jdate - jdate.min()
     time = jdate * 86.4e3  # convert to seconds
 
-    carma_sample = make_sampler_plots(time, flux, ferr / 1e-6, 9, 'mcg63015_', sname, njobs=3)
+    carma_sample = make_sampler_plots(time, flux, ferr / 1e-6, 9, 'mcg63015_', sname, njobs=4)
 
     pfile = open(data_dir + 'mcg63015.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
@@ -453,7 +457,7 @@ def do_RRLyrae():
     gmag = data['mag'][gIdx]
     gerr = data['dmag'][gIdx]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 7, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
+    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 9, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
                                       njobs=4)
     pfile = open(data_dir + 'RRLyrae.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
@@ -467,7 +471,7 @@ def do_OGLE_LPV():
     imag = data[:, 1]
     ierr = data[:, 2]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 7, 'ogle_lpv_rgb_', sname, do_mags=True, njobs=4)
+    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 9, 'ogle_lpv_rgb_', sname, do_mags=True, njobs=4)
     pfile = open(data_dir + 'ogle_lpv_rgb.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
     pfile.close()
@@ -481,6 +485,6 @@ if __name__ == "__main__":
     # do_simulated_irregular()
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
-    # do_RRLyrae()
-    # do_OGLE_LPV()
-    do_AGN_Xray()
+    do_RRLyrae()
+    do_OGLE_LPV()
+    # do_AGN_Xray()
