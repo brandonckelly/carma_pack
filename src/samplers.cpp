@@ -92,10 +92,10 @@ void Sampler::Run() {
 	}
 	
 	// Dump seed to file for future use
-	std::cout << "Saving seed to file seed.txt\n";
-	std::string idirectory = get_initial_directory();
-	RandGen.SaveSeed(idirectory + "/seed.txt");
-	std::cout << "Total elapsed time: " << timer.elapsed() << " seconds" << std::endl;
+	// std::cout << "Saving seed to file seed.txt\n";
+	// std::string idirectory = get_initial_directory();
+	// RandGen.SaveSeed(idirectory + "/seed.txt");
+	// std::cout << "Total elapsed time: " << timer.elapsed() << " seconds" << std::endl;
 }
 
 // Method to save the current values of the parameters to a file.

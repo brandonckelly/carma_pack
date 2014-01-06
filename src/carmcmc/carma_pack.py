@@ -50,8 +50,6 @@ class CarmaModel(object):
         self.p = p
         self.q = q
 
-        self._pool = multiprocessing.Pool()
-
     def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
@@ -91,10 +89,11 @@ class CarmaModel(object):
             MAPs = map(_get_map_single, args)
         else:
             # use multiple processors
-            self._pool = multiprocessing.Pool(njobs)
+            pool = multiprocessing.Pool(njobs)
             # warm up the pool
-            self._pool.map(int, range(multiprocessing.cpu_count()))
-            MAPs = self._pool.map(_get_map_single, args)
+            pool.map(int, range(multiprocessing.cpu_count()))
+            MAPs = pool.map(_get_map_single, args)
+            pool.terminate()
 
         best_MAP = MAPs[0]
         for MAP in MAPs:
@@ -184,15 +183,30 @@ def _get_map_single(args):
     max_freq = 1.0 / dt.min()
     max_freq = 0.9 * max_freq
     min_freq = 1.0 / (time.max() - time.min())
-    theta_bnds = [(ysigma / 1e4, 10.0 * ysigma)]
+    theta_bnds = [(ysigma / 10.0, 10.0 * ysigma)]
     theta_bnds.append((0.9, 1.1))
     theta_bnds.append((None, None))
 
     if p == 1:
         theta_bnds.append((np.log(min_freq), np.log(max_freq)))
     else:
-        theta_bnds.extend([(None, None)] * (p + q))
-        CarmaProcess.SetMLE(True)  # ignore the prior bounds when calculating CarmaProcess.getLogDensity
+        # monte carlo estimates of bounds on quadratic term parameterization of AR(p) roots
+        qterm_lbound = min(min_freq ** 2, 2.0 * min_freq)
+        qterm_lbound = np.log(qterm_lbound)
+        qterm_ubound = max(max_freq ** 2, 2.0 * max_freq)
+        qterm_ubound = np.log(qterm_ubound)
+        theta_bnds.extend([(qterm_lbound, qterm_ubound)] * p)
+        # no bounds on MA coefficients
+        if q > 0:
+            theta_bnds.extend([(None, None)] * q)
+
+        CarmaProcess.SetMLE(True)  # ignore the prior bounds when calculating CarmaProcess.getLogDensity in C++ code
+
+    # make sure initial guess of theta does not violate bounds
+    for j in xrange(len(initial_theta)):
+        if theta_bnds[j][0] is not None:
+            if (initial_theta[j] < theta_bnds[j][0]) or (initial_theta[j] > theta_bnds[j][1]):
+                initial_theta[j] = np.random.uniform(theta_bnds[j][0], theta_bnds[j][1])
 
     thisMAP = minimize(_carma_loglik, initial_theta, args=(CarmaProcess,), method="L-BFGS-B", bounds=theta_bnds)
 
@@ -509,8 +523,8 @@ class CarmaSample(samplers.MCMCSample):
 
         # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
         # maximum time scales probed by the time series.
-        freq_max = 1.0 / (dt_min / 2.0)
-        freq_min = (1.0 / (2.0 * dt_max))
+        freq_max = 1.0 / dt_min
+        freq_min = 1.0 / dt_max
 
         frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
         frequencies = np.exp(frequencies)

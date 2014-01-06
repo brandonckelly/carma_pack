@@ -3,12 +3,11 @@ __author__ = 'brandonkelly'
 import numpy as np
 import carmcmc as cm
 import matplotlib.pyplot as plt
-import multiprocessing as mp
 from os import environ
-import pickle
-from scipy.misc import comb
+import cPickle
 from astropy.io import fits
 import multiprocessing
+from matplotlib.mlab import detrend_mean
 
 
 base_dir = environ['HOME'] + '/Projects/carma_pack/src/paper/'
@@ -16,14 +15,37 @@ data_dir = base_dir + 'data/'
 
 nthreads = multiprocessing.cpu_count()
 
-def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
+
+def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njobs=-1):
 
     froot = base_dir + 'plots/' + file_root
+
+    # clean data
+    dt = time[1:] - time[0:-1]
+    if np.sum(dt <= 0) > 0:
+        time = time[dt > 0]
+        y = y[dt > 0]
+        ysig = ysig[dt > 0]
+
+    good = np.where(np.isfinite(time))[0]
+    time = time[good]
+    y = y[good]
+    ysig = ysig[good]
+
+    good = np.where(np.isfinite(y))[0]
+    time = time[good]
+    y = y[good]
+    ysig = ysig[good]
+
+    good = np.where(np.isfinite(ysig))[0]
+    time = time[good]
+    y = y[good]
+    ysig = ysig[good]
 
     print 'Getting maximum-likelihood estimates...'
 
     carma_model = cm.CarmaModel(time, y, ysig)
-    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=-1)
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=njobs)
 
     # convert lists to a numpy arrays, easier to manipulate
     pqarray = np.array(pqlist)
@@ -35,13 +57,17 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
     plt.subplot(111)
     for i in xrange(qmodels.max()+1):
         plt.plot(pmodels[qmodels == i], AICc[qmodels == i], 's-', label='q=' + str(i), lw=2)
-    plt.legend(loc=9)
+    plt.legend(loc='best')
     plt.xlabel('p')
     plt.ylabel('AICc(p,q)')
     plt.xlim(0, pmodels.max() + 1)
     plt.title(title)
     plt.savefig(froot + 'aic.eps')
     plt.close()
+
+    # make sure to change these back!!!!
+    # carma_model.p = 6
+    # carma_model.q = 5
 
     nsamples = 50000
     carma_sample = carma_model.run_mcmc(nsamples)
@@ -54,12 +80,16 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
     psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    noise_level = np.mean(ysig ** 2)
+    dt = time[1:] - time[0:-1]
+    noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
-    ax.set_xlabel('Frequency')
-    ax.set_ylabel('Power Spectral Density')
+    ax.set_xlabel('Frequency [1 / day]')
+    if do_mags:
+        ax.set_ylabel('Power Spectral Density [mag day]')
+    else:
+        ax.set_ylabel('Power Spectral Density [fraction$^2$ day]')
     plt.title(title)
     plt.savefig(froot + 'psd.eps')
 
@@ -72,7 +102,7 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False):
         ax_again.set_ylim(ylims[1], ylims[0])
         ax_again.set_ylabel('magnitude')
     else:
-        ax_again.set_ylabel('Flux')
+        ax_again.set_ylabel('ln Flux')
     plt.savefig(froot + 'fit_quality.eps')
 
     return carma_sample
@@ -154,7 +184,7 @@ def do_simulated_regular():
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd, 'k', lw=2)
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    noise_level = np.mean(ysig ** 2)
+    noise_level = 2.0 * np.mean(ysig ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
@@ -197,8 +227,6 @@ def do_simulated_irregular():
     y0 = y.copy()
     y += ysig * np.random.standard_normal(ny)
 
-    data = (time, y, ysig)
-
     froot = base_dir + 'plots/car5_irregular_'
 
     plt.subplot(111)
@@ -217,7 +245,7 @@ def do_simulated_irregular():
 
     carma_model = cm.CarmaModel(time, y, ysig)
     pmax = 7
-    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=-1)
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=4)
 
     # convert lists to a numpy arrays, easier to manipulate
     pqarray = np.array(pqlist)
@@ -250,7 +278,8 @@ def do_simulated_irregular():
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     ax.loglog(frequencies, psd, 'k', lw=2)
-    noise_level = np.mean(ysig ** 2) * dt.min()
+    dt = np.median(time[1:] - time[0:-1])
+    noise_level = 2.0 * dt * np.mean(ysig ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
@@ -301,21 +330,32 @@ def do_AGN_Stripe82():
     carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar, r-band',
                                       do_mags=True)
 
+    pfile = open(data_dir + '1627677.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
+
 
 def do_AGN_Kepler():
 
     sname = 'Zw 229-15'
-    data = fits.open(data_dir + 'zw229_long2.fits')[1].data
+    data = fits.open(data_dir + 'kepler_zw229_Q7.fits')[1].data
     jdate = data['time']
-    flux = data['SAP_FLUX']
-    ferr = data['SAP_FLUX_ERR']
+    flux = np.array(data['SAP_FLUX'], dtype=float)
+    ferr = np.array(data['SAP_FLUX_ERR'], dtype=float)
 
-    keep = np.isfinite(jdate)
+    keep = np.where(np.logical_and(np.isfinite(jdate), np.isfinite(flux)))[0]
     jdate = jdate[keep]
     jdate -= jdate.min()
     flux = flux[keep]
     ferr = ferr[keep]
-    carma_sample = make_sampler_plots(jdate, flux, ferr, 9, 'zw229_', sname)
+
+    df = flux[1:] - flux[0:-1]  # remove outliers
+    keep = np.where(np.abs(df) < 56.0)
+    jdate = jdate[keep]
+    flux = flux[keep]
+    ferr = ferr[keep]
+
+    carma_sample = make_sampler_plots(jdate, flux, ferr, 7, 'zw229_', sname, njobs=2)
 
     # transform the flux through end matching
     tflux = flux - flux[0]
@@ -323,7 +363,8 @@ def do_AGN_Kepler():
     tflux -= slope * jdate
 
     plt.subplot(111)
-    pgram, freq = plt.psd(tflux, NFFT=512)
+    dt = jdate[1] - jdate[0]
+    pgram, freq = plt.psd(tflux, 512, 1.0 / dt, detrend=detrend_mean)
     plt.clf()
 
     ax = plt.subplot(111)
@@ -333,13 +374,18 @@ def do_AGN_Kepler():
     psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
+    psd_slope = 3.14
+    above_noise = np.where(freq / 2.0 < 1.0)[0]
+    psd_norm = np.mean(np.log(pgram[above_noise]) - 3.14 * np.log(freq[above_noise] / 2.0))
+    psd_plaw = np.exp(psd_norm) / (freq / 2.0) ** psd_slope
+    ax.loglog(freq / 2.0, psd_plaw, '-', lw=2, color='DarkOrange')
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    noise_level = np.mean(ferr ** 2)
+    noise_level = 2.0 * dt * np.mean(ferr ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
-    ax.set_xlabel('Frequency')
-    ax.set_ylabel('Power Spectral Density')
+    ax.set_xlabel('Frequency [1 / day]')
+    ax.set_ylabel('Power Spectral Density [flux$^2$ day]')
 
     plt.savefig(base_dir + 'plots/zw229_psd.eps')
 
@@ -350,16 +396,54 @@ def do_AGN_Kepler():
     print "95% credibility interval on Kepler measurement error scale parameter:", np.percentile(measerr_scale, 2.5), \
         np.percentile(measerr_scale, 97.5)
 
+    pfile = open(data_dir + 'zw229.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
+
 
 def do_AGN_Xray():
 
     sname = 'MCG-6-30-15, X-ray'
-    data = np.genfromtxt(data_dir + 'mcg-6-30-15_rxte_xmm.dat')
+    data = np.genfromtxt(data_dir + 'mcg-6-30-15_rxte_xmm.txt')
     jdate = data[:, 0]
-    flux = data[:, 1]
-    ferr = data[:, 2]
+    flux = data[:, 1] * np.log(10.0)  # convert to natural logarithm
+    ferr = data[:, 2] * np.log(10.0)
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), flux, ferr, 9, 'mcg63015_', sname)
+    jdate = jdate - jdate.min()
+    time = jdate * 86.4e3  # convert to seconds
+
+    carma_sample = make_sampler_plots(time, flux, ferr / 1e-6, 9, 'mcg63015_', sname, njobs=4)
+
+    pfile = open(data_dir + 'mcg63015.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
+
+    ax = plt.subplot(111)
+    print 'Getting bounds on PSD...'
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    ax.loglog(frequencies, psd_mle, '--b', lw=2)
+    dt = time[1:] - time[0:-1]
+    rxte = np.where(dt > 50.0)[0]
+    dt_rxte = np.median(dt[rxte])
+    xmm = np.where(dt < 50.0)[0]
+    dt_xmm = 48.0
+    noise_level_rxte = 2.0 * dt_rxte * np.mean(ferr[rxte] ** 2)
+    noise_level_xmm = 2.0 * dt_xmm * np.mean(ferr[xmm] ** 2)
+    rxte_frange = np.array([1.0 / time[rxte].max(), 1.0 / dt_rxte])
+    xmm_frange = np.array([1.0 / (time[xmm].max() - time[xmm].min()), 1.0 / dt_xmm])
+    ax.loglog(rxte_frange, np.ones(2) * noise_level_rxte, color='grey', lw=2)
+    ax.loglog(xmm_frange, np.ones(2) * noise_level_xmm, color='grey', lw=2)
+    noise_level = np.min([noise_level_rxte, noise_level_xmm])
+    ax.set_ylim(bottom=noise_level / 100.0)
+    ax.annotate("Measurement Noise Level, RXTE", (2.0 * ax.get_xlim()[0], noise_level_rxte / 2.5))
+    ax.annotate("Noise Level, XMM", (xmm_frange[0], noise_level_xmm / 2.5))
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Power Spectral Density [fraction$^2$ / Hz]')
+    plt.title(sname)
+    plt.savefig(base_dir + 'plots/mcg63015_psd.eps')
 
 
 def do_RRLyrae():
@@ -368,12 +452,16 @@ def do_RRLyrae():
     data = np.loadtxt(data_dir + 'RRLyrae.txt', comments="#", dtype=dtype)
 
     # do g-band light curve
-    gIdx = np.where(data["filt"] == "g")
+    gIdx = np.where(data["filt"] == "g")[0]
     jdate = data['mjd'][gIdx]
     gmag = data['mag'][gIdx]
     gerr = data['dmag'][gIdx]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 7, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True)
+    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 9, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
+                                      njobs=4)
+    pfile = open(data_dir + 'RRLyrae.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
 
 
 def do_OGLE_LPV():
@@ -383,18 +471,20 @@ def do_OGLE_LPV():
     imag = data[:, 1]
     ierr = data[:, 2]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 7, 'ogle_lpv_rgb_', sname, do_mags=True)
-
+    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 9, 'ogle_lpv_rgb_', sname, do_mags=True, njobs=4)
+    pfile = open(data_dir + 'ogle_lpv_rgb.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
 
 def compare_LPV_QSO():
     pass
 
 
-
-
 if __name__ == "__main__":
-    do_simulated_regular()
-    do_simulated_irregular()
+    # do_simulated_regular()
+    # do_simulated_irregular()
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
-    do_AGN_Xray()
+    do_RRLyrae()
+    do_OGLE_LPV()
+    # do_AGN_Xray()
