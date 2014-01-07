@@ -458,7 +458,7 @@ def do_RRLyrae():
     gerr = data['dmag'][gIdx]
 
     carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 9, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
-                                      njobs=4)
+                                      njobs=1)
     pfile = open(data_dir + 'RRLyrae.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
     pfile.close()
@@ -471,7 +471,8 @@ def do_OGLE_LPV():
     imag = data[:, 1]
     ierr = data[:, 2]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 9, 'ogle_lpv_rgb_', sname, do_mags=True, njobs=4)
+    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 9, 'ogle_lpv_rgb_', sname, do_mags=True,
+                                      njobs=1)
     pfile = open(data_dir + 'ogle_lpv_rgb.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
     pfile.close()
