@@ -89,7 +89,7 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
     if do_mags:
         ax.set_ylabel('Power Spectral Density [mag day]')
     else:
-        ax.set_ylabel('Power Spectral Density [fraction$^2$ day]')
+        ax.set_ylabel('Power Spectral Density [flux$^2$ day]')
     plt.title(title)
     plt.savefig(froot + 'psd.eps')
 
@@ -355,7 +355,7 @@ def do_AGN_Kepler():
     flux = flux[keep]
     ferr = ferr[keep]
 
-    carma_sample = make_sampler_plots(jdate, flux, ferr, 7, 'zw229_', sname, njobs=2)
+    carma_sample = make_sampler_plots(jdate, flux, ferr, 7, 'zw229_', sname, njobs=1)
 
     # transform the flux through end matching
     tflux = flux - flux[0]
@@ -457,7 +457,7 @@ def do_RRLyrae():
     gmag = data['mag'][gIdx]
     gerr = data['dmag'][gIdx]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 9, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
+    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 7, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
                                       njobs=1)
     pfile = open(data_dir + 'RRLyrae.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
@@ -471,7 +471,7 @@ def do_OGLE_LPV():
     imag = data[:, 1]
     ierr = data[:, 2]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 9, 'ogle_lpv_rgb_', sname, do_mags=True,
+    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 7, 'ogle_lpv_rgb_', sname, do_mags=True,
                                       njobs=1)
     pfile = open(data_dir + 'ogle_lpv_rgb.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
@@ -485,7 +485,7 @@ if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
-    # do_AGN_Kepler()
-    do_RRLyrae()
-    do_OGLE_LPV()
+    do_AGN_Kepler()
+    # do_RRLyrae()
+    # do_OGLE_LPV()
     # do_AGN_Xray()
