@@ -66,8 +66,8 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
     plt.close()
 
     # make sure to change these back!!!!
-    # carma_model.p = 6
-    # carma_model.q = 5
+    # carma_model.p = 7
+    # carma_model.q = 3
 
     nsamples = 50000
     carma_sample = carma_model.run_mcmc(nsamples)
@@ -412,7 +412,17 @@ def do_AGN_Xray():
     jdate = jdate - jdate.min()
     time = jdate * 86.4e3  # convert to seconds
 
-    carma_sample = make_sampler_plots(time, flux, ferr / 1e-6, 9, 'mcg63015_', sname, njobs=4)
+    dt = time[1:] - time[0:-1]
+    rxte = np.where(dt > 50.0)[0]
+    dt_rxte = np.median(dt[rxte])
+    xmm = np.where(dt < 50.0)[0]
+    dt_xmm = 48.0
+
+    carma_sample = make_sampler_plots(time[rxte], flux[rxte], ferr[rxte] / 1e6, 7, 'mcg63015_rxte_', sname, njobs=4)
+
+    measerr_scale = carma_sample.get_samples('measerr_scale')
+    print "95% credibility interval on Kepler measurement error scale parameter:", np.percentile(measerr_scale, 2.5), \
+        np.percentile(measerr_scale, 97.5)
 
     pfile = open(data_dir + 'mcg63015.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
@@ -425,11 +435,6 @@ def do_AGN_Xray():
     psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    dt = time[1:] - time[0:-1]
-    rxte = np.where(dt > 50.0)[0]
-    dt_rxte = np.median(dt[rxte])
-    xmm = np.where(dt < 50.0)[0]
-    dt_xmm = 48.0
     noise_level_rxte = 2.0 * dt_rxte * np.mean(ferr[rxte] ** 2)
     noise_level_xmm = 2.0 * dt_xmm * np.mean(ferr[xmm] ** 2)
     rxte_frange = np.array([1.0 / time[rxte].max(), 1.0 / dt_rxte])
@@ -477,15 +482,59 @@ def do_OGLE_LPV():
     cPickle.dump(carma_sample, pfile)
     pfile.close()
 
-def compare_LPV_QSO():
-    pass
+
+def do_XRB():
+    sname = 'XTE 1550-564'
+    data_file = data_dir + 'LC_B_3.35-12.99keV_1div128s_total.fits'
+    data = fits.open(data_file)[1].data
+    tsecs = data['TIME']
+    flux = data['RATE']
+    dt = tsecs[1:] - tsecs[:-1]
+    gap = np.where(dt > 1)[0]
+    tsecs = tsecs[gap[0]+1:gap[1]]
+    logflux = np.log(flux[gap[0]+1:gap[1]])
+    logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
+    logf_err = np.ones(len(tsecs)) * logf_err
+
+    ndown_sample = 2000
+    idx = np.random.permutation(len(logflux))[:ndown_sample]
+    carma_sample = make_sampler_plots(tsecs[idx], logflux[idx], logf_err[idx], 7, 'xte1550_', sname, njobs=1)
+
+    plt.subplot(111)
+    pgram, freq = plt.psd(logflux, 1024, 1.0 / np.median(dt), detrend=detrend_mean)
+    plt.clf()
+
+    ax = plt.subplot(111)
+    print 'Getting bounds on PSD...'
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
+    ax.loglog(frequencies, psd_mle, '--b', lw=2)
+    noise_level = 2.0 * dt * np.mean(logf_err ** 2)
+    ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
+    ax.set_ylim(bottom=noise_level / 100.0)
+    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Power Spectral Density [fraction$^2$ Hz$^{-1}$]')
+
+    plt.savefig(base_dir + 'plots/xte1550_psd.eps')
+
+    pfile = open(data_dir + 'xte1550.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
+
+
+
 
 
 if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
-    do_AGN_Kepler()
+    # do_AGN_Kepler()
     # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
+    do_XRB()
