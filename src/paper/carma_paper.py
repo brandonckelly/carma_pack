@@ -546,6 +546,6 @@ if __name__ == "__main__":
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
     # do_RRLyrae()
-    # do_OGLE_LPV()
+    do_OGLE_LPV()
     # do_AGN_Xray()
-    do_XRB()
+    # do_XRB()
