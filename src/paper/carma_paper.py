@@ -355,7 +355,15 @@ def do_AGN_Kepler():
     flux = flux[keep]
     ferr = ferr[keep]
 
-    carma_sample = make_sampler_plots(jdate, flux, ferr, 7, 'zw229_', sname, njobs=1)
+    load_pickle = True
+    if load_pickle:
+        carma_sample = cPickle.load(open(data_dir + 'zw229.pickle', 'rb'))
+        # rerun MLE
+        carma_model = cm.CarmaModel(jdate, flux, ferr, p=carma_sample.p, q=carma_sample.q)
+        mle = carma_model.get_map(carma_sample.p, carma_sample.q)
+        carma_sample.add_map(mle)
+    else:
+        carma_sample = make_sampler_plots(jdate, flux, ferr, 7, 'zw229_', sname, njobs=1)
 
     # transform the flux through end matching
     tflux = flux - flux[0]
@@ -376,9 +384,9 @@ def do_AGN_Kepler():
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     psd_slope = 3.14
     above_noise = np.where(freq / 2.0 < 1.0)[0]
-    psd_norm = np.mean(np.log(pgram[above_noise]) - 3.14 * np.log(freq[above_noise] / 2.0))
-    psd_plaw = np.exp(psd_norm) / (freq / 2.0) ** psd_slope
-    ax.loglog(freq / 2.0, psd_plaw, '-', lw=2, color='DarkOrange')
+    psd_norm = np.mean(np.log(pgram[above_noise[1:]]) + 3.14 * np.log(freq[above_noise[1:]] / 2.0))
+    psd_plaw = np.exp(psd_norm) / (freq[1:] / 2.0) ** psd_slope
+    ax.loglog(freq[1:] / 2.0, psd_plaw, '-', lw=2, color='DarkOrange')
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     noise_level = 2.0 * dt * np.mean(ferr ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
@@ -495,8 +503,8 @@ def do_XRB():
     logflux = np.log(flux[gap[0]+1:gap[1]])
     ferr = np.sqrt(flux[gap[0]+1:gap[1]])
     logf_err = ferr / flux[gap[0]+1:gap[1]]
-    # logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
-    # logf_err = np.ones(len(tsecs)) * logf_err
+    logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
+    logf_err = np.ones(len(tsecs)) * logf_err
 
     ndown_sample = 4000
     idx = np.random.permutation(len(logflux))[:ndown_sample]
@@ -544,8 +552,8 @@ if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
-    # do_AGN_Kepler()
+    do_AGN_Kepler()
     # do_RRLyrae()
-    do_OGLE_LPV()
+    # do_OGLE_LPV()
     # do_AGN_Xray()
     # do_XRB()

@@ -1037,8 +1037,8 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
 
     if len(ma_coefs) < len(ar_roots):
         # add extra zeros to end of ma_coefs
-        ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
-        ma_coefs[1:] = 0.0
+        nmore = len(ar_roots) - len(ma_coefs)
+        ma_coefs = np.append(ma_coefs, np.zeros(nmore))
 
     sigma1_variance = 0.0 + 0j
     p = ar_roots.size
