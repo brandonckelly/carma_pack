@@ -496,9 +496,21 @@ def do_XRB():
     logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
     logf_err = np.ones(len(tsecs)) * logf_err
 
-    ndown_sample = 2000
+    ndown_sample = 4000
     idx = np.random.permutation(len(logflux))[:ndown_sample]
-    carma_sample = make_sampler_plots(tsecs[idx], logflux[idx], logf_err[idx], 7, 'xte1550_', sname, njobs=1)
+    idx.sort()
+
+    plt.plot(tsecs, logflux)
+    plt.plot(tsecs[idx], logflux[idx], 'r.')
+    print 'Measurement errors are', np.mean(logf_err) / np.std(logflux) * 100, ' % of observed standard deviation.'
+    plt.show()
+    plt.clf()
+    assert np.all(np.isfinite(tsecs))
+    assert np.all(np.isfinite(logflux))
+    assert np.all(np.isfinite(logf_err))
+    dt_idx = tsecs[idx[1:]] - tsecs[idx[:-1]]
+    assert np.all(dt_idx > 0)
+    carma_sample = make_sampler_plots(tsecs[idx], logflux[idx], logf_err[idx], 3, 'xte1550_', sname, njobs=1)
 
     plt.subplot(111)
     pgram, freq = plt.psd(logflux, 1024, 1.0 / np.median(dt), detrend=detrend_mean)
@@ -512,7 +524,7 @@ def do_XRB():
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    noise_level = 2.0 * dt * np.mean(logf_err ** 2)
+    noise_level = 2.0 * np.median(dt) * np.mean(logf_err ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
@@ -524,9 +536,6 @@ def do_XRB():
     pfile = open(data_dir + 'xte1550.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
     pfile.close()
-
-
-
 
 
 if __name__ == "__main__":
