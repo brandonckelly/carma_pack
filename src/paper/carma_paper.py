@@ -87,7 +87,7 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
     ax.set_xlabel('Frequency [1 / day]')
     if do_mags:
-        ax.set_ylabel('Power Spectral Density [mag day]')
+        ax.set_ylabel('Power Spectral Density [mag$^2$ day]')
     else:
         ax.set_ylabel('Power Spectral Density [flux$^2$ day]')
     plt.title(title)
@@ -359,9 +359,9 @@ def do_AGN_Kepler():
     if load_pickle:
         carma_sample = cPickle.load(open(data_dir + 'zw229.pickle', 'rb'))
         # rerun MLE
-        carma_model = cm.CarmaModel(jdate, flux, ferr, p=carma_sample.p, q=carma_sample.q)
-        mle = carma_model.get_map(carma_sample.p, carma_sample.q)
-        carma_sample.add_map(mle)
+        # carma_model = cm.CarmaModel(jdate, flux, ferr, p=carma_sample.p, q=carma_sample.q)
+        # mle = carma_model.get_map(carma_sample.p, carma_sample.q)
+        # carma_sample.add_map(mle)
     else:
         carma_sample = make_sampler_plots(jdate, flux, ferr, 7, 'zw229_', sname, njobs=1)
 
@@ -387,14 +387,14 @@ def do_AGN_Kepler():
     psd_norm = np.mean(np.log(pgram[above_noise[1:]]) + 3.14 * np.log(freq[above_noise[1:]] / 2.0))
     psd_plaw = np.exp(psd_norm) / (freq[1:] / 2.0) ** psd_slope
     ax.loglog(freq[1:] / 2.0, psd_plaw, '-', lw=2, color='DarkOrange')
-    ax.loglog(frequencies, psd_mle, '--b', lw=2)
+    ax.loglog(frequencies, psd_mid, '--b', lw=2)
     noise_level = 2.0 * dt * np.mean(ferr ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
     ax.set_xlabel('Frequency [1 / day]')
     ax.set_ylabel('Power Spectral Density [flux$^2$ day]')
-
+    plt.title(sname)
     plt.savefig(base_dir + 'plots/zw229_psd.eps')
 
     plt.clf()
@@ -552,8 +552,8 @@ if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
-    do_AGN_Kepler()
-    # do_RRLyrae()
+    # do_AGN_Kepler()
+    do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
     # do_XRB()
