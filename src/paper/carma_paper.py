@@ -550,10 +550,10 @@ def do_XRB():
 
 if __name__ == "__main__":
     # do_simulated_regular()
-    # do_simulated_irregular()
+    do_simulated_irregular()
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
-    do_RRLyrae()
+    # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
     # do_XRB()
