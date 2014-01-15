@@ -245,7 +245,7 @@ def do_simulated_irregular():
 
     carma_model = cm.CarmaModel(time, y, ysig)
     pmax = 7
-    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=4)
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=1)
 
     # convert lists to a numpy arrays, easier to manipulate
     pqarray = np.array(pqlist)
@@ -503,8 +503,8 @@ def do_XRB():
     logflux = np.log(flux[gap[0]+1:gap[1]])
     ferr = np.sqrt(flux[gap[0]+1:gap[1]])
     logf_err = ferr / flux[gap[0]+1:gap[1]]
-    logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
-    logf_err = np.ones(len(tsecs)) * logf_err
+    # logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
+    # logf_err = np.ones(len(tsecs)) * logf_err
 
     ndown_sample = 4000
     idx = np.random.permutation(len(logflux))[:ndown_sample]
@@ -520,7 +520,7 @@ def do_XRB():
     assert np.all(np.isfinite(logf_err))
     dt_idx = tsecs[idx[1:]] - tsecs[idx[:-1]]
     assert np.all(dt_idx > 0)
-    carma_sample = make_sampler_plots(tsecs[idx], logflux[idx], logf_err[idx], 7, 'xte1550_', sname, njobs=1)
+    carma_sample = make_sampler_plots(tsecs[idx], logflux[idx], logf_err[idx], 7, 'xte1550_', sname, njobs=7)
 
     plt.subplot(111)
     pgram, freq = plt.psd(logflux, 1024, 1.0 / np.median(dt), detrend=detrend_mean)
@@ -532,9 +532,10 @@ def do_XRB():
                                                                              color='SkyBlue', nsamples=5000)
     psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
-    ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
+    ax.loglog(freq, pgram, 'o', color='DarkOrange')
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     noise_level = 2.0 * np.median(dt) * np.mean(logf_err ** 2)
+    noise_level = 0.00018002985939372774
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
@@ -553,7 +554,7 @@ if __name__ == "__main__":
     # do_simulated_irregular()
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
-    do_RRLyrae()
+    # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
-    # do_XRB()
+    do_XRB()
