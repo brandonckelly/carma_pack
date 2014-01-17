@@ -84,7 +84,11 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
     noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
     ax.set_ylim(bottom=noise_level / 100.0)
-    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+    do_s82 = True
+    if do_s82:
+        ax.annotate("Measurement Noise Level", (3.0e-2, 1e-2))
+    else:
+        ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
     ax.set_xlabel('Frequency [1 / day]')
     if do_mags:
         ax.set_ylabel('Power Spectral Density [mag$^2$ day]')
@@ -484,11 +488,34 @@ def do_OGLE_LPV():
     imag = data[:, 1]
     ierr = data[:, 2]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 7, 'ogle_lpv_rgb_', sname, do_mags=True,
-                                      njobs=1)
-    pfile = open(data_dir + 'ogle_lpv_rgb.pickle', 'wb')
-    cPickle.dump(carma_sample, pfile)
-    pfile.close()
+    load_pickle = True
+    if load_pickle:
+        time = jdate
+        ysig = ierr
+        carma_sample = cPickle.load(open(data_dir + 'ogle_lpv_rgb.pickle', 'rb'))
+        froot = base_dir + 'plots/' + 'ogle_lpv_rgb_'
+        ax = plt.subplot(111)
+        print 'Getting bounds on PSD...'
+        psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                                 color='SkyBlue', nsamples=5000)
+        psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                    ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+        ax.loglog(frequencies, psd_mle, '--b', lw=2)
+        dt = time[1:] - time[0:-1]
+        noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
+        ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
+        ax.set_ylim(bottom=noise_level / 100.0)
+        ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+        ax.set_xlabel('Frequency [1 / day]')
+        ax.set_ylabel('Power Spectral Density [mag$^2$ day]')
+        plt.title(sname)
+        plt.savefig(froot + 'psd.eps')
+    else:
+        carma_sample = make_sampler_plots(jdate - jdate.min(), imag, ierr, 7, 'ogle_lpv_rgb_', sname, do_mags=True,
+                                          njobs=1)
+        pfile = open(data_dir + 'ogle_lpv_rgb.pickle', 'wb')
+        cPickle.dump(carma_sample, pfile)
+        pfile.close()
 
 
 def do_XRB():
@@ -499,28 +526,45 @@ def do_XRB():
     flux = data['RATE']
     dt = tsecs[1:] - tsecs[:-1]
     gap = np.where(dt > 1)[0]
-    tsecs = tsecs[gap[0]+1:gap[1]]
-    logflux = np.log(flux[gap[0]+1:gap[1]])
-    ferr = np.sqrt(flux[gap[0]+1:gap[1]])
-    logf_err = ferr / flux[gap[0]+1:gap[1]]
+
+    # high-frequency sampling lightcurve
+    tsecs_high = tsecs[:gap[0]]
+    logflux_high = np.log(flux[:gap[0]])
+    ferr_high = np.sqrt(flux[:gap[0]])
+    logferr_high = ferr_high / flux[:gap[0]]
+
+    ndown_sample_high = 1000
+    idx_high = np.random.permutation(len(logflux_high))[:ndown_sample_high]
+    idx_high.sort()
+
+    # middle-frequency sampling lightcurve
+    tsecs_mid = tsecs[gap[0]+1:gap[1]]
+    logflux_mid = np.log(flux[gap[0]+1:gap[1]])
+    ferr_mid = np.sqrt(flux[gap[0]+1:gap[1]])
+    logf_err_mid = ferr_mid / flux[gap[0]+1:gap[1]]
     # logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
     # logf_err = np.ones(len(tsecs)) * logf_err
 
-    ndown_sample = 4000
-    idx = np.random.permutation(len(logflux))[:ndown_sample]
-    idx.sort()
+    ndown_sample_mid = 4000 - ndown_sample_high
+    idx_mid = np.random.permutation(len(logflux_mid))[:ndown_sample_mid]
+    idx_mid.sort()
 
-    plt.plot(tsecs, logflux)
-    plt.plot(tsecs[idx], logflux[idx], 'r.')
+    tsecs = np.concatenate((tsecs_high[idx_high], tsecs_mid[idx_mid]))
+    logflux = np.concatenate((logflux_high[idx_high], logflux_mid[idx_mid]))
+    logf_err = np.concatenate((logferr_high[idx_high], logf_err_mid[idx_mid]))
+    idx = np.concatenate((idx_high, idx_mid))
+
+    plt.plot(data['TIME'], np.log(flux))
+    plt.plot(tsecs, logflux, 'r.')
     print 'Measurement errors are', np.mean(logf_err) / np.std(logflux) * 100, ' % of observed standard deviation.'
     plt.show()
     plt.clf()
     assert np.all(np.isfinite(tsecs))
     assert np.all(np.isfinite(logflux))
     assert np.all(np.isfinite(logf_err))
-    dt_idx = tsecs[idx[1:]] - tsecs[idx[:-1]]
+    dt_idx = tsecs[1:] - tsecs[:-1]
     assert np.all(dt_idx > 0)
-    carma_sample = make_sampler_plots(tsecs[idx], logflux[idx], logf_err[idx], 7, 'xte1550_', sname, njobs=7)
+    carma_sample = make_sampler_plots(tsecs, logflux, logf_err, 7, 'xte1550_', sname, njobs=7)
 
     plt.subplot(111)
     pgram, freq = plt.psd(logflux, 1024, 1.0 / np.median(dt), detrend=detrend_mean)
@@ -534,10 +578,10 @@ def do_XRB():
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
     ax.loglog(freq, pgram, 'o', color='DarkOrange')
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    noise_level = 2.0 * np.median(dt) * np.mean(logf_err ** 2)
-    noise_level = 0.00018002985939372774
+    noise_level = 2.0 * 1.0 / np.mean(1.0 / dt_idx) * np.mean(logf_err ** 2)
+    noise_level0 = 0.00018002985939372774
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
-    ax.set_ylim(bottom=noise_level / 100.0)
+    ax.set_ylim(bottom=noise_level0 / 100.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Power Spectral Density [fraction$^2$ Hz$^{-1}$]')
