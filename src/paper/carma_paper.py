@@ -590,7 +590,12 @@ def do_XRB():
     assert np.all(np.isfinite(logf_err))
     dt_idx = tsecs[1:] - tsecs[:-1]
     assert np.all(dt_idx > 0)
-    carma_sample = make_sampler_plots(tsecs, logflux, logf_err, 7, 'xte1550_', sname, njobs=7)
+
+    load_pickle = True
+    if load_pickle:
+        carma_sample = cPickle.load(open(data_dir + 'xte1550_p5q4.pickle', 'rb'))
+    else:
+        carma_sample = make_sampler_plots(tsecs, logflux, logf_err, 7, 'xte1550_', sname, njobs=7)
 
     plt.subplot(111)
     pgram, freq = plt.psd(np.log(flux0), 512, 2.0 / np.median(dt), detrend=detrend_mean)
@@ -606,27 +611,31 @@ def do_XRB():
     nyquist_freq = np.mean(0.5 / dt_idx)
     nyquist_idx = np.where(frequencies <= nyquist_freq)[0]
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
-    noise_level = 2.0 * 1.0 / np.mean(1.0 / dt_idx) * np.mean(logf_err ** 2)
-    noise_level0 = 0.00018002985939372774
+    # noise_level = 2.0 * np.mean(dt_idx) * np.mean(logf_err ** 2)
+    noise_level0 = 0.00018002985939372774 / 2.0  # scale the noise level seen in the PSD
+    noise_level = noise_level0 * (0.5 / np.median(dt)) / nyquist_freq
     ax.loglog(frequencies[nyquist_idx], np.ones(len(nyquist_idx)) * noise_level, color='grey', lw=2)
+    # ax.loglog(frequencies, np.ones(len(frequencies)) * noise_level0)
     ax.set_ylim(bottom=noise_level0 / 10.0)
-    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 1.5))
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Power Spectral Density [fraction$^2$ Hz$^{-1}$]')
+    plt.title(sname)
 
-    plt.savefig(base_dir + 'plots/xte1550_psd_nonoise.eps')
+    plt.savefig(base_dir + 'plots/xte1550_psd.eps')
 
-    pfile = open(data_dir + 'xte1550_nonoise.pickle', 'wb')
-    cPickle.dump(carma_sample, pfile)
-    pfile.close()
+    if not load_pickle:
+        pfile = open(data_dir + 'xte1550_nonoise.pickle', 'wb')
+        cPickle.dump(carma_sample, pfile)
+        pfile.close()
 
 
 if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
-    do_AGN_Kepler()
+    # do_AGN_Kepler()
     # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
-    # do_XRB()
+    do_XRB()
