@@ -49,6 +49,7 @@ class CarmaModel(object):
         self.ysig = ysig
         self.p = p
         self.q = q
+        self.mcmc_sample = None
 
     def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1):
         """
@@ -75,6 +76,8 @@ class CarmaModel(object):
                                                   self.p, self.q, nwalkers, False, nthin)
             # run_mcmc_car returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
             sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
+
+        self.mcmc_sample = sample
 
         return sample
 

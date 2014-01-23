@@ -376,7 +376,7 @@ def do_AGN_Kepler():
 
     plt.subplot(111)
     dt = jdate[1] - jdate[0]
-    pgram, freq = plt.psd(tflux, 512, 1.0 / dt, detrend=detrend_mean)
+    pgram, freq = plt.psd(tflux, 512, 2.0 / dt, detrend=detrend_mean)
     plt.clf()
 
     ax = plt.subplot(111)
@@ -527,36 +527,62 @@ def do_XRB():
     dt = tsecs[1:] - tsecs[:-1]
     gap = np.where(dt > 1)[0]
 
-    # high-frequency sampling lightcurve
-    tsecs_high = tsecs[:gap[0]]
-    logflux_high = np.log(flux[:gap[0]])
-    ferr_high = np.sqrt(flux[:gap[0]])
-    logferr_high = ferr_high / flux[:gap[0]]
+    tsecs = tsecs[gap[0]+1:gap[1]][:40000]
+    flux = flux[gap[0]+1:gap[1]][:40000]
 
-    ndown_sample_high = 1000
-    idx_high = np.random.permutation(len(logflux_high))[:ndown_sample_high]
-    idx_high.sort()
+    tsecs0 = tsecs.copy()
+    flux0 = flux.copy()
 
-    # middle-frequency sampling lightcurve
-    tsecs_mid = tsecs[gap[0]+1:gap[1]]
-    logflux_mid = np.log(flux[gap[0]+1:gap[1]])
-    ferr_mid = np.sqrt(flux[gap[0]+1:gap[1]])
-    logf_err_mid = ferr_mid / flux[gap[0]+1:gap[1]]
-    # logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
-    # logf_err = np.ones(len(tsecs)) * logf_err
+    ndown_sample = 4000
+    idx = np.random.permutation(len(flux0))[:ndown_sample]
+    idx.sort()
+    tsecs = tsecs[idx]
+    logflux = np.log(flux[idx])
+    ferr = np.sqrt(flux[idx])
+    logf_err = ferr / flux[idx]
 
-    ndown_sample_mid = 4000 - ndown_sample_high
-    idx_mid = np.random.permutation(len(logflux_mid))[:ndown_sample_mid]
-    idx_mid.sort()
+    # # high-frequency sampling lightcurve
+    # high_cutoff = 10000
+    # tsecs_high = tsecs[:high_cutoff]
+    # logflux_high = np.log(flux[:high_cutoff])
+    # ferr_high = np.sqrt(flux[:high_cutoff])
+    # logferr_high = ferr_high / flux[:high_cutoff]
+    #
+    # ndown_sample_high = 1000
+    # idx_high = np.random.permutation(len(logflux_high))[:ndown_sample_high]
+    # idx_high.sort()
+    #
+    # # middle-frequency sampling lightcurve
+    # tsecs_mid = tsecs[high_cutoff:]
+    # logflux_mid = np.log(flux[high_cutoff:])
+    # ferr_mid = np.sqrt(flux[high_cutoff:])
+    # logf_err_mid = ferr_mid / flux[high_cutoff:]
+    # # logf_err = np.sqrt(0.00018002985939372774 / 2.0 / np.median(dt))  # eyeballed from periodogram
+    # # logf_err = np.ones(len(tsecs)) * logf_err
+    #
+    # ndown_sample_mid = 4000 - ndown_sample_high
+    # idx_mid = np.random.permutation(len(logflux_mid))[:ndown_sample_mid]
+    # idx_mid.sort()
+    #
+    # tsecs = np.concatenate((tsecs_high[idx_high], tsecs_mid[idx_mid]))
+    # logflux = np.concatenate((logflux_high[idx_high], logflux_mid[idx_mid]))
+    # logf_err = np.concatenate((logferr_high[idx_high], logf_err_mid[idx_mid]))
+    # idx = np.concatenate((idx_high, idx_mid))
 
-    tsecs = np.concatenate((tsecs_high[idx_high], tsecs_mid[idx_mid]))
-    logflux = np.concatenate((logflux_high[idx_high], logflux_mid[idx_mid]))
-    logf_err = np.concatenate((logferr_high[idx_high], logf_err_mid[idx_mid]))
-    idx = np.concatenate((idx_high, idx_mid))
-
-    plt.plot(data['TIME'], np.log(flux))
-    plt.plot(tsecs, logflux, 'r.')
+    plt.plot(tsecs0, np.log(flux0))
+    plt.errorbar(tsecs, logflux, yerr=logf_err)
     print 'Measurement errors are', np.mean(logf_err) / np.std(logflux) * 100, ' % of observed standard deviation.'
+    print 'Mean time spacing:', np.mean(tsecs[1:] - tsecs[:-1])
+    # print 'Mean time spacing for high-frequency sampling:', np.mean(tsecs_high[idx_high[1:]]-tsecs_high[idx_high[:-1]])
+    # print 'Mean time spacing for low-frequency sampling:', np.mean(tsecs_mid[idx_mid[1:]]-tsecs_mid[idx_mid[:-1]])
+    plt.show()
+    plt.clf()
+    plt.plot(tsecs, logflux)
+    plt.show()
+    plt.hist(logflux, bins=100, normed=True)
+    plt.xlabel('log Flux')
+    print 'Standard deviation in lightcurve:', np.std(logflux)
+    print 'Typical measurement error:', np.mean(logf_err)
     plt.show()
     plt.clf()
     assert np.all(np.isfinite(tsecs))
@@ -567,7 +593,7 @@ def do_XRB():
     carma_sample = make_sampler_plots(tsecs, logflux, logf_err, 7, 'xte1550_', sname, njobs=7)
 
     plt.subplot(111)
-    pgram, freq = plt.psd(logflux, 1024, 1.0 / np.median(dt), detrend=detrend_mean)
+    pgram, freq = plt.psd(np.log(flux0), 512, 2.0 / np.median(dt), detrend=detrend_mean)
     plt.clf()
 
     ax = plt.subplot(111)
@@ -576,19 +602,21 @@ def do_XRB():
                                                                              color='SkyBlue', nsamples=5000)
     psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
                                 ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
-    ax.loglog(freq, pgram, 'o', color='DarkOrange')
+    ax.loglog(freq / 2, pgram, 'o', color='DarkOrange')
+    nyquist_freq = np.mean(0.5 / dt_idx)
+    nyquist_idx = np.where(frequencies <= nyquist_freq)[0]
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     noise_level = 2.0 * 1.0 / np.mean(1.0 / dt_idx) * np.mean(logf_err ** 2)
     noise_level0 = 0.00018002985939372774
-    ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
-    ax.set_ylim(bottom=noise_level0 / 100.0)
+    ax.loglog(frequencies[nyquist_idx], np.ones(len(nyquist_idx)) * noise_level, color='grey', lw=2)
+    ax.set_ylim(bottom=noise_level0 / 10.0)
     ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Power Spectral Density [fraction$^2$ Hz$^{-1}$]')
 
-    plt.savefig(base_dir + 'plots/xte1550_psd.eps')
+    plt.savefig(base_dir + 'plots/xte1550_psd_nonoise.eps')
 
-    pfile = open(data_dir + 'xte1550.pickle', 'wb')
+    pfile = open(data_dir + 'xte1550_nonoise.pickle', 'wb')
     cPickle.dump(carma_sample, pfile)
     pfile.close()
 
@@ -597,8 +625,8 @@ if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
-    # do_AGN_Kepler()
+    do_AGN_Kepler()
     # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
-    do_XRB()
+    # do_XRB()
