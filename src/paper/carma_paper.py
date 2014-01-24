@@ -624,6 +624,50 @@ def do_XRB():
 
     plt.savefig(base_dir + 'plots/xte1550_psd.eps')
 
+    # plot the standardized residuals and compare with the standard normal
+    plt.clf()
+    kfilter, mu = carma_sample.makeKalmanFilter('map')
+    kfilter.Filter()
+    kmean = np.asarray(kfilter.GetMean())
+    kvar = np.asarray(kfilter.GetVar())
+    standardized_residuals = (carma_sample.y - mu - kmean) / np.sqrt(kvar)
+    plt.hist(standardized_residuals, bins=100, normed=True, color='SkyBlue', histtype='stepfilled')
+    plt.xlabel('Standardized Residuals')
+    plt.ylabel('Probability Distribution')
+    xlim = plt.xlim()
+    xvalues = np.linspace(xlim[0], xlim[1], num=100)
+    expected_pdf = np.exp(-0.5 * xvalues ** 2) / np.sqrt(2.0 * np.pi)
+    plt.plot(xvalues, expected_pdf, 'k', lw=3)
+    plt.title(sname)
+    plt.savefig(base_dir + 'plots/xte1550_resid_dist.eps')
+
+    # plot the autocorrelation function of the residuals and compare with the 95% confidence intervals for white
+    # noise
+    plt.clf()
+    maxlag = 50
+    wnoise_upper = 1.96 / np.sqrt(carma_sample.time.size)
+    wnoise_lower = -1.96 / np.sqrt(carma_sample.time.size)
+    plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, facecolor='grey')
+    lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=maxlag, lw=3)
+    plt.xlim(0, maxlag)
+    plt.xlabel('Time Lag')
+    plt.ylabel('ACF of Residuals')
+    plt.savefig(base_dir + 'plots/xte1550_resid_acf.eps')
+
+    # plot the autocorrelation function of the squared residuals and compare with the 95% confidence intervals for
+    # white noise
+    plt.clf()
+    squared_residuals = standardized_residuals ** 2
+    wnoise_upper = 1.96 / np.sqrt(carma_sample.time.size)
+    wnoise_lower = -1.96 / np.sqrt(carma_sample.time.size)
+    plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, facecolor='grey')
+    lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag,
+                                                    lw=3)
+    plt.xlim(0, maxlag)
+    plt.xlabel('Time Lag')
+    plt.ylabel('ACF of Sqrd. Resid.')
+    plt.savefig(base_dir + 'plots/xte1550_sqrres_acf.eps')
+
     if not load_pickle:
         pfile = open(data_dir + 'xte1550_nonoise.pickle', 'wb')
         cPickle.dump(carma_sample, pfile)
