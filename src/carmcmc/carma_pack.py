@@ -35,18 +35,23 @@ class CarmaModel(object):
         except ValueError:
             " Order of AR polynomial, p, must be larger than order of MA polynomial, q."
 
+        # check that time values are unique and in ascending ordered
+        s_idx = np.argsort(time)
+        t_unique, u_idx = np.unique(time[s_idx], return_index=True)
+        u_idx = s_idx[u_idx]
+
         # convert input to std::vector<double> extension class
         self._time = carmcmcLib.vecD()
-        self._time.extend(time)
+        self._time.extend(time[u_idx])
         self._y = carmcmcLib.vecD()
-        self._y.extend(y)
+        self._y.extend(y[u_idx])
         self._ysig = carmcmcLib.vecD()
-        self._ysig.extend(ysig)
+        self._ysig.extend(ysig[u_idx])
 
         # save parameters
-        self.time = time
-        self.y = y
-        self.ysig = ysig
+        self.time = time[u_idx]
+        self.y = y[u_idx]
+        self.ysig = ysig[u_idx]
         self.p = p
         self.q = q
         self.mcmc_sample = None

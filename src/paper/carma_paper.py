@@ -201,6 +201,10 @@ def do_simulated_regular():
     carma_sample.assess_fit(doShow=False)
     plt.savefig(froot + 'fit_quality.eps')
 
+    pfile = open(data_dir + froot + '.pickle', 'wb')
+    cPickle.dump(carma_sample, pfile)
+    pfile.close()
+
 
 def do_simulated_irregular():
 
@@ -675,11 +679,11 @@ def do_XRB():
 
 
 if __name__ == "__main__":
-    # do_simulated_regular()
+    do_simulated_regular()
     # do_simulated_irregular()
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
     # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
-    do_XRB()
+    # do_XRB()
