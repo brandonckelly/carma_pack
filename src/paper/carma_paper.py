@@ -335,12 +335,35 @@ def do_AGN_Stripe82():
     rmag = data[:, 7]
     rerr = data[:, 8]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar, r-band',
-                                      do_mags=True)
+    load_pickle = True
+    if load_pickle:
+        time = jdate - jdate.min()
+        ysig = rerr
+        carma_sample = cPickle.load(open(data_dir + s82_id + '.pickle', 'rb'))
+        froot = base_dir + 'plots/' + s82_id + '_'
 
-    pfile = open(data_dir + '1627677.pickle', 'wb')
-    cPickle.dump(carma_sample, pfile)
-    pfile.close()
+        print 'Assessing the fit quality...'
+        fig = carma_sample.assess_fit(doShow=False)
+        ax_again = fig.add_subplot(2, 2, 1)
+        ax_again.set_title("S82 Quasar, r-band")
+        ylims = ax_again.get_ylim()
+        ax_again.set_ylim(ylims[1], ylims[0])
+        ax_again.set_ylabel('magnitude')
+        ax_again.set_xlabel('Time [days]')
+        ax_again = fig.add_subplot(2, 2, 2)
+        ax_again.set_xlabel('Time [days]')
+        ax_again = fig.add_subplot(2, 2, 3)
+        ax_again.set_xlabel('Time Lag [days]')
+        ax_again = fig.add_subplot(2, 2, 4)
+        ax_again.set_xlabel('Time Lag [days]')
+        plt.savefig(froot + 'fit_quality.eps')
+    else:
+        carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar, r-band',
+                                          do_mags=True)
+
+        pfile = open(data_dir + '1627677.pickle', 'wb')
+        cPickle.dump(carma_sample, pfile)
+        pfile.close()
 
 
 def do_AGN_Kepler():
@@ -478,11 +501,54 @@ def do_RRLyrae():
     gmag = data['mag'][gIdx]
     gerr = data['dmag'][gIdx]
 
-    carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 7, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
-                                      njobs=1)
-    pfile = open(data_dir + 'RRLyrae.pickle', 'wb')
-    cPickle.dump(carma_sample, pfile)
-    pfile.close()
+    load_pickle = True
+    if load_pickle:
+        time = jdate - jdate.min()
+        ysig = gerr
+        carma_sample = cPickle.load(open(data_dir + 'RRLyrae.pickle', 'rb'))
+        froot = base_dir + 'plots/' + 'RRLyrae_'
+        ax = plt.subplot(111)
+        print 'Getting bounds on PSD...'
+        psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                                 color='SkyBlue', nsamples=5000)
+        psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
+                                    ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+        ax.loglog(frequencies, psd_mle, '--b', lw=2)
+        dt = time[1:] - time[0:-1]
+        noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
+        ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
+        ax.set_ylim(bottom=noise_level / 100.0)
+        ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+        ax.annotate("C", (1.0 / 0.5, 1e3))
+        ax.annotate("B", (1.0 / 1.3, 2.0))
+        ax.annotate("A", (1.0 / 2.49, 1.0))
+        ax.set_xlabel('Frequency [1 / day]')
+        ax.set_ylabel('Power Spectral Density [mag$^2$ day]')
+        plt.title("RR Lyrae, g-band")
+        plt.savefig(froot + 'psd.eps')
+
+        print 'Assessing the fit quality...'
+        fig = carma_sample.assess_fit(doShow=False)
+        ax_again = fig.add_subplot(2, 2, 1)
+        ax_again.set_title("RR Lyrae, g-band")
+        ylims = ax_again.get_ylim()
+        ax_again.set_ylim(ylims[1], ylims[0])
+        ax_again.set_ylabel('magnitude')
+        ax_again.set_xlabel('Time [days]')
+        ax_again = fig.add_subplot(2, 2, 2)
+        ax_again.set_xlabel('Time [days]')
+        ax_again = fig.add_subplot(2, 2, 3)
+        ax_again.set_xlabel('Time Lag [days]')
+        ax_again = fig.add_subplot(2, 2, 4)
+        ax_again.set_xlabel('Time Lag [days]')
+        plt.savefig(froot + 'fit_quality.eps')
+
+    else:
+        carma_sample = make_sampler_plots(jdate - jdate.min(), gmag, gerr, 7, 'RRLyrae_', 'RR Lyrae, g-band', do_mags=True,
+                                          njobs=1)
+        pfile = open(data_dir + 'RRLyrae.pickle', 'wb')
+        cPickle.dump(carma_sample, pfile)
+        pfile.close()
 
 
 def do_OGLE_LPV():
@@ -510,6 +576,8 @@ def do_OGLE_LPV():
         ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
         ax.set_ylim(bottom=noise_level / 100.0)
         ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+        ax.annotate("A", (1.0 / 25.0, 2.5e-3))
+        ax.annotate("B", (1.0 / 16.0, 2.5e-3))
         ax.set_xlabel('Frequency [1 / day]')
         ax.set_ylabel('Power Spectral Density [mag$^2$ day]')
         plt.title(sname)
@@ -679,9 +747,9 @@ def do_XRB():
 
 
 if __name__ == "__main__":
-    do_simulated_regular()
+    # do_simulated_regular()
     # do_simulated_irregular()
-    # do_AGN_Stripe82()
+    do_AGN_Stripe82()
     # do_AGN_Kepler()
     # do_RRLyrae()
     # do_OGLE_LPV()
