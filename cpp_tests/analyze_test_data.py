@@ -17,7 +17,7 @@ kappa = 3.0
 ma_coefs = comb(p-1 * np.ones(p), np.arange(p)) / kappa ** np.arange(p)
 sigsqr = sigmay ** 2 / carmcmc.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
 
-data_dir = environ['HOME'] + '/Projects/carma_pack/tests/data/'
+data_dir = environ['HOME'] + '/Projects/carma_pack/cpp_tests/data/'
 fname = data_dir + 'zcarma5_mcmc.dat'
 data = np.genfromtxt(data_dir + 'zcarma5_test.dat')
 
