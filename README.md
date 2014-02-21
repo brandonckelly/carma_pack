@@ -106,9 +106,9 @@ Installation
 * `scipy`     (for core functionality)
 * `matplotlib`    (for generating plots)
 
-In addition, it is necessary to have the [Boost C++ libraries](www.boost.org) (for
+In addition, it is necessary to have the [Boost C++ libraries](http://www.boost.org) (for
 linking python and C++) and the [Armadillo C++ linear algebra
-library](arma.sourceforge.net) installed. If you have multiple python
+library](http://arma.sourceforge.net) installed. If you have multiple python
 versions installed on your system, make sure that the BoostPython
 links to the correct python library. Otherwise, python will crash
 when you import carmcmc.
