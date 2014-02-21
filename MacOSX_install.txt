@@ -1,29 +1,50 @@
 Installing CARMA_PACK: Mac OS X
 
-To get things running on Mac OS 10.8 you will probably need to use the clang compiler. I think the clang compiler is the only one that supports C++11 features on Mac OS X that ships with Xcode, although I think you can still install a newer version of g++. However, I used clang since this is what Apple seems to prefer. You will probably need to set the environmental variables $CC = clang and $CXX = clang++. I place my user include files in ${HOME}/include and my installed libraries in ${HOME}/lib. If you want to put your files somewhere else, just replace ${HOME} with whatever you base directory will be. I also set the environmental variable $CPLUS_INCLUDE_PATH=${HOME}/include.
+To get things running on Mac OS 10.8 you will probably need to use the clang compiler. I think the clang compiler 
+is the only one that supports C++11 features on Mac OS X that ships with Xcode, although I think you can still 
+install a newer version of g++. However, I used clang since this is what Apple seems to prefer. You will 
+probably need to set the environmental variables $CC = clang and $CXX = clang++. I place my user include files 
+in ${HOME}/include and my installed libraries in ${HOME}/lib. If you want to put your files somewhere else, just 
+replace ${HOME} with whatever you base directory will be. I also set the environmental variable 
+$CPLUS_INCLUDE_PATH=${HOME}/include.
 
 To install boost, I did
 
 ./bootstrap --prefix=$HOME
 /b2 toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++"
 
-This will place the include files in ${HOME}/include and the libraries in ${HOME}/lib. You'll probably want to add ${HOME}/lib to your $DYLD_LIBRARY_PATH. Note that the second line above differs from the default ./b2, since we need to force boost to use the clang compiler and link against the Mac C++11 libraries. Also, when running ./bootstrap make sure you get the right python binary if you have multiple pythons installed. If not, then anything boost.python builds will fail. You may need to explicitly tell boost where the python binary use when running ./bootstrap, or just make sure it appears early in your $PATH. For some reason I couldn't get boost.python to link against the right python libraries (I have the anaconda bundle), so I had to explicitly change the libpython.dylib symlink in /usr/lib to point to the libpython.dylib in my anaconda directory. You may have to as well. You should probably make sure the boost.python examples work before moving forward.
+This will place the include files in ${HOME}/include and the libraries in ${HOME}/lib. You'll probably want to add 
+${HOME}/lib to your $DYLD_LIBRARY_PATH. Note that the second line above differs from the default ./b2, since we 
+need to force boost to use the clang compiler and link against the Mac C++11 libraries. Also, when running 
+./bootstrap make sure you get the right python binary if you have multiple pythons installed. If not, then anything
+boost.python builds will fail. You may need to explicitly tell boost where the python binary use when running 
+./bootstrap, or just make sure it appears early in your $PATH. For some reason I couldn't get boost.python to link 
+against the right python libraries (I have the anaconda bundle), so I had to explicitly change the libpython.dylib 
+symlink in /usr/lib to point to the libpython.dylib in my anaconda directory. You may have to as well. You should
+probably make sure the boost.python examples work before moving forward.
 
 At this point you can install the armadillo library. Instead of the default cmake . I used the following command:
 
 cmake -DCMAKE_INSTALL_PREFIX=${HOME} -DBOOST_ROOT=$BOOST_DIR/  .
 
-where $BOOST_DIR is the base of your boost install. For me this is just ${HOME}. If the boost directory is in your path, armadillo will probably find it anyway. This places the armadillo include files in ${HOME}/include and the libraries in ${HOME}/lib. Otherwise, armadillo (and boost, for that matter) will place everything in /usr/local.
+where $BOOST_DIR is the base of your boost install. For me this is just ${HOME}. If the boost directory is in your 
+path, armadillo will probably find it anyway. This places the armadillo include files in ${HOME}/include and the 
+libraries in ${HOME}/lib. Otherwise, armadillo (and boost, for that matter) will place everything in /usr/local.
 
-Now you are ready to install carma_pack. First make sure you have the environmental variables $BOOST_DIR, $ARMADILLO_DIR, and $NUMPY_DIR set. These should all point to the base containing the include/ and lib/ directories. For me $BOOST_DIR = $ARMADILLO_DIR = $HOME.
+Now you are ready to install carma_pack. First make sure you have the environmental variables $BOOST_DIR, 
+$ARMADILLO_DIR, and $NUMPY_DIR set. These should all point to the base containing the include/ and lib/ 
+directories. For me $BOOST_DIR = $ARMADILLO_DIR = $HOME.
 
 Move to the directory containing setup.py and type
 
 python setup.py install --prefix=$HOME 
 
-Again, if you want to install carma_pack somewhere else then use a different prefix. This will build the carma_pack library and python extension, and should place the library and files in $HOME/lib/python/site-packages/carmcmc. It will also place the header files in $HOME/include.
+Again, if you want to install carma_pack somewhere else then use a different prefix. This will build the carma_pack
+library and python extension, and should place the library and files in $HOME/lib/python/site-packages/carmcmc. It 
+will also place the header files in $HOME/include.
 
-Finally, run the unit tests included in the tar file from github. Move to the directory containing testCarmcmc.py (should be src/tests) and type
+Finally, run the unit tests included in the tar file from github. Move to the directory containing testCarmcmc.py 
+(should be src/tests) and type
 
 python testCarmcmc.py
 
