@@ -112,7 +112,7 @@ class TestCarpackOrder(unittest.TestCase):
         self.assertTrue(varN > var0)
 
     def testFull(self):
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__) ), "../examples/car4_test.dat")
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__) ), "../../cpp_tests/data/car5_test.dat")
         xv, yv, dyv = np.loadtxt(path, unpack=True)
         
         nSample = 100
