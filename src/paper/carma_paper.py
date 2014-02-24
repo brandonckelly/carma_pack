@@ -722,6 +722,7 @@ def do_XRB():
     plt.fill_between([0, maxlag], wnoise_upper, wnoise_lower, facecolor='grey')
     lags, acf, not_needed1, not_needed2 = plt.acorr(standardized_residuals, maxlags=maxlag, lw=3)
     plt.xlim(0, maxlag)
+    plt.ylim(-0.2, 0.2)
     plt.xlabel('Time Lag')
     plt.ylabel('ACF of Residuals')
     plt.savefig(base_dir + 'plots/xte1550_resid_acf.eps')
@@ -736,6 +737,7 @@ def do_XRB():
     lags, acf, not_needed1, not_needed2 = plt.acorr(squared_residuals - squared_residuals.mean(), maxlags=maxlag,
                                                     lw=3)
     plt.xlim(0, maxlag)
+    plt.ylim(-0.2, 0.2)
     plt.xlabel('Time Lag')
     plt.ylabel('ACF of Sqrd. Resid.')
     plt.savefig(base_dir + 'plots/xte1550_sqrres_acf.eps')
@@ -749,9 +751,9 @@ def do_XRB():
 if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
-    do_AGN_Stripe82()
+    # do_AGN_Stripe82()
     # do_AGN_Kepler()
     # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
-    # do_XRB()
+    do_XRB()
