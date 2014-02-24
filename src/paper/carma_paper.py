@@ -353,9 +353,9 @@ def do_AGN_Stripe82():
         ax_again = fig.add_subplot(2, 2, 2)
         ax_again.set_xlabel('Time [days]')
         ax_again = fig.add_subplot(2, 2, 3)
-        ax_again.set_xlabel('Time Lag [days]')
+        ax_again.set_xlabel('Lag')
         ax_again = fig.add_subplot(2, 2, 4)
-        ax_again.set_xlabel('Time Lag [days]')
+        ax_again.set_xlabel('Lag')
         plt.savefig(froot + 'fit_quality.eps')
     else:
         carma_sample = make_sampler_plots(jdate - jdate.min(), rmag, rerr, 7, s82_id + '_', 'S82 Quasar, r-band',
@@ -538,9 +538,9 @@ def do_RRLyrae():
         ax_again = fig.add_subplot(2, 2, 2)
         ax_again.set_xlabel('Time [days]')
         ax_again = fig.add_subplot(2, 2, 3)
-        ax_again.set_xlabel('Time Lag [days]')
+        ax_again.set_xlabel('Lag')
         ax_again = fig.add_subplot(2, 2, 4)
-        ax_again.set_xlabel('Time Lag [days]')
+        ax_again.set_xlabel('Lag')
         plt.savefig(froot + 'fit_quality.eps')
 
     else:
@@ -751,9 +751,9 @@ def do_XRB():
 if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
-    # do_AGN_Stripe82()
+    do_AGN_Stripe82()
     # do_AGN_Kepler()
-    # do_RRLyrae()
+    do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
-    do_XRB()
+    # do_XRB()
