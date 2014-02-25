@@ -71,7 +71,7 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
 
     nsamples = 50000
     carma_sample = carma_model.run_mcmc(nsamples)
-    carma_sample.add_map(MAP)
+    carma_sample.add_mle(MAP)
 
     ax = plt.subplot(111)
     print 'Getting bounds on PSD...'
@@ -172,7 +172,7 @@ def do_simulated_regular():
 
     nsamples = 50000
     carma_sample = carma_model.run_mcmc(nsamples)
-    carma_sample.add_map(MAP)
+    carma_sample.add_mle(MAP)
 
     plt.subplot(111)
     pgram, freq = plt.psd(y)
@@ -274,7 +274,7 @@ def do_simulated_irregular():
 
     nsamples = 50000
     carma_sample = carma_model.run_mcmc(nsamples)
-    carma_sample.add_map(MAP)
+    carma_sample.add_mle(MAP)
 
     plt.clf()
     ax = plt.subplot(111)

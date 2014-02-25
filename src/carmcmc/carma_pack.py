@@ -11,24 +11,18 @@ import _carmcmc as carmcmcLib
 
 class CarmaModel(object):
     """
-    Class for running the MCMC sampler assuming a CARMA(p,q) model.
+    Class for performing statistical inference assuming a CARMA(p,q) model.
     """
 
     def __init__(self, time, y, ysig, p=1, q=0):
         """
-        Constructor for the CarmaMCMC class.
+        Constructor for the CarmaModel class.
 
         :param time: The observation times.
         :param y: The measured time series.
         :param ysig: The standard deviation in the measurements errors on the time series.
-        :param p: The order of the autoregressive (AR) polynomial.
-        :param nsamples: The number of MCMC samples to generate.
-        :param q: The order of the moving average polynomial. Default is q = 0. Note that p > q.
-        :param doZcarma: If true, then use the z-transformed CAR parameterization.
-        :param nwalkers: Number of parallel MCMC chains to run in the parallel tempering algorithm. Default is 1 (no
-            tempering) for p = 1 and max(10, p+q) for p > 1.
-        :param nburnin: Number of burnin iterations to run. The default is nsamples / 2.
-        :param nthin: Thinning interval for the MCMC sampler. Default is 1.
+        :param p: The order of the autoregressive (AR) polynomial. Default is p = 1.
+        :param q: The order of the moving average (MA) polynomial. Default is q = 0. Note that p > q.
         """
         try:
             p > q
@@ -56,16 +50,22 @@ class CarmaModel(object):
         self.q = q
         self.mcmc_sample = None
 
-    def run_mcmc(self, nsamples, nburnin=None, nwalkers=None, nthin=1):
+    def run_mcmc(self, nsamples, nburnin=None, ntemperatures=None, nthin=1):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
 
-        :return: Either a CarmaSample, ZCarmaSample, or CarSample1 object, depending on the values of self.p and
-                 self.doZcarma.
+        :param nsamples: The number of samples from the posterior to generate.
+        :param ntemperatures: Number of parallel MCMC chains to run in the parallel tempering algorithm. Default is 1
+            (no tempering) for p = 1 and max(10, p+q) for p > 1.
+        :param nburnin: Number of burnin iterations to run. The default is nsamples / 2.
+        :param nthin: Thinning interval for the MCMC sampler. Default is 1 (no thinning).
+
+        :return: Either a CarmaSample or Car1Sample object, depending on the values of self.p. The CarmaSample object
+            will also be stored as a data member of the CarmaModel object.
         """
 
-        if nwalkers is None:
-            nwalkers = max(10, self.p + self.q)
+        if ntemperatures is None:
+            ntemperatures = max(10, self.p + self.q)
 
         if nburnin is None:
             nburnin = nsamples / 2
@@ -75,46 +75,74 @@ class CarmaModel(object):
             cppSample = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig,
                                                  nthin)
             # run_mcmc_car1 returns a wrapper around the C++ CAR1 class, convert to python object
-            sample = CarSample1(self.time, self.y, self.ysig, cppSample)
+            sample = Car1Sample(self.time, self.y, self.ysig, cppSample)
         else:
             cppSample = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
-                                                  self.p, self.q, nwalkers, False, nthin)
-            # run_mcmc_car returns a wrapper around the C++ CARMA/ZCAR class, convert to a python object
+                                                  self.p, self.q, ntemperatures, False, nthin)
+            # run_mcmc_car returns a wrapper around the C++ CARMA class, convert to a python object
             sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
 
         self.mcmc_sample = sample
 
         return sample
 
-    def get_map(self, p, q, ntrials=100, njobs=1):
+    def get_mle(self, p, q, ntrials=100, njobs=1):
+        """
+        Return the maximum likelihood estimate (MLE) of the CARMA model parameters. This is done by using the
+        L-BFGS-B algorithm from scipy.optimize on ntrials randomly distributed starting values of the parameters. This
+        this return NaN for more complex CARMA models, especially if the data are not well-described by a CARMA model.
+        In addition, the likelihood space can be highly multi-modal, and there is no guarantee that the global MLE will
+        be found using this procedure.
 
+        @param p: The order of the AR polynomial.
+        @param q: The order of the MA polynomial. Must be q < p.
+        @param ntrials: The number of random starting values for the optimizer. Default is 100.
+        @param njobs: The number of processors to use. If njobs = -1, then all of them are used. Default is njobs = 1.
+        @return: The scipy.optimize.Result object corresponding to the MLE.
+        """
         if njobs == -1:
             njobs = multiprocessing.cpu_count()
 
         args = [(p, q, self.time, self.y, self.ysig)] * ntrials
 
         if njobs == 1:
-            MAPs = map(_get_map_single, args)
+            MLEs = map(_get_mle_single, args)
         else:
             # use multiple processors
             pool = multiprocessing.Pool(njobs)
             # warm up the pool
             pool.map(int, range(multiprocessing.cpu_count()))
-            MAPs = pool.map(_get_map_single, args)
+            MLEs = pool.map(_get_mle_single, args)
             pool.terminate()
 
-        best_MAP = MAPs[0]
-        for MAP in MAPs:
-            if MAP.fun < best_MAP.fun:  # note that MAP.fun is -loglik since we use scipy.optimize.minimize
+        best_MLE = MLEs[0]
+        for MLE in MLEs:
+            if MLE.fun < best_MLE.fun:  # note that MLE.fun is -loglik since we use scipy.optimize.minimize
                 # new MLE found, save this value
-                best_MAP = MAP
+                best_MLE = MLE
 
-        print best_MAP.message
+        print best_MLE.message
 
-        return best_MAP
+        return best_MLE
 
     def choose_order(self, pmax, qmax=None, pqlist=None, njobs=1, ntrials=100):
+        """
+        Choose the order of the CARMA model by minimizing the AICc(p,q). This first computes the maximum likelihood
+        estimate on a grid of (p,q) values using self.get_mle, and then choosing the value of (p,q) that minimizes
+        the AICc. These values of p and q are stored as self.p and self.q.
 
+        @param pmax: The maximum order of the AR(p) polynomial to search over.
+        @param qmax: The maximum order of the MA(q) polynomial to search over. If none, search over all possible values
+            of q < p.
+        @param pqlist: A list of (p,q) tuples. If supplied, the (p,q) pairs are used instead of being generated from the
+            values of pmax and qmax.
+        @param njobs: The number of processors to use for calculating the MLE. A value of njobs = -1 will use all
+            available processors.
+        @param ntrials: The number of random starts to use in the MLE, the default is 100.
+        @return: A tuple of (MLE, pqlist, AICc). MLE is a scipy.optimize.Result object containing the maximum-likelihood
+            estimate. pqlist contains the values of (p,q) used in the search, and AICc contains the values of AICc for
+            each (p,q) pair in pqlist.
+        """
         try:
             pmax > 0
         except ValueError:
@@ -134,34 +162,34 @@ class CarmaModel(object):
                 for q in xrange(p):
                     pqlist.append((p, q))
 
-        MAPs = []
+        MLEs = []
         for pq in pqlist:
-            MAP = self.get_map(pq[0], pq[1], ntrials=ntrials, njobs=njobs)
-            MAPs.append(MAP)
+            MLE = self.get_mle(pq[0], pq[1], ntrials=ntrials, njobs=njobs)
+            MLEs.append(MLE)
 
         best_AICc = 1e300
         AICc = []
-        best_MAP = MAPs[0]
+        best_MLE = MLEs[0]
         print 'p, q, AICc:'
-        for MAP, pq in zip(MAPs, pqlist):
+        for MLE, pq in zip(MLEs, pqlist):
             nparams = 2 + pq[0] + pq[1]
-            deviance = 2.0 * MAP.fun
+            deviance = 2.0 * MLE.fun
             this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (self.time.size - nparams - 1.0)
             print pq[0], pq[1], this_AICc
             AICc.append(this_AICc)
             if this_AICc < best_AICc:
                 # new optimum found, save values
-                best_MAP = MAP
+                best_MLE = MLE
                 best_AICc = this_AICc
                 self.p = pq[0]
                 self.q = pq[1]
 
         print 'Model with best AICc has p =', self.p, ' and q = ', self.q
 
-        return best_MAP, pqlist, AICc
+        return best_MLE, pqlist, AICc
 
 
-def _get_map_single(args):
+def _get_mle_single(args):
 
     p, q, time, y, ysig = args
 
@@ -216,14 +244,13 @@ def _get_map_single(args):
             if (initial_theta[j] < theta_bnds[j][0]) or (initial_theta[j] > theta_bnds[j][1]):
                 initial_theta[j] = np.random.uniform(theta_bnds[j][0], theta_bnds[j][1])
 
-    thisMAP = minimize(_carma_loglik, initial_theta, args=(CarmaProcess,), method="L-BFGS-B", bounds=theta_bnds)
+    thisMLE = minimize(_carma_loglik, initial_theta, args=(CarmaProcess,), method="L-BFGS-B", bounds=theta_bnds)
 
-    return thisMAP
+    return thisMLE
 
 
 def _carma_loglik(theta, args):
     CppCarma = args
-    # convert from logit(measerr_scale)
     theta_vec = carmcmcLib.vecD()
     theta_vec.extend(theta)
     logdens = CppCarma.getLogDensity(theta_vec)
@@ -234,12 +261,19 @@ class CarmaSample(samplers.MCMCSample):
     """
     Class for storing and analyzing the MCMC samples of a CARMA(p,q) model.
     """
-
-    def __init__(self, time, y, ysig, sampler, q=0, filename=None, MAP=None):
+    def __init__(self, time, y, ysig, sampler, q=0, filename=None, MLE=None):
         """
-        Constructor for the CarmaSample class.
+        Constructor for the CarmaSample class. In general a CarmaSample object should never be constructed directly,
+        but should be constructed by calling CarmaModel.run_mcmc().
 
-        :param filename: A string of the name of the file containing the MCMC samples generated by carpack.
+        @param time: The array of time values for the time series.
+        @param y: The array of measured values for the time series.
+        @param ysig: The array of measurement noise standard deviations for the time series.
+        @param sampler: A C++ object return by _carmcmcm.run_carma_mcmc(). In general this should not be obtained
+            directly, but a CarmaSample object should be obtained by running CarmaModel.run_mcmc().
+        @param q: The order of the MA polynomial.
+        @param filename: A string of the name of the file containing the MCMC samples generated by the C++ carpack.
+        @param MLE: The maximum-likelihood estimate, obtained as a scipy.optimize.Result object.
         """
         self.time = time  # The time values of the time series
         self.y = y  # The measured values of the time series
@@ -281,16 +315,23 @@ class CarmaSample(samplers.MCMCSample):
         self.parameters = self._samples.keys()
         self.newaxis()
 
-        self.map = {}
-        if MAP is not None:
+        self.mle = {}
+        if MLE is not None:
             # add maximum a posteriori estimate
-            self.add_map(MAP)
+            self.add_mle(MLE)
 
-    def add_map(self, MAP):
-        self.map = {'loglik': -MAP.fun, 'var': MAP.x[0] ** 2, 'measerr_scale': MAP.x[1], 'mu': MAP.x[2]}
+    def add_mle(self, MLE):
+        """
+        Add the maximum-likelihood estimate to the CarmaSample object. This will convert the MLE to a dictionary, and
+        add it as a data member of the CarmaSample object. The values can be accessed as self.mle['parameter']. For
+        example, the MLE of the CARMA process variance is accessed as self.mle['var'].
+
+        @param MLE: The maximum-likelihood estimate, returned by CarmaModel.get_mle() or CarmaModel.choose_order().
+        """
+        self.mle = {'loglik': -MLE.fun, 'var': MLE.x[0] ** 2, 'measerr_scale': MLE.x[1], 'mu': MLE.x[2]}
 
         # add AR polynomial roots and PSD lorentzian parameters
-        quad_coefs = np.exp(MAP.x[3:self.p + 3])
+        quad_coefs = np.exp(MLE.x[3:self.p + 3])
         ar_roots = np.zeros(self.p, dtype=complex)
         psd_width = np.zeros(self.p)
         psd_cent = np.zeros(self.p)
@@ -318,16 +359,16 @@ class CarmaSample(samplers.MCMCSample):
             psd_cent[-1] = 0.0
             psd_width[-1] = quad_coefs[-1] / (2.0 * np.pi)
 
-        self.map['ar_roots'] = ar_roots
-        self.map['psd_width'] = psd_width
-        self.map['psd_cent'] = psd_cent
-        self.map['ar_coefs'] = np.poly(ar_roots).real
+        self.mle['ar_roots'] = ar_roots
+        self.mle['psd_width'] = psd_width
+        self.mle['psd_cent'] = psd_cent
+        self.mle['ar_coefs'] = np.poly(ar_roots).real
 
         # now calculate the moving average coefficients
         if self.q == 0:
-            self.map['ma_coefs'] = 1.0
+            self.mle['ma_coefs'] = 1.0
         else:
-            quad_coefs = np.exp(MAP.x[3 + self.p:])
+            quad_coefs = np.exp(MLE.x[3 + self.p:])
             ma_roots = np.empty(quad_coefs.size, dtype=complex)
             for i in xrange(self.q / 2):
                 quad1 = quad_coefs[2 * i]
@@ -349,16 +390,24 @@ class CarmaSample(samplers.MCMCSample):
             ma_coefs = np.poly(ma_roots)
             # normalize so constant in polynomial is unity, and reverse order to be consistent with MA
             # representation
-            self.map['ma_coefs'] = np.real(ma_coefs / ma_coefs[self.q])[::-1]
+            self.mle['ma_coefs'] = np.real(ma_coefs / ma_coefs[self.q])[::-1]
 
         # finally, calculate sigma, the standard deviation in the driving white noise
-        unit_var = carma_variance(1.0, self.map['ar_roots'], np.atleast_1d(self.map['ma_coefs']))
-        self.map['sigma'] = np.sqrt(self.map['var'] / unit_var.real)
+        unit_var = carma_variance(1.0, self.mle['ar_roots'], np.atleast_1d(self.mle['ma_coefs']))
+        self.mle['sigma'] = np.sqrt(self.mle['var'] / unit_var.real)
 
     def set_logpost(self, logpost):
+        """
+        Add the input log-posterior MCMC values to the CarmaSample parameter dictionary.
+        @param logpost: The values of the log-posterior obtained from the MCMC sampler.
+        """
         self._samples['logpost'] = logpost  # log-posterior of the CAR(p) model
 
     def generate_from_trace(self, trace):
+        """
+        Generate the dictionary of MCMC samples for the CARMA process parameters from the input array.
+        @param trace: An array containing the MCMC samples.
+        """
         # Figure out how many AR terms we have
         self.p = trace.shape[1] - 3 - self.q
         names = ['var', 'measerr_scale', 'mu', 'quad_coefs']
@@ -496,15 +545,21 @@ class CarmaSample(samplers.MCMCSample):
     def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", alpha=0.5, sp=None,
                             doShow=True):
         """
-        Plot the posterior median and the credibility interval corresponding to percentile of the CAR(p) PSD. This
-        function returns a tuple containing the lower and upper PSD credibility intervals as a function of
-        frequency, the median PSD as a function of frequency, and the frequencies.
+        Plot the posterior median and the credibility interval corresponding to percentile of the CARMA(p,q) PSD. This
+        function returns a tuple containing the lower and upper PSD credibility intervals as a function of frequency,
+        the median PSD as a function of frequency, and the frequencies.
         
-        :rtype : A tuple of numpy arrays, (lower PSD, upper PSD, median PSD, frequencies).
+        :rtype : A tuple of numpy arrays, (lower PSD, upper PSD, median PSD, frequencies). If no subplot axes object
+            is supplied (i.e., if sp = None), then the subplot axes object used will also be returned as the last
+            element of the tuple.
         :param percentile: The percentile of the PSD credibility interval to plot.
         :param nsamples: The number of MCMC samples to use to estimate the credibility interval. The default is all
-                         of them.
+                         of them. Use less samples for increased speed.
         :param plot_log: A boolean. If true, then a logarithmic plot is made.
+        :param color: The color of the shaded credibility region.
+        :param alpha: The transparency level.
+        :param sp: A matplotlib subplot axes object to use.
+        :param doShow: If true, call plt.show()
         """
         sigmas = self._samples['sigma']
         ar_coefs = self._samples['ar_coefs']
@@ -589,7 +644,6 @@ class CarmaSample(samplers.MCMCSample):
         else:
             return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
 
-
     def makeKalmanFilter(self, bestfit):
         if bestfit == 'map':
             # use maximum a posteriori estimate
@@ -619,58 +673,14 @@ class CarmaSample(samplers.MCMCSample):
                                            arrayToVec(ma_coefs))
         return kfilter, mu
 
-    def plot_models(self, bestfit="median", nplot=256, doShow=True, dtPredict=0):
-        bestfit = bestfit.lower()
-        try:
-            bestfit in ['map', 'median', 'mean']
-        except ValueError:
-            "bestfit must be one of 'map, 'median', or 'mean'"
-
-        
-        fig = plt.figure()
-        sp = fig.add_subplot(111)
-        sp.errorbar(self.time, self.y, yerr=self.ysig, fmt='ko', label='Data', ms=4, capsize=1)
-
-        # The kalman filter seems to exactly recover the data, no point in this...
-        if False:
-            kfilter, mu = self.makeKalmanFilter(bestfit)
-            kfilter.Filter()
-            kmean = np.empty(self.time.size)
-            kvar  = np.empty(self.time.size)
-            for i in xrange(self.time.size):
-                kpred = kfilter.Predict(self.time[i])
-                kmean[i] = kpred.first
-                kvar[i]  = kpred.second
-            sp.plot(self.time, kmean + mu, '-r', label='Kalman Filter')
-
-        # compute the marginal mean and variance of the predicted values
-        time_predict = np.linspace(self.time.min(), self.time.max() + dtPredict, nplot)
-        predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
-        sp.plot(time_predict, predicted_mean, '-r', label='Kalman Filter')
-
-        # NOTE we can get negative variance here in the first/last indices
-        idx = np.where(predicted_var > 0)
-        time_predict = time_predict[idx]
-        predicted_mean = predicted_mean[idx]
-        predicted_var = predicted_var[idx]
-
-        predicted_low = predicted_mean - np.sqrt(predicted_var)
-        predicted_high = predicted_mean + np.sqrt(predicted_var)
-        sp.fill_between(time_predict, predicted_low, predicted_high,
-                        edgecolor=None, facecolor='blue', alpha=0.25, label="1-sigma range")
-        sp.set_xlabel('Time')
-        sp.set_xlim(self.time.min(), self.time.max())
-        sp.legend(loc=1)
-
-        if doShow:
-            plt.show()
-
     def assess_fit(self, bestfit="map", nplot=256, doShow=True):
         """
-        Display plots and provide useful information for assessing the quality of the CARMA(p.q) model fit.
+        Display plots and provide useful information for assessing the quality of the CARMA(p,q) model fit.
 
-        :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
-            mean ("mean") or the posterior median ("median").
+        :param bestfit: A string specifying how to define 'best-fit'. Can be the maximum a posteriori value (MAP),
+            the posterior mean ("mean"), or the posterior median ("median").
+        :param nplot: The number of interpolated time series values to plot.
+        :param doShow: If true, call pyplot.show(). Else if false, return the matplotlib figure object.
         """
         bestfit = bestfit.lower()
         try:
@@ -757,6 +767,8 @@ class CarmaSample(samplers.MCMCSample):
         :param time: A scalar or numpy array containing the time values to predict the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
             mean ("mean") or the posterior median ("median").
+        :rtype : A tuple of numpy arrays containing the expected value and variance of the time series at the input
+            time values.
         """
         bestfit = bestfit.lower()
         try:
@@ -791,6 +803,7 @@ class CarmaSample(samplers.MCMCSample):
         :param time: A scalar or numpy array containing the time values to simulate the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
             mean ("mean") or the posterior median ("median").
+        :rtype : The time series values simulated at the input values of time.
         """
         bestfit = bestfit.lower()
         try:
@@ -831,13 +844,27 @@ class CarmaSample(samplers.MCMCSample):
 
 
 def arrayToVec(array, arrType=carmcmcLib.vecD):
+    """
+    Convert the input numpy array to a python wrapper of a C++ std::vector<double> object.
+    """
     vec = arrType()
     vec.extend(array)
     return vec
 
 
-class CarSample1(CarmaSample):
+class Car1Sample(CarmaSample):
     def __init__(self, time, y, ysig, sampler, filename=None):
+        """
+        Constructor for a CAR(1) sample. This is a special case of the CarmaSample class for p = 1. As with the
+        CarmaSample class, this class should never be constructed directly. Instead, one should obtain a Car1Sample
+        class by calling CarmaModel.run_mcmc().
+
+        @param time: The array of time values for the time series.
+        @param y: The array of measured time series values.
+        @param ysig: The standard deviation in the measurement noise for the time series.
+        @param sampler: A wrapper for an instantiated C++ Car1 object.
+        @param filename: The name of an ascii file containing the MCMC samples.
+        """
         self.time = time  # The time values of the time series
         self.y = y     # The measured values of the time series
         self.ysig = ysig  # The standard deviation of the measurement errors of the time series
@@ -906,10 +933,27 @@ class CarSample1(CarmaSample):
                                            arrayToVec(self.y - mu),
                                            arrayToVec(self.ysig),
                                            sigsqr, 
-                                           10**(log_omega))
+                                           np.exp(log_omega))
         return kfilter, mu
 
     def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None, doShow=True):
+        """
+        Plot the posterior median and the credibility interval corresponding to percentile of the CAR(1) PSD. This
+        function returns a tuple containing the lower and upper PSD credibility intervals as a function of
+        frequency, the median PSD as a function of frequency, and the frequencies.
+
+        :rtype : A tuple of numpy arrays, (lower PSD, upper PSD, median PSD, frequencies). If no subplot axes object
+            is supplied (i.e., if sp = None), then the subplot axes object used will also be returned as the last
+            element of the tuple.
+        :param percentile: The percentile of the PSD credibility interval to plot.
+        :param nsamples: The number of MCMC samples to use to estimate the credibility interval. The default is all
+                         of them. Use less samples for increased speed.
+        :param plot_log: A boolean. If true, then a logarithmic plot is made.
+        :param color: The color of the shaded credibility region.
+        :param alpha: The transparency level.
+        :param sp: A matplotlib subplot axes object to use.
+        :param doShow: If true, call plt.show()
+        """
         sigmas = self._samples['sigma']
         log_omegas = self._samples['log_omega']
 
@@ -960,38 +1004,14 @@ class CarSample1(CarmaSample):
             return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
         else:
             return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), fig
-            
 
-    def plot_2dpdf(self, name1, name2, doShow=False):
-        print "Plotting 2d PDF"
-        trace1 = self._samples[name1]
-        trace2 = self._samples[name2]
-
-        fig = plt.figure()
-        # joint distribution
-        axJ = fig.add_axes([0.1, 0.1, 0.7, 0.7])               # [left, bottom, width, height]
-        # y histogram
-        axY = fig.add_axes([0.8, 0.1, 0.125, 0.7], sharey=axJ)
-        # x histogram
-        axX = fig.add_axes([0.1, 0.8, 0.7, 0.125], sharex=axJ)
-        axJ.plot(trace1, trace2, 'ro', ms=1, alpha=0.5)
-        axX.hist(trace1, bins=100)
-        axY.hist(trace2, orientation='horizontal', bins=100)
-        axJ.set_xlabel("%s" % (name1))
-        axJ.set_ylabel("%s" % (name2))
-        plt.setp(axX.get_xticklabels() + axX.get_yticklabels(), visible=False)
-        plt.setp(axY.get_xticklabels() + axY.get_yticklabels(), visible=False)
-        if doShow:
-            plt.show()
-        
-
-##################
 
 def get_ar_roots(qpo_width, qpo_centroid):
     """
-    Return the roots of the characteristic polynomial of the CAR(p) process, given the lorentzian widths and centroids.
+    Return the roots of the characteristic AR(p) polynomial of the CARMA(p,q) process, given the lorentzian widths and
+    centroids.
 
-    :rtype : a numpy array
+    :rtype : The roots of the autoregressive polynomial, a numpy array.
     :param qpo_width: The widths of the lorentzian functions defining the PSD.
     :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
     """
@@ -1009,14 +1029,14 @@ def get_ar_roots(qpo_width, qpo_centroid):
 
 def power_spectrum(freq, sigma, ar_coef, ma_coefs=[1.0]):
     """
-    Return the power spectrum for a CAR(p) process calculated at the input frequencies.
+    Return the power spectrum for a CARMA(p,q) process calculated at the input frequencies.
 
     :param freq: The frequencies at which to calculate the PSD.
     :param sigma: The standard deviation driving white noise.
-    :param ar_coef: The CAR(p) model autoregressive coefficients.
+    :param ar_coef: The CARMA model autoregressive coefficients.
     :param ma_coefs: Coefficients of the moving average polynomial
 
-    :rtype : A numpy array.
+    :rtype : The power spectrum at the input frequencies, a numpy array.
     """
     try:
         len(ma_coefs) <= len(ar_coef)
@@ -1077,7 +1097,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
     :param time: The time values at which to generate the CARMA(p,q) process at.
     :param sigsqr: The variance in the driving white noise term.
-    :param ar_roots: The roots of the CAR(p) characteristic polynomial.
+    :param ar_roots: The roots of the autoregressive characteristic polynomial.
     :param ma_coefs: The moving average coefficients.
     :rtype : A numpy array containing the simulated CARMA(p,q) process values at time.
     """
