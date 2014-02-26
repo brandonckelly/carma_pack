@@ -5,7 +5,7 @@ carma_pack is an MCMC sampler for performing bayesian inference on
 continuous time autoregressive moving average models. These models may
 be used to model time series with irregular sampling. The MCMC sampler
 utilizes an adaptive Metropolis algorithm combined with parallel
-tempering. Further details are given in [this paper](https://github.com/bckelly80).
+tempering. Further details are given in [this paper](http://arxiv.org/abs/1402.5978).
 
 ----------
 Quick Start
@@ -105,6 +105,7 @@ Installation
 * `numpy`     (for core functionality)
 * `scipy`     (for core functionality)
 * `matplotlib`    (for generating plots)
+* `acor`    (for calculating the autocorrelation time scale of MCMC samples)
 
 In addition, it is necessary to have the [Boost C++ libraries](http://www.boost.org) (for
 linking python and C++) and the [Armadillo C++ linear algebra
