@@ -8,6 +8,12 @@ The version of the C compiler matters. My default system
 c++11/c++0x. These arguments require gcc v.4.3 and higher and the
 most recent version available is 4.8.1.
 
+Newer versions of the Armadillo library use features from the chromo namespace that are defined
+in C++11. Unfortunately, these features were not defined in the system library header that comes
+with g++ 4.6. These are not needed for carma_pack, and if you want to use g++ 4.6 then you will
+have to revert to v3.920.4 of the Armadillo library (thanks to Eric Morganson for pointing this 
+out).
+
 I decided to use the system gcc compiler on CentOS6 version 4.4.7
 
 1/ Building BOOST libraries:
