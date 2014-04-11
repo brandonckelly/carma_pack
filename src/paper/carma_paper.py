@@ -77,8 +77,8 @@ def make_sampler_plots(time, y, ysig, pmax, file_root, title, do_mags=False, njo
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                              color='SkyBlue', nsamples=5000)
-    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     dt = time[1:] - time[0:-1]
     noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
@@ -182,8 +182,8 @@ def do_simulated_regular():
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                              color='SkyBlue', nsamples=5000)
-    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd, 'k', lw=2)
@@ -281,11 +281,161 @@ def do_simulated_irregular():
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                              color='SkyBlue', nsamples=5000)
-    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
     psd = cm.power_spectrum(frequencies, np.sqrt(sigsqr), ar_coef, ma_coefs=ma_coefs)
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     ax.loglog(frequencies, psd, 'k', lw=2)
+    dt = np.median(time[1:] - time[0:-1])
+    noise_level = 2.0 * dt * np.mean(ysig ** 2)
+    ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
+    ax.set_ylim(bottom=noise_level / 100.0)
+    ax.annotate("Measurement Noise Level", (3.0 * ax.get_xlim()[0], noise_level / 2.5))
+    ax.set_xlabel('Frequency')
+    ax.set_ylabel('Power Spectral Density')
+
+    plt.savefig(froot + 'psd.eps')
+
+    print 'Assessing the fit quality...'
+    carma_sample.assess_fit(doShow=False)
+    plt.savefig(froot + 'fit_quality.eps')
+
+    # compute the marginal mean and variance of the predicted values
+    nplot = 1028
+    time_predict = np.linspace(time.min(), 1.25 * time.max(), nplot)
+    time_predict = time_predict[1:]
+    predicted_mean, predicted_var = carma_sample.predict_lightcurve(time_predict, bestfit='map')
+    predicted_low = predicted_mean - np.sqrt(predicted_var)
+    predicted_high = predicted_mean + np.sqrt(predicted_var)
+
+    # plot the time series and the marginal 1-sigma error bands
+    plt.clf()
+    plt.subplot(111)
+    plt.fill_between(time_predict, predicted_low, predicted_high, color='cyan')
+    plt.plot(time_predict, predicted_mean, '-b', label='Predicted')
+    plt.plot(time[0:90], y0[0:90], 'k', lw=2, label='True')
+    plt.plot(time[0:90], y[0:90], 'bo')
+    for i in xrange(1, 3):
+        plt.plot(time[90*i:90*(i+1)], y0[90*i:90*(i+1)], 'k', lw=2)
+        plt.plot(time[90*i:90*(i+1)], y[90*i:90*(i+1)], 'bo')
+
+    plt.xlabel('Time')
+    plt.ylabel('CARMA(5,3) Process')
+    plt.xlim(time_predict.min(), time_predict.max())
+    plt.legend()
+    plt.savefig(froot + 'interp.eps')
+
+
+def do_simulated_irregular_nonstationary():
+
+    # generate first half of lightcurve assuming a CARMA(5,3) process on a uniform grid
+    sigmay1 = 2.3  # dispersion in lightcurve
+    p = 5  # order of AR polynomial
+    qpo_width1 = np.array([1.0/100.0, 1.0/300.0, 1.0/200.0])
+    qpo_cent1 = np.array([1.0/5.0, 1.0/25.0])
+    ar_roots1 = cm.get_ar_roots(qpo_width1, qpo_cent1)
+    ma_coefs1 = np.zeros(p)
+    ma_coefs1[0] = 1.0
+    ma_coefs1[1] = 4.5
+    ma_coefs1[2] = 1.25
+    sigsqr1 = sigmay1 ** 2 / cm.carma_variance(1.0, ar_roots1, ma_coefs=ma_coefs1)
+
+    ny = 270
+    time = np.zeros(ny)
+    dt = np.random.uniform(1.0, 3.0, ny)
+    time[0:90] = np.cumsum(dt[0:90])
+    time[90:2*90] = 180 + time[90-1] + np.cumsum(dt[90:2*90])
+    time[2*90:] = 180 + time[2*90-1] + np.cumsum(dt[2*90:])
+
+    y = cm.carma_process(time, sigsqr1, ar_roots1, ma_coefs=ma_coefs1)
+
+    # first generate some data assuming a CARMA(5,3) process on a uniform grid
+    sigmay2 = 4.5  # dispersion in lightcurve
+    p = 5  # order of AR polynomial
+    qpo_width2 = np.array([1.0/100.0, 1.0/100.0, 1.0/500.0])
+    qpo_cent2 = np.array([1.0/5.0, 1.0/50.0])
+    ar_roots2 = cm.get_ar_roots(qpo_width2, qpo_cent2)
+    ma_coefs2 = np.zeros(p)
+    ma_coefs2[0] = 1.0
+    ma_coefs2[1] = 4.5
+    ma_coefs2[2] = 1.25
+    sigsqr2 = sigmay2 ** 2 / cm.carma_variance(1.0, ar_roots2, ma_coefs=ma_coefs2)
+
+    ny = 270
+    time2 = np.zeros(ny)
+    dt = np.random.uniform(1.0, 3.0, ny)
+    time2[0:90] = np.cumsum(dt[0:90])
+    time2[90:2*90] = 180 + time2[90-1] + np.cumsum(dt[90:2*90])
+    time2[2*90:] = 180 + time2[2*90-1] + np.cumsum(dt[2*90:])
+
+    time = np.append(time, time.max() + 180 + time2)
+
+    y2 = cm.carma_process(time2, sigsqr2, ar_roots2, ma_coefs=ma_coefs2)
+
+    y = np.append(y, y2)
+
+    ysig = np.ones(len(y)) * y.std() / 8.0
+    # ysig = np.ones(ny) * 1e-6
+    y0 = y.copy()
+    y += ysig * np.random.standard_normal(len(y))
+
+    froot = base_dir + 'plots/car5_nonstationary_'
+
+    plt.subplot(111)
+    for i in xrange(6):
+        plt.plot(time[90*i:90*(i+1)], y0[90*i:90*(i+1)], 'k', lw=2)
+        plt.plot(time[90*i:90*(i+1)], y[90*i:90*(i+1)], 'bo')
+
+    plt.xlim(time.min(), time.max())
+    plt.xlabel('Time')
+    plt.ylabel('Non-Stationary Process')
+    plt.savefig(froot + 'tseries.eps')
+    plt.show()
+
+    ar_coef1 = np.poly(ar_roots1)
+    ar_coef2 = np.poly(ar_roots2)
+
+    print 'Getting maximum-likelihood estimates...'
+
+    carma_model = cm.CarmaModel(time, y, ysig)
+    pmax = 7
+    MAP, pqlist, AIC_list = carma_model.choose_order(pmax, njobs=1)
+
+    # convert lists to a numpy arrays, easier to manipulate
+    pqarray = np.array(pqlist)
+    pmodels = pqarray[:, 0]
+    qmodels = pqarray[:, 1]
+    AICc = np.array(AIC_list)
+
+    plt.clf()
+    plt.subplot(111)
+    for i in xrange(qmodels.max()+1):
+        plt.plot(pmodels[qmodels == i], AICc[qmodels == i], 's-', label='q=' + str(i), lw=2)
+    plt.legend()
+    plt.xlabel('p')
+    plt.ylabel('AICc(p,q)')
+    plt.xlim(0, pmodels.max() + 1)
+    plt.savefig(froot + 'aic.eps')
+    plt.close()
+
+    nsamples = 50000
+    carma_sample = carma_model.run_mcmc(nsamples)
+    carma_sample.add_mle(MAP)
+
+    cPickle.dump(carma_sample, open(data_dir + 'nonstationary.pickle', 'wb'))
+
+    plt.clf()
+    ax = plt.subplot(111)
+    print 'Getting bounds on PSD...'
+    psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
+                                                                             color='SkyBlue', nsamples=5000)
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
+    psd1 = cm.power_spectrum(frequencies, np.sqrt(sigsqr1), ar_coef1, ma_coefs=ma_coefs1)
+    psd2 = cm.power_spectrum(frequencies, np.sqrt(sigsqr2), ar_coef2, ma_coefs=ma_coefs2)
+    # ax.loglog(frequencies, psd_mle, '--b', lw=2)
+    ax.loglog(frequencies, psd1, 'k', lw=2)
+    ax.loglog(frequencies, psd2, '--k', lw=2)
     dt = np.median(time[1:] - time[0:-1])
     noise_level = 2.0 * dt * np.mean(ysig ** 2)
     ax.loglog(frequencies, np.ones(frequencies.size) * noise_level, color='grey', lw=2)
@@ -410,8 +560,8 @@ def do_AGN_Kepler():
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                              color='SkyBlue', nsamples=5000)
-    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
     ax.loglog(freq / 2.0, pgram, 'o', color='DarkOrange')
     psd_slope = 3.14
     above_noise = np.where(freq / 2.0 < 1.0)[0]
@@ -471,8 +621,8 @@ def do_AGN_Xray():
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                              color='SkyBlue', nsamples=5000)
-    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
     ax.loglog(frequencies, psd_mle, '--b', lw=2)
     noise_level_rxte = 2.0 * dt_rxte * np.mean(ferr[rxte] ** 2)
     noise_level_xmm = 2.0 * dt_xmm * np.mean(ferr[xmm] ** 2)
@@ -511,8 +661,8 @@ def do_RRLyrae():
         print 'Getting bounds on PSD...'
         psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                                  color='SkyBlue', nsamples=5000)
-        psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                    ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+        psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                    ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
         ax.loglog(frequencies, psd_mle, '--b', lw=2)
         dt = time[1:] - time[0:-1]
         noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
@@ -568,8 +718,8 @@ def do_OGLE_LPV():
         print 'Getting bounds on PSD...'
         psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                                  color='SkyBlue', nsamples=5000)
-        psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                    ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+        psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                    ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
         ax.loglog(frequencies, psd_mle, '--b', lw=2)
         dt = time[1:] - time[0:-1]
         noise_level = 2.0 * np.median(dt) * np.mean(ysig ** 2)
@@ -677,8 +827,8 @@ def do_XRB():
     print 'Getting bounds on PSD...'
     psd_low, psd_hi, psd_mid, frequencies = carma_sample.plot_power_spectrum(percentile=95.0, sp=ax, doShow=False,
                                                                              color='SkyBlue', nsamples=5000)
-    psd_mle = cm.power_spectrum(frequencies, carma_sample.map['sigma'], carma_sample.map['ar_coefs'],
-                                ma_coefs=np.atleast_1d(carma_sample.map['ma_coefs']))
+    psd_mle = cm.power_spectrum(frequencies, carma_sample.mle['sigma'], carma_sample.mle['ar_coefs'],
+                                ma_coefs=np.atleast_1d(carma_sample.mle['ma_coefs']))
     ax.loglog(freq / 2, pgram, 'o', color='DarkOrange')
     nyquist_freq = np.mean(0.5 / dt_idx)
     nyquist_idx = np.where(frequencies <= nyquist_freq)[0]
@@ -751,9 +901,10 @@ def do_XRB():
 if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
-    do_AGN_Stripe82()
+    do_simulated_irregular_nonstationary()
+    # do_AGN_Stripe82()
     # do_AGN_Kepler()
-    do_RRLyrae()
+    # do_RRLyrae()
     # do_OGLE_LPV()
     # do_AGN_Xray()
     # do_XRB()
