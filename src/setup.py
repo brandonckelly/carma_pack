@@ -26,8 +26,10 @@ if system_name == 'Darwin':
     compiler_args.append("-std=c++11")
     # need to build against libc++ for Mac OS X
     compiler_args.append("-stdlib=libc++")
+    boost_suffix = "-mt"
 else:
     compiler_args.append("-std=c++0x")
+    boost_suffix = ""
 
 
 def configuration(parent_package='', top_path=None):
@@ -43,7 +45,8 @@ def configuration(parent_package='', top_path=None):
                  "steps.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo"],
+        libraries=["boost_python%s"%boost_suffix, "boost_filesystem%s"%boost_suffix, "boost_system%s"%boost_suffix, 
+                   "armadillo"],
         extra_compiler_args=compiler_args
     )
     config.add_extension(
@@ -51,7 +54,8 @@ def configuration(parent_package='', top_path=None):
         sources=["boost_python_wrapper.cpp", "carmcmc.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "carmcmc"],
+        libraries=["boost_python%s"%boost_suffix, "boost_filesystem%s"%boost_suffix, "boost_system%s"%boost_suffix, 
+                   "armadillo", "carmcmc"],
         extra_compile_args=compiler_args
     )
     config.add_data_dir(("../../../../include", "include"))

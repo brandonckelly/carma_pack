@@ -25,7 +25,7 @@ class TestCarpackOrder(unittest.TestCase):
 
     def testCar1(self):
         cppSample = carmcmc.run_mcmc_car1(self.nSample, self.nBurnin, self.xdata, self.ydata, self.dydata, self.nThin)
-        psampler = carmcmc.CarSample1(self.x, self.y, self.dy, cppSample)
+        psampler = carmcmc.Car1Sample(self.x, self.y, self.dy, cppSample)
         self.assertEqual(psampler.p, 1)
 
         psamples = np.array(cppSample.getSamples())
@@ -191,11 +191,6 @@ class TestCarpackOrder(unittest.TestCase):
         postp.plot_power_spectrum(percentile=95.0, doShow=False)
         postpqo.plot_power_spectrum(percentile=95.0, doShow=False)
         postpqe.plot_power_spectrum(percentile=95.0, doShow=False)
-        
-        post1.plot_models(nplot=1000, doShow=False)
-        postp.plot_models(nplot=1000, doShow=False)
-        postpqo.plot_models(nplot=1000, doShow=False)
-        postpqe.plot_models(nplot=1000, doShow=False)
         
         for bestfit in ["map", "median", "mean"]:
             post1.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
