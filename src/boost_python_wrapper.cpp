@@ -47,6 +47,10 @@ BOOST_PYTHON_MODULE(_carmcmc){
     class_<std::vector<std::vector<double > > >("vecvecD")
         .def(vector_indexing_suite<std::vector<std::vector<double> > >());
 
+    class_<std::pair<std::vector<double>, std::vector<double> > >("pairvecD")
+        .def_readwrite("first", &std::pair<std::vector<double>, std::vector<double> >::first)
+        .def_readwrite("second", &std::pair<std::vector<double>, std::vector<double> >::second);
+
     class_<std::vector<std::complex<double> > >("vecC")
         .def(vector_indexing_suite<std::vector<std::complex<double> > >());
     
@@ -116,6 +120,7 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("Simulate", &KalmanFilterp::Simulate)
         .def("Filter", &KalmanFilterp::Filter)
         .def("Predict", &KalmanFilterp::Predict)
+        .def("PredictPer", &KalmanFilterp::PredictPer)
         .def("GetMean", &KalmanFilterp::GetMeanSvec)
         .def("GetVar", &KalmanFilterp::GetVarSvec)
     ;

@@ -361,8 +361,13 @@ public:
     void Reset();
     void Update();
     std::pair<double, double> Predict(double time);
+    std::pair<std::vector<double>, std::vector<double> > PredictPer(double time);
     void InitializeCoefs(double time, unsigned int itime, double ymean, double yvar);
     void UpdateCoefs();
+    std::pair<std::vector<double>, std::vector<double> >
+        InitializeCoefsPer(double time, unsigned int itime, double ymean, double yvar);
+    std::pair<std::vector<double>, std::vector<double> >
+        UpdateCoefsPer();
     
     std::vector<double> Simulate(std::vector<double> time) {
         arma::vec armatime = arma::conv_to<arma::vec>::from(time);

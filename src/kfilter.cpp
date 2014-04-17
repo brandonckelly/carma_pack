@@ -6,6 +6,7 @@
 //  Copyright (c) 2013 Brandon Kelly. All rights reserved.
 //
 
+#include <numeric>
 #include <random.hpp>
 #include "include/kfilter.hpp"
 
@@ -334,4 +335,174 @@ void KalmanFilterp::UpdateCoefs() {
     var(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
         + yerr_(current_index_) * yerr_(current_index_);
     current_index_++;
+}
+
+// Predict the time series at the input time given the measured time series, assuming a CARMA(p,q) process
+std::pair<std::vector<double>, std::vector<double> > KalmanFilterp::PredictPer(double time) {
+    
+   unsigned int ipredict = 0;
+   while (time > time_(ipredict)) {
+      // find the index where time_ > time for the first time
+      ipredict++;
+      if (ipredict == time_.n_elem) {
+	 // time is greater than last element of time_, so do forecasting
+            break;
+      }
+   }
+    
+   // Run the Kalman filter up to the point time_[ipredict-1]
+   Reset();
+   for (int i=1; i<ipredict; i++) {
+      Update();
+   }
+    
+   std::vector<double> ypredict_mean(p_);
+   std::vector<double> ypredict_var(p_);
+   std::vector<double> yprecision(p_);
+    
+   if (ipredict == 0) {
+      // backcasting, so initialize the conditional mean and variance to the stationary values
+      arma::cx_rowvec coeffState(rotated_ma_coefs_ * StateVar_);
+      for (int p=0; p < p_; p++) {
+	 ypredict_mean[p] = 0.0;
+	 ypredict_var[p] = std::real( arma::as_scalar(coeffState[p] * rotated_ma_coefs_[p]) );
+      }
+   } else {
+      // predict the value of the time series at time, given the earlier values
+      kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var(ipredict-1);
+      state_vector_ += kalman_gain_ * innovation_;
+      PredictionVar_ -= var(ipredict-1) * (kalman_gain_ * kalman_gain_.t());
+      double dt = std::abs(time - time_(ipredict-1));
+      rho_ = arma::exp(omega_ * dt);
+      state_vector_ = rho_ % state_vector_;
+      PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
+      
+      // initialize the conditional mean and variance
+      arma::cx_rowvec coeffPred(rotated_ma_coefs_ * PredictionVar_);
+      for (int p=0; p < p_; p++) {
+	 ypredict_mean[p] = std::real( arma::as_scalar(rotated_ma_coefs_[p] * state_vector_[p]) );
+	 ypredict_var[p] = std::real( arma::as_scalar(coeffPred[p] * rotated_ma_coefs_[p]) );
+      }
+   }      
+   if (ipredict == time_.n_elem) {
+      // Forecasting, so we're done: no need to run interpolation steps
+      std::pair<std::vector<double>, std::vector<double> > ypredict(ypredict_mean, ypredict_var);
+      return ypredict;
+   }
+   
+   // Either backcasting or interpolating, so need to calculate coefficients of linear filter as a function of
+   // the predicted time series value, then update the running conditional mean and variance of the predicted
+   // time series value
+   double meansum = std::accumulate(ypredict_mean.begin(),ypredict_mean.end(),0.0);
+   double varsum  = std::accumulate(ypredict_var.begin(),ypredict_var.end(),0.0);
+   
+   /* NOTE: ACB has verified that meansum and varsum are the same as
+      ypredict_mean and ypredict_var in Predict */
+
+   std::pair<std::vector<double>, std::vector<double> > resulti = 
+      InitializeCoefsPer(time, ipredict, meansum, varsum);
+   std::vector<double> yconsti = resulti.first;
+   std::vector<double> yslopei = resulti.second;
+
+   /* NOTE: ACB has verified that sum(yconsti) and sum(yslopei) are
+      the same as yconst_ and yslope_ */
+
+   for (int p=0; p < p_; p++) {
+      yprecision[p]     = 1.0 / ypredict_var[p];
+      ypredict_mean[p] *= yprecision[p];
+      yprecision[p]    += yslopei[p] * yslopei[p] / var(ipredict);
+      ypredict_mean[p] += yslopei[p] * (y_(ipredict) - yconsti[p]) / var(ipredict);
+   }   
+
+   for (int i=ipredict+1; i<time_.n_elem; i++) {
+      std::pair<std::vector<double>, std::vector<double> > resultu = 
+	 UpdateCoefsPer();
+      std::vector<double> yconstu = resultu.first;
+      std::vector<double> yslopeu = resultu.second;
+
+      /* NOTE: ACB has verified that sum(yconstu) and sum(yslopeu) are
+	 the same as yconst_ and yslope_ */
+
+      for (int p=0; p < p_; p++) {
+	 yprecision[p]    += yslopeu[p] * yslopeu[p] / var(i);
+	 ypredict_mean[p] += yslopeu[p] * (y_(i) - yconstu[p]) / var(i);
+      }
+   }
+   
+   for (int p=0; p < p_; p++) {
+      ypredict_var[p]   = 1.0 / yprecision[p];
+      ypredict_mean[p] *= ypredict_var[p];
+   }
+   std::pair<std::vector<double>, std::vector<double> > ypredict(ypredict_mean, ypredict_var);
+   return ypredict;
+}
+
+
+// Initialize the coefficients needed for computing the Kalman Filter at future times as a function of
+// the time series at time, where time_(itime-1) < time < time_(itime)
+std::pair<std::vector<double>, std::vector<double> >
+KalmanFilterp::InitializeCoefsPer(double time, unsigned int itime, double ymean, double yvar) {
+   
+    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / yvar;
+    // initialize the coefficients for predicting the state vector at coefs(time_predict|time_predict)
+    state_const_ = state_vector_ - kalman_gain_ * ymean;
+    state_slope_ = kalman_gain_;
+    // update the state one-step prediction error variance
+    PredictionVar_ -= yvar * (kalman_gain_ * kalman_gain_.t());
+    // coefs(time_predict|time_predict) --> coefs(time[i+1]|time_predict)
+    double dt = std::abs(time_(itime) - time);
+    rho_ = arma::exp(omega_ * dt);
+    state_const_ = rho_ % state_const_;
+    state_slope_ = rho_ % state_slope_;
+    // update the predicted state covariance matrix
+    PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
+    // compute the coefficients for the linear filter at time[ipredict], and compute the variance in the predicted
+    // y[ipredict]
+    std::vector<double> yconst(p_);
+    std::vector<double> yslope(p_);
+    for (int p=0; p < p_; p++) {
+       yconst[p] = std::real( arma::as_scalar(rotated_ma_coefs_[p] * state_const_[p]) );
+       yslope[p] = std::real( arma::as_scalar(rotated_ma_coefs_[p] * state_slope_[p]) );
+    }
+    yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
+    yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
+    var(itime) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+        + yerr_(itime) * yerr_(itime);
+    current_index_ = itime + 1;
+    std::pair<std::vector<double>, std::vector<double> > coefs(yconst, yslope);
+    return coefs;
+}
+
+// Update the coefficients need for computing the Kalman Filter at future times as a function of the
+// time series value at some earlier time
+std::pair<std::vector<double>, std::vector<double> >
+KalmanFilterp::UpdateCoefsPer() {
+    
+    kalman_gain_ = PredictionVar_ * rotated_ma_coefs_.t() / var(current_index_-1);
+    // update the coefficients for predicting the state vector at coefs(i|i-1) --> coefs(i|i)
+    state_const_ += kalman_gain_ * (y_(current_index_-1) - yconst_);
+    state_slope_ -= kalman_gain_ * yslope_;
+    // update the state one-step prediction error variance
+    PredictionVar_ -= var(current_index_-1) * (kalman_gain_ * kalman_gain_.t());
+    // compute the one-step state prediction coefficients: coefs(i|i) --> coefs(i+1|i)
+    rho_ = arma::exp(omega_ * dt_(current_index_-1));
+    state_const_ = rho_ % state_const_;
+    state_slope_ = rho_ % state_slope_;
+    // update the predicted state covariance matrix
+    PredictionVar_ = (rho_ * rho_.t()) % (PredictionVar_ - StateVar_) + StateVar_;
+    // compute the coefficients for the linear filter at time[ipredict], and compute the variance in the predicted
+    // y[ipredict]
+    std::vector<double> yconst(p_);
+    std::vector<double> yslope(p_);
+    for (int p=0; p < p_; p++) {
+       yconst[p] = std::real( arma::as_scalar(rotated_ma_coefs_[p] * state_const_[p]) );
+       yslope[p] = std::real( arma::as_scalar(rotated_ma_coefs_[p] * state_slope_[p]) );
+    }
+    yconst_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_const_) );
+    yslope_ = std::real( arma::as_scalar(rotated_ma_coefs_ * state_slope_) );
+    var(current_index_) = std::real( arma::as_scalar(rotated_ma_coefs_ * PredictionVar_ * rotated_ma_coefs_.t()) )
+        + yerr_(current_index_) * yerr_(current_index_);
+    current_index_++;
+    std::pair<std::vector<double>, std::vector<double> > coefs(yconst, yslope);
+    return coefs;
 }
