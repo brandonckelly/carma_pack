@@ -658,13 +658,21 @@ class CarmaSample(samplers.MCMCSample):
             mu = np.median(self._samples['mu'])
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
-        else:
+        elif bestfit == 'mean':
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             mu = np.mean(self._samples['mu'])
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
+        else:
+            # use a random draw from the posterior
+            random_index = np.random.random_integers(0, len(self._samples))
+            sigsqr = self._samples['sigma'][random_index] ** 2
+            mu = self._samples['mu'][random_index]
+            ar_roots = self._samples['ar_roots'][random_index]
+            ma_coefs = self._samples['ma_coefs'][random_index]
 
+        # expose C++ Kalman filter class to python
         kfilter = carmcmcLib.KalmanFilterp(arrayToVec(self.time),
                                            arrayToVec(self.y - mu),
                                            arrayToVec(self.ysig),
@@ -766,15 +774,15 @@ class CarmaSample(samplers.MCMCSample):
 
         :param time: A scalar or numpy array containing the time values to predict the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
-            mean ("mean") or the posterior median ("median").
+            mean ("mean"), the posterior median ("median"), or a random sample from the MCMC sampler ("random").
         :rtype : A tuple of numpy arrays containing the expected value and variance of the time series at the input
             time values.
         """
         bestfit = bestfit.lower()
         try:
-            bestfit in ['map', 'median', 'mean']
+            bestfit in ['map', 'median', 'mean', 'random']
         except ValueError:
-            "bestfit must be one of 'map, 'median', or 'mean'"
+            "bestfit must be one of 'map, 'median', 'mean', or 'random'"
 
         # note that KalmanFilter class assumes the time series has zero mean
         kfilter, mu = self.makeKalmanFilter(bestfit)
@@ -802,14 +810,14 @@ class CarmaSample(samplers.MCMCSample):
 
         :param time: A scalar or numpy array containing the time values to simulate the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
-            mean ("mean") or the posterior median ("median").
+            mean ("mean"), the posterior median ("median"), or a random sample from the MCMC sampler ("random").
         :rtype : The time series values simulated at the input values of time.
         """
         bestfit = bestfit.lower()
         try:
-            bestfit in ['map', 'median', 'mean']
+            bestfit in ['map', 'median', 'mean', 'random']
         except ValueError:
-            "bestfit must be one of 'map, 'median', or 'mean'"
+            "bestfit must be one of 'map, 'median', 'mean', 'random'"
 
         # note that KalmanFilter class assumes the time series has zero mean
         kfilter, mu = self.makeKalmanFilter(bestfit)
