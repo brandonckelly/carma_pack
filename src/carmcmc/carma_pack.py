@@ -761,8 +761,8 @@ class CarmaSample(samplers.MCMCSample):
 
     def predict(self, time, bestfit='map'):
         """
-        Return the predicted value of the lightcurve and its standard deviation at the input time(s) given the best-fit
-        value of the CARMA(p,q) model and the measured lightcurve.
+        Return the predicted value of the time series and its standard deviation at the input time(s) given the best-fit
+        value of the CARMA(p,q) model and the measured time series.
 
         :param time: A scalar or numpy array containing the time values to predict the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
@@ -797,8 +797,8 @@ class CarmaSample(samplers.MCMCSample):
 
     def simulate(self, time, bestfit='map'):
         """
-        Simulate a lightcurve at the input time(s) given the best-fit value of the CARMA(p,q) model and the measured
-        lightcurve.
+        Simulate a time series at the input time(s) given the best-fit value of the CARMA(p,q) model and the measured
+        time series.
 
         :param time: A scalar or numpy array containing the time values to simulate the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
@@ -1317,11 +1317,11 @@ class KalmanFilterDeprecated(object):
 
     def predict(self, time_predict):
         """
-        Return the predicted value of a lightcurve and its standard deviation at the input time given the input
-        values of the CARMA(p,q) model parameters and a measured lightcurve.
+        Return the predicted value of a time series and its standard deviation at the input time given the input
+        values of the CARMA(p,q) model parameters and a measured time series.
 
         :rtype : A tuple containing the predicted value and its variance.
-        :param time_predict: The time at which to predict the lightcurve.
+        :param time_predict: The time at which to predict the time series.
         """
         try:
             self.time.min() > time_predict
@@ -1430,11 +1430,11 @@ class KalmanFilterDeprecated(object):
 
     def simulate(self, time_simulate):
         """
-        Simulate a lightcurve at the input time values of time_simulate, given the measured lightcurve and input
+        Simulate a time series at the input time values of time_simulate, given the measured time series and input
         CARMA(p,q) parameters.
 
         :rtype : A scalar or numpy array, depending on type of time_simulate.
-        :param time_simulate: The time(s) at which to simulate a random draw of the lightcurve conditional on the
+        :param time_simulate: The time(s) at which to simulate a random draw of the time series conditional on the
             measured time series and the input parameters.
         """
 
