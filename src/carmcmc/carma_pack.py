@@ -691,7 +691,7 @@ class CarmaSample(samplers.MCMCSample):
         fig = plt.figure()
         # compute the marginal mean and variance of the predicted values
         time_predict = np.linspace(1.001 * self.time.min(), self.time.max(), nplot)
-        predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
+        predicted_mean, predicted_var = self.predict(time_predict, bestfit=bestfit)
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
 
@@ -759,7 +759,7 @@ class CarmaSample(samplers.MCMCSample):
         else:
             return fig
 
-    def predict_lightcurve(self, time, bestfit='median'):
+    def predict(self, time, bestfit='map'):
         """
         Return the predicted value of the lightcurve and its standard deviation at the input time(s) given the best-fit
         value of the CARMA(p,q) model and the measured lightcurve.
@@ -795,7 +795,7 @@ class CarmaSample(samplers.MCMCSample):
 
         return yhat, yhat_var
 
-    def simulate_lightcurve(self, time, bestfit='median'):
+    def simulate(self, time, bestfit='map'):
         """
         Simulate a lightcurve at the input time(s) given the best-fit value of the CARMA(p,q) model and the measured
         lightcurve.

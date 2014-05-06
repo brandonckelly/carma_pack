@@ -304,7 +304,7 @@ def do_simulated_irregular():
     nplot = 1028
     time_predict = np.linspace(time.min(), 1.25 * time.max(), nplot)
     time_predict = time_predict[1:]
-    predicted_mean, predicted_var = carma_sample.predict_lightcurve(time_predict, bestfit='map')
+    predicted_mean, predicted_var = carma_sample.predict(time_predict, bestfit='map')
     predicted_low = predicted_mean - np.sqrt(predicted_var)
     predicted_high = predicted_mean + np.sqrt(predicted_var)
 
@@ -454,7 +454,7 @@ def do_simulated_irregular_nonstationary():
     nplot = 1028
     time_predict = np.linspace(time.min(), 1.25 * time.max(), nplot)
     time_predict = time_predict[1:]
-    predicted_mean, predicted_var = carma_sample.predict_lightcurve(time_predict, bestfit='map')
+    predicted_mean, predicted_var = carma_sample.predict(time_predict, bestfit='map')
     predicted_low = predicted_mean - np.sqrt(predicted_var)
     predicted_high = predicted_mean + np.sqrt(predicted_var)
 
@@ -708,7 +708,7 @@ def do_OGLE_LPV():
     imag = data[:, 1]
     ierr = data[:, 2]
 
-    load_pickle = True
+    load_pickle = False
     if load_pickle:
         time = jdate
         ysig = ierr
@@ -901,10 +901,10 @@ def do_XRB():
 if __name__ == "__main__":
     # do_simulated_regular()
     # do_simulated_irregular()
-    do_simulated_irregular_nonstationary()
+    # do_simulated_irregular_nonstationary()
     # do_AGN_Stripe82()
     # do_AGN_Kepler()
     # do_RRLyrae()
-    # do_OGLE_LPV()
+    do_OGLE_LPV()
     # do_AGN_Xray()
     # do_XRB()
