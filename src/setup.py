@@ -27,6 +27,7 @@ if system_name == 'Darwin':
     # need to build against libc++ for Mac OS X
     compiler_args.append("-stdlib=libc++")
     boost_suffix = "-mt"
+    boost_suffix = ""
 else:
     compiler_args.append("-std=c++0x")
     boost_suffix = ""

@@ -658,13 +658,21 @@ class CarmaSample(samplers.MCMCSample):
             mu = np.median(self._samples['mu'])
             ar_roots = np.median(self._samples['ar_roots'], axis=0)
             ma_coefs = np.median(self._samples['ma_coefs'], axis=0)
-        else:
+        elif bestfit == 'mean':
             # use posterior mean as the best-fit
             sigsqr = np.mean(self._samples['sigma'] ** 2)
             mu = np.mean(self._samples['mu'])
             ar_roots = np.mean(self._samples['ar_roots'], axis=0)
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
+        else:
+            # use a random draw from the posterior
+            random_index = np.random.random_integers(0, len(self._samples))
+            sigsqr = (self._samples['sigma'][random_index] ** 2)[0]
+            mu = self._samples['mu'][random_index][0]
+            ar_roots = self._samples['ar_roots'][random_index]
+            ma_coefs = self._samples['ma_coefs'][random_index]
 
+        # expose C++ Kalman filter class to python
         kfilter = carmcmcLib.KalmanFilterp(arrayToVec(self.time),
                                            arrayToVec(self.y - mu),
                                            arrayToVec(self.ysig),
@@ -691,7 +699,7 @@ class CarmaSample(samplers.MCMCSample):
         fig = plt.figure()
         # compute the marginal mean and variance of the predicted values
         time_predict = np.linspace(1.001 * self.time.min(), self.time.max(), nplot)
-        predicted_mean, predicted_var = self.predict_lightcurve(time_predict, bestfit=bestfit)
+        predicted_mean, predicted_var = self.predict(time_predict, bestfit=bestfit)
         predicted_low = predicted_mean - np.sqrt(predicted_var)
         predicted_high = predicted_mean + np.sqrt(predicted_var)
 
@@ -759,22 +767,22 @@ class CarmaSample(samplers.MCMCSample):
         else:
             return fig
 
-    def predict_lightcurve(self, time, bestfit='median'):
+    def predict(self, time, bestfit='map'):
         """
-        Return the predicted value of the lightcurve and its standard deviation at the input time(s) given the best-fit
-        value of the CARMA(p,q) model and the measured lightcurve.
+        Return the predicted value of the time series and its standard deviation at the input time(s) given the best-fit
+        value of the CARMA(p,q) model and the measured time series.
 
         :param time: A scalar or numpy array containing the time values to predict the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
-            mean ("mean") or the posterior median ("median").
+            mean ("mean"), the posterior median ("median"), or a random sample from the MCMC sampler ("random").
         :rtype : A tuple of numpy arrays containing the expected value and variance of the time series at the input
             time values.
         """
         bestfit = bestfit.lower()
         try:
-            bestfit in ['map', 'median', 'mean']
+            bestfit in ['map', 'median', 'mean', 'random']
         except ValueError:
-            "bestfit must be one of 'map, 'median', or 'mean'"
+            "bestfit must be one of 'map, 'median', 'mean', or 'random'"
 
         # note that KalmanFilter class assumes the time series has zero mean
         kfilter, mu = self.makeKalmanFilter(bestfit)
@@ -795,21 +803,21 @@ class CarmaSample(samplers.MCMCSample):
 
         return yhat, yhat_var
 
-    def simulate_lightcurve(self, time, bestfit='median'):
+    def simulate(self, time, bestfit='map'):
         """
-        Simulate a lightcurve at the input time(s) given the best-fit value of the CARMA(p,q) model and the measured
-        lightcurve.
+        Simulate a time series at the input time(s) given the best-fit value of the CARMA(p,q) model and the measured
+        time series.
 
         :param time: A scalar or numpy array containing the time values to simulate the time series at.
         :param bestfit: A string specifying how to define 'best-fit'. Can be the Maximum Posterior (MAP), the posterior
-            mean ("mean") or the posterior median ("median").
+            mean ("mean"), the posterior median ("median"), or a random sample from the MCMC sampler ("random").
         :rtype : The time series values simulated at the input values of time.
         """
         bestfit = bestfit.lower()
         try:
-            bestfit in ['map', 'median', 'mean']
+            bestfit in ['map', 'median', 'mean', 'random']
         except ValueError:
-            "bestfit must be one of 'map, 'median', or 'mean'"
+            "bestfit must be one of 'map, 'median', 'mean', 'random'"
 
         # note that KalmanFilter class assumes the time series has zero mean
         kfilter, mu = self.makeKalmanFilter(bestfit)
@@ -1317,11 +1325,11 @@ class KalmanFilterDeprecated(object):
 
     def predict(self, time_predict):
         """
-        Return the predicted value of a lightcurve and its standard deviation at the input time given the input
-        values of the CARMA(p,q) model parameters and a measured lightcurve.
+        Return the predicted value of a time series and its standard deviation at the input time given the input
+        values of the CARMA(p,q) model parameters and a measured time series.
 
         :rtype : A tuple containing the predicted value and its variance.
-        :param time_predict: The time at which to predict the lightcurve.
+        :param time_predict: The time at which to predict the time series.
         """
         try:
             self.time.min() > time_predict
@@ -1430,11 +1438,11 @@ class KalmanFilterDeprecated(object):
 
     def simulate(self, time_simulate):
         """
-        Simulate a lightcurve at the input time values of time_simulate, given the measured lightcurve and input
+        Simulate a time series at the input time values of time_simulate, given the measured time series and input
         CARMA(p,q) parameters.
 
         :rtype : A scalar or numpy array, depending on type of time_simulate.
-        :param time_simulate: The time(s) at which to simulate a random draw of the lightcurve conditional on the
+        :param time_simulate: The time(s) at which to simulate a random draw of the time series conditional on the
             measured time series and the input parameters.
         """
 
