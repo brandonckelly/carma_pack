@@ -7,6 +7,8 @@ be used to model time series with irregular sampling. The MCMC sampler
 utilizes an adaptive Metropolis algorithm combined with parallel
 tempering. Further details are given in [this paper](http://arxiv.org/abs/1402.5978).
 
+For a guided tour of `carma_pack` see the `ipython` notebook under the `examples/` folder.
+
 ----------
 Quick Start
 ----------
@@ -125,5 +127,5 @@ libraries used.
 Examples
 --------
 
-The script carma_pack/src/paper/carma_paper.py generates the plots
-from the paper and provides examples of carma_pack's functionality.
+We have supplied an `ipython` notebook under the `examples/` folder this gives a guided tour of `carma_pack`. Also, the script carma_pack/src/paper/carma_paper.py generates the plots
+from the paper and provides additional examples of carma_pack's functionality.
