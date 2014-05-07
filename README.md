@@ -127,5 +127,5 @@ libraries used.
 Examples
 --------
 
-We have supplied an `ipython` notebook under the `examples/` folder this gives a guided tour of `carma_pack`. Also, the script carma_pack/src/paper/carma_paper.py generates the plots
+We have supplied an `ipython` notebook under the `examples/` folder that gives a guided tour of `carma_pack`. Also, the script carma_pack/src/paper/carma_paper.py generates the plots
 from the paper and provides additional examples of carma_pack's functionality.
