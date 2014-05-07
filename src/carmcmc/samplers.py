@@ -251,8 +251,8 @@ class MCMCSample(object):
         cont = axJ.contour(mesh1, mesh2, hist, clevels, linestyles="solid", cmap=plt.cm.jet)
         axX.hist(trace1, bins=100)
         axY.hist(trace2, orientation='horizontal', bins=100)
-        axJ.set_xlabel("par %d" % (pindex1))
-        axJ.set_ylabel("par %d" % (pindex2))
+        axJ.set_xlabel(name1 + '[' + str(pindex1) + ']')
+        axJ.set_ylabel(name2 + '[' + str(pindex2) + ']')
         plt.setp(axX.get_xticklabels()+axX.get_yticklabels(), visible=False)
         plt.setp(axY.get_xticklabels()+axY.get_yticklabels(), visible=False)
 
@@ -336,11 +336,11 @@ class MCMCSample(object):
                 # Parameter values are at least matrix-valued, reshape to a vector
                 traces = traces.reshape(traces.shape[0], np.prod(traces.shape[1:]))
             traces = traces[:, pindex]
-            plot_title = name + ", element " + str(pindex)
+            plot_title = name + "[" + str(pindex) + "]"
 
         # First plot the trace
         plt.subplot(211)
-        plt.plot(traces, '.', markersize=2)
+        plt.plot(traces, '.', markersize=2, alpha=0.5, rasterized=(len(traces) > 1e4))
         plt.xlim(0, traces.size)
         plt.xlabel("Iteration")
         plt.ylabel("Value")
@@ -352,19 +352,18 @@ class MCMCSample(object):
         # Stretch the PDF so that it is readable on the trace plot when plotted horizontally
         pdf = pdf / float(pdf.max()) * 0.34 * traces.size
         # Add the histogram to the plot
-        plt.barh(bin_edges, pdf, height=bin_edges[1] - bin_edges[0], alpha=0.75)
+        plt.barh(bin_edges, pdf, height=bin_edges[1] - bin_edges[0], alpha=0.5, color='DarkOrange')
 
         # Finally, plot the autocorrelation function of the trace
         plt.subplot(212)
         centered_trace = traces - traces.mean()
         lags, acf, not_needed1, not_needed2 = plt.acorr(centered_trace, maxlags=traces.size - 1, lw=2)
-        acf = acf[acf.size / 2:]
         plt.ylabel("ACF")
         plt.xlabel("Lag")
 
         # Compute the autocorrelation timescale, and then reset the x-axis limits accordingly
-        # acf_timescale = self.autocorr_timescale(traces)
-        plt.xlim(0, traces.size / 10.0)
+        acf_timescale = self.autocorr_timescale(traces[:, np.newaxis])
+        plt.xlim(0, np.min([5 * acf_timescale[0], len(traces)]))
         if doShow:
             plt.show()
 
@@ -374,13 +373,6 @@ class MCMCSample(object):
 
         :param name: The name of the parameter for which the summaries are desired.
         """
-        if not self._samples.has_key(name):
-            print "WARNING: sampler does not have", name
-            return
-        else:
-            print "Plotting parameter summary"
-            fig = plt.figure()
-
         traces = self._samples[name]  # Get the sampled parameter values
         effective_nsamples = self.effective_samples(name)  # Get the effective number of independent samples
         if traces.ndim == 1:
