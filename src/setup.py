@@ -26,10 +26,12 @@ if system_name == 'Darwin':
     compiler_args.append("-std=c++11")
     # need to build against libc++ for Mac OS X
     compiler_args.append("-stdlib=libc++")
-    boost_suffix = "-mt"
-    boost_suffix = ""
 else:
     compiler_args.append("-std=c++0x")
+
+if os.path.exists(os.path.join(BOOST_DIR, "lib", "libboost_filesystem-mt.dylib")):
+    boost_suffix = "-mt"
+else:
     boost_suffix = ""
 
 
