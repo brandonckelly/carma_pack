@@ -1,7 +1,7 @@
 carma_pack
 ========
 
-carma_pack is an MCMC sampler for performing bayesian inference on
+carma_pack is an MCMC sampler for performing Bayesian inference on
 continuous time autoregressive moving average models. These models may
 be used to model time series with irregular sampling. The MCMC sampler
 utilizes an adaptive Metropolis algorithm combined with parallel
