@@ -107,7 +107,7 @@ public:
     void Iterate(int number_of_iterations, bool progress = false);
 	
 	// Run MCMC sampler.
-    void Run();
+    void Run(arma::vec init);
 	
     // Return number of steps in one sampler iteration.
     int NumberOfSteps() {

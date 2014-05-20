@@ -54,7 +54,7 @@ void Sampler::Iterate(int number_of_iterations, bool progress) {
 }
 
 //Run the MCMC sampling procedure, including burning in, sampling, thinning, displaying progress, and saving results.
-void Sampler::Run() {
+void Sampler::Run(arma::vec init) {
 	// Timer
 	boost::timer timer;
 	current_iter_ = 0;
@@ -72,8 +72,26 @@ void Sampler::Run() {
 			
 	// Setting starting value:
 	std::cout << "Setting starting values..." << std::endl;
-	for (int i = 0; i < steps_.size(); ++i) {
-		steps_[i].Start();
+	int npar = static_cast<Parameter<arma::vec> *>(steps_[0].GetParPointer())->Value().n_elem;
+	bool useInit = (init.n_elem == npar);
+	if (useInit) 
+	   std::cout << " Using user-provided values" << std::endl;
+	else
+	   std::cout << " Drawn from priors" << std::endl;
+	   
+	for (unsigned int i = 0; i < steps_.size(); ++i) {
+	   if (useInit) {
+	      // BK: do we need to initialize the Kalman filter here?
+	      static_cast<Parameter<arma::vec> *>(steps_[i].GetParPointer())->Save(init);
+	   }
+	   else {
+	      steps_[i].Start();
+	   }
+
+	   // Just print out first set of parameter values
+	   if (i == 0) {
+	      std::cout << " ...Initializing " << static_cast<Parameter<arma::vec> *>(steps_[i].GetParPointer())->Value() << std::endl;
+	   }
 	}
 	
 	// Burn in

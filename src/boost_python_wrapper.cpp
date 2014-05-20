@@ -22,20 +22,8 @@
 
 using namespace boost::python;
 
-/*
-boost::shared_ptr<CAR1> runWrapper(int sample_size, int burnin,
-                                   std::vector<double> x, 
-                                   std::vector<double> y, 
-                                   std::vector<double> dy, 
-                                   int p, int nwalkers, int thin=1) {
-
-    // We may still need this around to cast the return object 
-    boost::shared_ptr<CAR1> retObject = 
-        RunEnsembleCarSampler(sample_size, burnin, x, y, dy, p, nwalkers, thin);
-
-    return retObject;
-}
-*/
+BOOST_PYTHON_FUNCTION_OVERLOADS(car1Overloads, RunCar1Sampler, 5, 7);
+BOOST_PYTHON_FUNCTION_OVERLOADS(carmaOverloads, RunCarmaSampler, 8, 11);
 
 BOOST_PYTHON_MODULE(_carmcmc){
     import_array();
@@ -84,17 +72,9 @@ BOOST_PYTHON_MODULE(_carmcmc){
         .def("SetMLE", &CARMA::SetMLE)
     ;
 
-//    class_<ZCARMA, bases<CARp>, std::shared_ptr<ZCARMA> >("ZCARMA", no_init)
-//        .def(init<bool,std::string,std::vector<double>,std::vector<double>,std::vector<double>,int,optional<double> >())
-//        .def("getLogPrior", &ZCARMA::getLogPrior)
-//        .def("getLogDensity", &ZCARMA::getLogDensity)
-//        .def("getSamples", &ZCARMA::getSamples)
-//        .def("GetLogLikes", &ZCARMA::GetLogLikes)
-//    ;
-// 
     // carmcmc.hpp
-    def("run_mcmc_car1", RunCar1Sampler);
-    def("run_mcmc_carma", RunCarmaSampler);
+    def("run_mcmc_car1", RunCar1Sampler, car1Overloads());
+    def("run_mcmc_carma", RunCarmaSampler, carmaOverloads());
 
     // kfilter.hpp
     class_<KalmanFilter<double>, boost::noncopyable>("KalmanFilter_double", no_init);
