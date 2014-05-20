@@ -59,13 +59,16 @@ class CarmaMCMC(object):
         self.nwalkers = nwalkers
         self.nthin = nthin
 
-    def RunMCMC(self, init=carmcmcLib.vecD()):
+    def RunMCMC(self, init=None):
         """
         Run the MCMC sampler. This is actually a wrapper that calls the C++ code that runs the MCMC sampler.
 
         :return: Either a CarmaSample, ZCarmaSample, or CarSample1 object, depending on the values of self.p and
                  self.doZcarma.
         """
+        if init is None:
+            init = carmcmcLib.vecD()
+            
         if self.p == 1:
             # Treat the CAR(1) case separately
             cppSample = carmcmcLib.run_mcmc_car1(self.nsamples, self.nburnin, self._time, self._y, self._ysig,
