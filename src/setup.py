@@ -13,19 +13,20 @@ NUMPY_DIR = os.environ["NUMPY_DIR"]
 CERES_DIR = os.environ["CERES_DIR"]
 GLOG_DIR = os.environ["GLOG_DIR"]
 GFLAGS_DIR = os.environ["GFLAGS_DIR"]
+EIGEN_DIR = os.environ["EIGEN_DIR"]
 include_dirs = [NUMPY_DIR + "/include", BOOST_DIR + "/include", 
                 ARMADILLO_DIR + "/include", CERES_DIR + "/include",
-                "include/", "/usr/include/"]
+                EIGEN_DIR, "include/", "/usr/include/"]
 
 for include_dir in numpy.distutils.misc_util.get_numpy_include_dirs():
     include_dirs.append(include_dir)
 
 library_dirs = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", 
-                ARMADILLO_DIR + "/lib", CERES_DIR + "/lib64", 
+                ARMADILLO_DIR + "/lib", CERES_DIR + "/lib", 
                 "/usr/lib/"]
 
 library_dirs_boost = [NUMPY_DIR + "/lib", BOOST_DIR + "/lib", 
-                      ARMADILLO_DIR + "/lib", CERES_DIR + "/lib64", 
+                      ARMADILLO_DIR + "/lib", CERES_DIR + "/lib", 
                       GLOG_DIR + "/lib", GFLAGS_DIR + "/lib",
                       "/usr/lib/", "/usr/lib64/"]
 
@@ -56,7 +57,7 @@ def configuration(parent_package='', top_path=None):
                  "samplers.cpp", "random.cpp", "steps.cpp", "ceres.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "ceres"],
+        libraries=["boost_python-mt", "boost_filesystem-mt", "boost_system-mt", "armadillo", "ceres"],
         extra_compiler_args=compiler_args
     )
     config.add_extension(
@@ -64,7 +65,7 @@ def configuration(parent_package='', top_path=None):
         sources=["boost_python_wrapper.cpp", "carmcmc.cpp", "ceres.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs_boost,
-        libraries=["boost_python", "boost_filesystem", "boost_system", "armadillo", "ceres", "carmcmc", "glog", "gflags", "gomp"],
+        libraries=["boost_python-mt", "boost_filesystem-mt", "boost_system-mt", "armadillo", "ceres", "carmcmc", "glog", "gflags"],
         extra_compile_args=compiler_args
     )
     config.add_data_dir(("../../../../include", "include"))
