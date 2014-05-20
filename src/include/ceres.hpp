@@ -23,7 +23,7 @@ class CarCostFunction : public ceres::CostFunction {
                           double* residuals,
                           double** jacobians) const {
         arma::vec theta(nterms_);
-        std::cout << "DEBUG ";
+        //std::cout << "DEBUG ";
         for (int i = 0; i < nterms_; i++) {
             theta[i] = params[0][i];
             std::cout << params[0][i] << " ";
@@ -63,7 +63,7 @@ class CarpCostFunction : public ceres::CostFunction {
                           double* residuals,
                           double** jacobians) const {
         arma::vec theta(nterms_);
-        std::cout << "DEBUG ";
+        //std::cout << "DEBUG ";
         for (int i = 0; i < nterms_; i++) {
             theta[i] = params[0][i];
             std::cout << params[0][i] << " ";
