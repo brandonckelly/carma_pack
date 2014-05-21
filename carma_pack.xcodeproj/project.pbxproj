@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */; };
+		556E3D3A17668A3700C3A045 /* cpp_tests in Sources */ = {isa = PBXBuildFile; fileRef = 556E3D3917668A3700C3A045 /* cpp_tests */; };
 		556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
 		DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
 		DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84C1778CD3E00762288 /* carmcmc.cpp */; };
@@ -36,7 +36,7 @@
 
 /* Begin PBXFileReference section */
 		556E3D301766895F00C3A045 /* carma_unit_tests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = carma_unit_tests; sourceTree = BUILT_PRODUCTS_DIR; };
-		556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = carma_unit_tests.cpp; path = tests/carma_unit_tests.cpp; sourceTree = "<group>"; };
+		556E3D3917668A3700C3A045 /* cpp_tests */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = folder; path = cpp_tests; sourceTree = "<group>"; };
 		DF4DAD10177CF6900007879A /* kfilter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kfilter.cpp; sourceTree = "<group>"; };
 		DF4DAD14177CF6BE0007879A /* kfilter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = kfilter.hpp; sourceTree = "<group>"; };
 		DF67DCD317D8F22B00DE1DCA /* testHang.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = testHang.py; sourceTree = "<group>"; };
@@ -101,7 +101,7 @@
 			children = (
 				DFA8DA9817712B6900C76A3E /* data */,
 				DFA8DA9B17712B6900C76A3E /* generate_test_data.py */,
-				556E3D3917668A3700C3A045 /* carma_unit_tests.cpp */,
+				556E3D3917668A3700C3A045 /* cpp_tests */,
 			);
 			name = tests;
 			sourceTree = "<group>";
@@ -301,7 +301,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				556E3D3A17668A3700C3A045 /* carma_unit_tests.cpp in Sources */,
+				556E3D3A17668A3700C3A045 /* cpp_tests in Sources */,
 				DFF5F73A18414DBC00E74CA1 /* steps.cpp in Sources */,
 				DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */,
 				DFF5F73818414DBC00E74CA1 /* random.cpp in Sources */,
