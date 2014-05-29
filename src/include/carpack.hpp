@@ -267,6 +267,7 @@ public:
     
     // generate starting values of the CAR(1) parameters
 	arma::vec StartingValue();
+    arma::vec SetStartingValue(arma::vec init);
     
     // return the variance of a CAR(1) process
     double ExtractSigsqr(arma::vec theta) {
@@ -301,7 +302,8 @@ public:
     
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
-    // return the starting values for the AR and MA parameters
+    arma::vec SetStartingValue(arma::vec init);
+     // return the starting values for the AR and MA parameters
     arma::vec StartingAR();
 
     // extract the lorentzian parameters from the CARMA parameter vector
@@ -378,6 +380,8 @@ public:
 
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
+    arma::vec SetStartingValue(arma::vec init);
+ 
     // return the starting value for the MA coefficients
     arma::vec StartingMA();
     
@@ -417,7 +421,8 @@ public:
     
     // Return the starting value and set log_posterior_
 	arma::vec StartingValue();
-    // Return the starting value for the kappa parameter
+    arma::vec SetStartingValue(arma::vec init);
+     // Return the starting value for the kappa parameter
     double StartingKappa();
     
     // extract the moving-average parameters from the CARMA parameter vector

@@ -80,13 +80,10 @@ void Sampler::Run(arma::vec init) {
 	   std::cout << " Drawn from priors" << std::endl;
 	   
 	for (unsigned int i = 0; i < steps_.size(); ++i) {
-	   if (useInit) {
-	      // BK: do we need to initialize the Kalman filter here?
-	      static_cast<Parameter<arma::vec> *>(steps_[i].GetParPointer())->Save(init);
-	   }
-	   else {
+	   if (useInit) 
+	      steps_[i].Start(init);
+	   else 
 	      steps_[i].Start();
-	   }
 
 	   // Just print out first set of parameter values
 	   if (i == 0) {

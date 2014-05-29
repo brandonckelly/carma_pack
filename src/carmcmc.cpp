@@ -141,7 +141,7 @@ RunCarmaSampler(int sample_size, int burnin, std::vector<double> time, std::vect
     double target_rate = 0.25;
     
     // Instantiate MCMC Sampler object for CAR process
-	Sampler CarModel(sample_size, burnin, thin);
+    Sampler CarModel(sample_size, burnin, thin);
     
     // Add the steps to the sampler, starting with the hottest chain first
     for (int i=nwalkers-1; i>0; i--) {

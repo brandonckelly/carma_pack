@@ -51,6 +51,7 @@ public:
 	// Set starting value for the parameter associated with a step instance. Should call the parameter's
     // Parameter::Starting function and then saves the result using Parameter::Save.
 	virtual void Start() = 0;
+   virtual void Start(arma::vec init) = 0;
 	
 	// Should return the label of the parameter associated with the step instance.
 	virtual std::string ParameterLabel() {
@@ -90,6 +91,10 @@ public:
 
 	void Start() {
 		parameter_.Save(parameter_.StartingValue());
+	}
+
+   void Start(arma::vec init) {
+		parameter_.Save(parameter_.SetStartingValue(init));
 	}
 	
 	// Return string of parameter label
@@ -136,6 +141,9 @@ public:
 	
 	void Start() {
 		parameter_.Save(parameter_.StartingValue());
+	}
+   void Start(arma::vec init) {
+		parameter_.Save(parameter_.SetStartingValue(init));
 	}
     
 	std::string ParameterLabel() {
@@ -236,6 +244,9 @@ public:
 	void Start() {
 		parameter_.Save(parameter_.StartingValue());
 	}
+	void Start(arma::vec init) {
+		parameter_.Save(parameter_.SetStartingValue(init));
+	}
 	
 	std::string ParameterLabel() {
 		return parameter_.Label();
@@ -322,6 +333,9 @@ public:
     // Method to initialize the parameter value
 	void Start() {
 		parameter_.Save(parameter_.StartingValue());
+	}
+	void Start(ParValueType init) {
+		parameter_.Save(parameter_.SetStartingValue(init));
 	}
 	
 	// Return string of parameter label

@@ -82,12 +82,12 @@ public:
 
     
 protected:
-    // Temperature value, used when doing tempered steps. By default this is one.
-    double temperature_;
 	/// Should this variable be tracked?
 	bool track_;
 	/// Name of variable for tracking purposes.
 	std::string label_;
+    // Temperature value, used when doing tempered steps. By default this is one.
+    double temperature_;
     double log_posterior_; // The log of the posterior distribution
 };
 
@@ -103,6 +103,9 @@ public:
     
 	// Method to return the starting value for the parameter.
 	virtual ParValueType StartingValue() = 0;
+
+   // Method to set the starting value of the parameter
+   virtual ParValueType SetStartingValue(ParValueType init) = 0;
 	
 	// Method to return the log of the probability density (plus constant).
 	// value: Value of parameter to evaluate density at.
