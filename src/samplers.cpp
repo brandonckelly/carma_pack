@@ -80,14 +80,15 @@ void Sampler::Run(arma::vec init) {
 	   std::cout << " Drawn from priors" << std::endl;
 	   
 	for (unsigned int i = 0; i < steps_.size(); ++i) {
+	   Parameter<arma::vec> *par = static_cast<Parameter<arma::vec> *>(steps_[i].GetParPointer());
 	   if (useInit) 
-	      steps_[i].Start(init);
+	      par->Save(par->SetStartingValue(init));
 	   else 
-	      steps_[i].Start();
+	      par->Save(par->StartingValue());
 
 	   // Just print out first set of parameter values
 	   if (i == 0) {
-	      std::cout << " ...Initializing " << static_cast<Parameter<arma::vec> *>(steps_[i].GetParPointer())->Value() << std::endl;
+	      std::cout << " ...Initializing " << par->Value() << std::endl;
 	   }
 	}
 	

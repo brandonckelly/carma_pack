@@ -48,10 +48,6 @@ std::string to_string (const T& t) {
 class Step {
 public:
 	virtual void DoStep() = 0;
-	// Set starting value for the parameter associated with a step instance. Should call the parameter's
-    // Parameter::Starting function and then saves the result using Parameter::Save.
-	virtual void Start() = 0;
-   virtual void Start(arma::vec init) = 0;
 	
 	// Should return the label of the parameter associated with the step instance.
 	virtual std::string ParameterLabel() {
@@ -89,14 +85,6 @@ public:
 		parameter_.Save(parameter_.RandomPosterior());
 	}
 
-	void Start() {
-		parameter_.Save(parameter_.StartingValue());
-	}
-
-   void Start(arma::vec init) {
-		parameter_.Save(parameter_.SetStartingValue(init));
-	}
-	
 	// Return string of parameter label
 	std::string ParameterLabel() {
 		return parameter_.Label();
@@ -139,13 +127,6 @@ public:
 		niter_ = 0;
 	}
 	
-	void Start() {
-		parameter_.Save(parameter_.StartingValue());
-	}
-   void Start(arma::vec init) {
-		parameter_.Save(parameter_.SetStartingValue(init));
-	}
-    
 	std::string ParameterLabel() {
 		return parameter_.Label();
 	}
@@ -241,13 +222,6 @@ public:
 	AdaptiveMetro(Parameter<arma::vec>& parameter, Proposal<double>& proposal,
 				  arma::mat proposal_covar, double target_rate, int maxiter);
     
-	void Start() {
-		parameter_.Save(parameter_.StartingValue());
-	}
-	void Start(arma::vec init) {
-		parameter_.Save(parameter_.SetStartingValue(init));
-	}
-	
 	std::string ParameterLabel() {
 		return parameter_.Label();
 	}
@@ -330,14 +304,6 @@ public:
         niter_ = 0;
     }
     
-    // Method to initialize the parameter value
-	void Start() {
-		parameter_.Save(parameter_.StartingValue());
-	}
-	void Start(ParValueType init) {
-		parameter_.Save(parameter_.SetStartingValue(init));
-	}
-	
 	// Return string of parameter label
 	std::string ParameterLabel() {
 		return parameter_.Label();
