@@ -80,6 +80,39 @@ arma::vec CAR1::StartingValue()
 	return theta;
 }
 
+arma::vec CAR1::SetStartingValue(arma::vec init)
+{
+   if (init.n_elem != 4) {
+      std::cout << "WARNING: initial guess not length 4, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+
+   double logpost = LogDensity(init);
+   bool good_initials = arma::is_finite(logpost);
+   if (good_initials == false) {
+      std::cout << "WARNING: initial guess yields non-finite likelihood, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+      
+   double mu, log_omega_start, car1_stdev_start, sigma, measerr_scale;
+   car1_stdev_start = init[0];
+   measerr_scale    = init[1];
+   mu               = init[2];
+   log_omega_start  = init[3];
+   sigma            = car1_stdev_start * sqrt(2.0 * exp(log_omega_start));
+
+   pKFilter_->SetOmega(exp(log_omega_start));
+   pKFilter_->SetSigsqr(sigma * sigma);
+   arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+   pKFilter_->SetTimeSeriesErr(proposed_yerr);
+   arma::vec ycent = y_ - mu;
+   pKFilter_->SetTimeSeries(ycent);
+   pKFilter_->Filter();
+
+   return init;
+}
+
+
 bool CAR1::CheckPriorBounds(arma::vec theta)
 {
     double ysigma = theta(0);
@@ -194,6 +227,41 @@ arma::vec CARp::StartingValue()
     } // continue loop until the starting values give us a finite posterior
     
     return theta;
+}
+
+// Return the starting value and set log_posterior_
+arma::vec CARp::SetStartingValue(arma::vec init)
+{
+
+   if (init.n_elem != (p_+3)) {
+      std::cout << "WARNING: initial guess wrong length, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+
+   double logpost = LogDensity(init);
+   bool good_initials = arma::is_finite(logpost);
+   if (good_initials == false) {
+      std::cout << "WARNING: initial guess yields non-finite likelihood, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+
+   double yvar = init(0)*init(0);
+   double measerr_scale = init(1);
+   double mu = init(2);
+
+   arma::cx_vec alpha_roots = ARRoots(init);
+   double sigsqr = yvar / Variance(alpha_roots, ma_coefs_, 1.0);
+   
+   // set the Kalman filter parameters
+   pKFilter_->SetSigsqr(sigsqr);
+   pKFilter_->SetOmega(ExtractAR(init));
+   arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+   pKFilter_->SetTimeSeriesErr(proposed_yerr);
+   arma::vec ycent = y_ - mu;
+   pKFilter_->SetTimeSeries(ycent);
+   pKFilter_->Filter();
+
+   return init;
 }
 
 // return the starting values for the autoregressive polynomial paramters
@@ -408,6 +476,41 @@ arma::vec CARMA::StartingValue()
     return theta;
 }
 
+arma::vec CARMA::SetStartingValue(arma::vec init)
+{
+   if (init.n_elem != (p_+q_+3)) {
+      std::cout << "WARNING: initial guess wrong length, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+
+   double logpost = LogDensity(init);
+   bool good_initials = arma::is_finite(logpost);
+   if (good_initials == false) {
+      std::cout << "WARNING: initial guess yields non-finite likelihood, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+   
+   double yvar          = init(0)*init(0);        
+   double measerr_scale = init(1);
+   double mu            = init(2);
+   
+   arma::cx_vec alpha_roots = ARRoots(init);
+   arma::vec ma_coefs       = ExtractMA(init);
+   double sigsqr            = yvar / Variance(alpha_roots, ma_coefs, 1.0);
+   
+   // set the Kalman filter parameters
+   pKFilter_->SetSigsqr(sigsqr);
+   pKFilter_->SetOmega(ExtractAR(init));
+   pKFilter_->SetMA(ExtractMA(init));
+   arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+   pKFilter_->SetTimeSeriesErr(proposed_yerr);
+   arma::vec ycent = y_ - mu;
+   pKFilter_->SetTimeSeries(ycent);
+   pKFilter_->Filter();
+   
+   return init;
+}
+
 // get initial guess for the moving average polynomial coefficients
 arma::vec CARMA::StartingMA() {
     arma::vec ma_quad(q_);
@@ -538,6 +641,40 @@ arma::vec ZCARMA::StartingValue()
     } // continue loop until the starting values give us a finite posterior
     
     return theta;
+}
+
+arma::vec ZCARMA::SetStartingValue(arma::vec init)
+{
+   if (init.n_elem != (p_+4)) {
+      std::cout << "WARNING: initial guess wrong length, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+
+   double logpost = LogDensity(init);
+   bool good_initials = arma::is_finite(logpost);
+   if (good_initials == false) {
+      std::cout << "WARNING: initial guess yields non-finite likelihood, initializing with prior" << std::endl;
+      return StartingValue();
+   }
+
+   double yvar          = init(0)*init(0);        
+   double measerr_scale = init(1);
+   double mu            = init(2);
+
+   arma::cx_vec alpha_roots = ARRoots(init);
+   arma::vec ma_coefs = ExtractMA(init);
+   double sigsqr = yvar / Variance(alpha_roots, ma_coefs, 1.0);
+
+   pKFilter_->SetSigsqr(sigsqr);
+   pKFilter_->SetOmega(ExtractAR(init));
+   pKFilter_->SetMA(ma_coefs);
+   arma::vec proposed_yerr = sqrt(measerr_scale) * yerr_;
+   pKFilter_->SetTimeSeriesErr(proposed_yerr);
+   arma::vec ycent = y_ - mu;
+   pKFilter_->SetTimeSeries(ycent);
+   pKFilter_->Filter();
+
+   return init;
 }
 
 // get initial guess for the moving average polynomial coefficients, parameterized by kappa

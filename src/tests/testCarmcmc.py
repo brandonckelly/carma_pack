@@ -12,10 +12,15 @@ class TestCarpackOrder(unittest.TestCase):
         self.nThin = 1
         self.nWalkers = 2
 
-        self.x = 1.0 * np.arange(10)
-        self.y = 1.0 * np.random.random(10)
-        self.dy = 0.1 * np.random.random(10)
-
+        npts = 10
+        self.x = 1.0 * np.arange(npts)
+        ar_roots = np.array([-0.06283185-1.25663706j, -0.06283185+1.25663706j,
+                             -0.02094395-0.25132741j, -0.02094395+0.25132741j,
+                             -0.03141593+0.j])
+        sigsqr = 0.00126811439419
+        
+        self.y = carmcmc.carma_process(self.x, sigsqr, ar_roots)
+        self.dy = np.sqrt(sigsqr) * np.ones(npts)
         self.xdata = carmcmc.vecD()
         self.xdata.extend(self.x)
         self.ydata = carmcmc.vecD()
@@ -36,6 +41,12 @@ class TestCarpackOrder(unittest.TestCase):
         loglike0 = cppSample.getLogDensity(sample0)
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
+    def testCar1Defaults(self):
+        cppSample = carmcmc.run_mcmc_car1(self.nSample, self.nBurnin, self.xdata, self.ydata, self.dydata)
+        cppSample = carmcmc.run_mcmc_car1(self.nSample, self.nBurnin, self.xdata, self.ydata, self.dydata, self.nThin)
+        guess     = cppSample.getSamples()[0]
+        cppSample = carmcmc.run_mcmc_car1(self.nSample, self.nBurnin, self.xdata, self.ydata, self.dydata, self.nThin, guess)
+
     def testCarp(self, pModel=3):
         qModel  = 0
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
@@ -53,10 +64,29 @@ class TestCarpackOrder(unittest.TestCase):
         # OK, this is where I truly test that sampler is of class CARp and not CAR1
         self.assertAlmostEqual(ploglikes[0], loglike0)
 
+    def testCarpDefaults(self):
+        pModel  = 3
+        qModel  = 1
+        cppSample = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
+                                           self.xdata, self.ydata, self.dydata,
+                                           pModel, qModel, self.nWalkers)
+        cppSample = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
+                                           self.xdata, self.ydata, self.dydata,
+                                           pModel, qModel, self.nWalkers, False)
+        cppSample = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
+                                           self.xdata, self.ydata, self.dydata,
+                                           pModel, qModel, self.nWalkers, False, self.nThin)
+        guess     = cppSample.getSamples()[0]
+        print "Should be using:", np.array(guess)
+        cppSample = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
+                                           self.xdata, self.ydata, self.dydata,
+                                           pModel, qModel, self.nWalkers, False, self.nThin, guess)
+        
+
     def testCarpq(self, pModel=3, qModel=2):
         sampler = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
-                                          self.xdata, self.ydata, self.dydata, 
-                                          pModel, qModel, self.nWalkers, False, self.nThin)
+                                         self.xdata, self.ydata, self.dydata, 
+                                         pModel, qModel, self.nWalkers, False, self.nThin)
         psampler = carmcmc.CarmaSample(np.array(self.xdata), np.array(self.ydata), np.array(self.dydata), sampler)
         self.assertEqual(psampler.p, pModel+qModel)
 
@@ -149,8 +179,7 @@ class TestCarpackOrder(unittest.TestCase):
         postp.plot_1dpdf("mu")
         postpqo.plot_1dpdf("mu")
         postpqe.plot_1dpdf("mu")
-        
-        post1.plot_1dpdf("psd_centroid")
+
         postp.plot_1dpdf("psd_centroid")
         postpqo.plot_1dpdf("psd_width")
         postpqe.plot_1dpdf("psd_width")
@@ -165,17 +194,14 @@ class TestCarpackOrder(unittest.TestCase):
         postpqo.plot_2dkde("sigma", "var", pindex1=1, pindex2=1)
         postpqe.plot_2dkde("sigma", "var", pindex1=2, pindex2=2)
         
-        post1.plot_autocorr("psd_centroid")
         postp.plot_autocorr("psd_centroid")
         postpqo.plot_autocorr("psd_centroid")
         postpqe.plot_autocorr("psd_centroid")
         
-        post1.plot_parameter("psd_centroid")
         postp.plot_parameter("psd_centroid")
         postpqo.plot_parameter("psd_centroid")
         postpqe.plot_parameter("psd_centroid")
         
-        post1.posterior_summaries("psd_width")
         postp.posterior_summaries("psd_width")
         postpqo.posterior_summaries("psd_width")
         postpqe.posterior_summaries("psd_width")

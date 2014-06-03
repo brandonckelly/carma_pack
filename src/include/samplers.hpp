@@ -101,13 +101,13 @@ public:
     Sampler(int sample_size, int burnin, int thin=1) : sample_size_(sample_size), burnin_(burnin), thin_(thin) {};
 	
     // Method to add Step to Sampler execution stack.
-    void AddStep(Step* step);
+   void AddStep(Step* step);
 	
     // Run sampler for a specific number of iterations.
     void Iterate(int number_of_iterations, bool progress = false);
 	
 	// Run MCMC sampler.
-    void Run();
+   void Run(arma::vec init);
 	
     // Return number of steps in one sampler iteration.
     int NumberOfSteps() {
@@ -137,7 +137,7 @@ protected:
     int current_iter_;
     int burnin_;
     int thin_;
-    boost::ptr_vector<Step> steps_;
+   boost::ptr_vector<Step> steps_;
     std::map<std::string, BaseParameter*> p_tracked_parameters_;
     std::set<std::string> tracked_names_;
 };
