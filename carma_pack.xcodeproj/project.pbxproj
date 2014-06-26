@@ -10,6 +10,12 @@
 		556E3D3A17668A3700C3A045 /* cpp_tests in Sources */ = {isa = PBXBuildFile; fileRef = 556E3D3917668A3700C3A045 /* cpp_tests */; };
 		556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
 		DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
+		DFAA05BC195BA54900F82A33 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFAA05BB195BA54900F82A33 /* main.cpp */; };
+		DFAA05BE195BA54900F82A33 /* speed_comparison.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DFAA05BD195BA54900F82A33 /* speed_comparison.1 */; };
+		DFAA05C2195BA57C00F82A33 /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
+		DFAA05C4195BA5A000F82A33 /* libarmadillo.4.30.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFAA05C3195BA5A000F82A33 /* libarmadillo.4.30.2.dylib */; };
+		DFAA05C5195BA5B500F82A33 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
+		DFAA05C6195BA5C800F82A33 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */; };
 		DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84C1778CD3E00762288 /* carmcmc.cpp */; };
 		DFBDE8641778CD6700762288 /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84D1778CD3E00762288 /* carpack.cpp */; };
 		DFF1EDAF17BD8FAB00B3A2AC /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */; };
@@ -32,6 +38,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
+		DFAA05B7195BA54900F82A33 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+				DFAA05BE195BA54900F82A33 /* speed_comparison.1 in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +60,10 @@
 		DFA8DA9917712B6900C76A3E /* car1_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car1_test.dat; sourceTree = "<group>"; };
 		DFA8DA9A17712B6900C76A3E /* car5_test.dat */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = car5_test.dat; sourceTree = "<group>"; };
 		DFA8DA9B17712B6900C76A3E /* generate_test_data.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = generate_test_data.py; path = tests/generate_test_data.py; sourceTree = "<group>"; };
+		DFAA05B9195BA54900F82A33 /* speed_comparison */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = speed_comparison; sourceTree = BUILT_PRODUCTS_DIR; };
+		DFAA05BB195BA54900F82A33 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		DFAA05BD195BA54900F82A33 /* speed_comparison.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = speed_comparison.1; sourceTree = "<group>"; };
+		DFAA05C3195BA5A000F82A33 /* libarmadillo.4.30.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.4.30.2.dylib; path = ../../lib/libarmadillo.4.30.2.dylib; sourceTree = "<group>"; };
 		DFBDE83B1778CD3E00762288 /* boost_python_wrapper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = boost_python_wrapper.cpp; sourceTree = "<group>"; };
 		DFBDE83F1778CD3E00762288 /* _carmcmc.so */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.bundle"; path = _carmcmc.so; sourceTree = "<group>"; };
 		DFBDE8411778CD3E00762288 /* boost_python_wrapper.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; path = boost_python_wrapper.o; sourceTree = "<group>"; };
@@ -93,6 +113,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DFAA05B6195BA54900F82A33 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DFAA05C6195BA5C800F82A33 /* libboost_system.dylib in Frameworks */,
+				DFAA05C5195BA5B500F82A33 /* Accelerate.framework in Frameworks */,
+				DFAA05C4195BA5A000F82A33 /* libarmadillo.4.30.2.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -114,6 +144,15 @@
 			);
 			name = data;
 			path = tests/data;
+			sourceTree = "<group>";
+		};
+		DFAA05BA195BA54900F82A33 /* speed_comparison */ = {
+			isa = PBXGroup;
+			children = (
+				DFAA05BB195BA54900F82A33 /* main.cpp */,
+				DFAA05BD195BA54900F82A33 /* speed_comparison.1 */,
+			);
+			path = speed_comparison;
 			sourceTree = "<group>";
 		};
 		DFBDE83A1778CD3E00762288 /* src */ = {
@@ -222,10 +261,12 @@
 		DFD8B806172B290C006D6BAB = {
 			isa = PBXGroup;
 			children = (
+				DFAA05C3195BA5A000F82A33 /* libarmadillo.4.30.2.dylib */,
 				DFBDE83A1778CD3E00762288 /* src */,
 				DFA8DA9517712B3600C76A3E /* Makefile */,
 				556E3D2B176688AB00C3A045 /* tests */,
 				DFF0764E1734A07A006CB328 /* Libraries */,
+				DFAA05BA195BA54900F82A33 /* speed_comparison */,
 				DFD8B810172B290C006D6BAB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -234,6 +275,7 @@
 			isa = PBXGroup;
 			children = (
 				556E3D301766895F00C3A045 /* carma_unit_tests */,
+				DFAA05B9195BA54900F82A33 /* speed_comparison */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -270,6 +312,23 @@
 			productReference = 556E3D301766895F00C3A045 /* carma_unit_tests */;
 			productType = "com.apple.product-type.tool";
 		};
+		DFAA05B8195BA54900F82A33 /* speed_comparison */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DFAA05C1195BA54900F82A33 /* Build configuration list for PBXNativeTarget "speed_comparison" */;
+			buildPhases = (
+				DFAA05B5195BA54900F82A33 /* Sources */,
+				DFAA05B6195BA54900F82A33 /* Frameworks */,
+				DFAA05B7195BA54900F82A33 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = speed_comparison;
+			productName = speed_comparison;
+			productReference = DFAA05B9195BA54900F82A33 /* speed_comparison */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -292,6 +351,7 @@
 			projectRoot = "";
 			targets = (
 				556E3D2F1766895F00C3A045 /* carma_unit_tests */,
+				DFAA05B8195BA54900F82A33 /* speed_comparison */,
 			);
 		};
 /* End PBXProject section */
@@ -309,6 +369,15 @@
 				DFF5F73718414DBC00E74CA1 /* proposals.cpp in Sources */,
 				DFBDE8641778CD6700762288 /* carpack.cpp in Sources */,
 				DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DFAA05B5195BA54900F82A33 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DFAA05C2195BA57C00F82A33 /* kfilter.cpp in Sources */,
+				DFAA05BC195BA54900F82A33 /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -333,6 +402,54 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../lib\"",
 				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		DFAA05BF195BA54900F82A33 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/Users/brandonkelly/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		DFAA05C0195BA54900F82A33 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/Users/brandonkelly/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -427,6 +544,14 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		DFAA05C1195BA54900F82A33 /* Build configuration list for PBXNativeTarget "speed_comparison" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DFAA05BF195BA54900F82A33 /* Debug */,
+				DFAA05C0195BA54900F82A33 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
 		};
 		DFD8B80A172B290C006D6BAB /* Build configuration list for PBXProject "carma_pack" */ = {
 			isa = XCConfigurationList;
