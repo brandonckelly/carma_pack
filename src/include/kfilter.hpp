@@ -12,6 +12,7 @@
 #include <armadillo>
 #include <utility>
 #include <boost/assert.hpp>
+#include "random.hpp"
 
 // Global random number generator object, instantiated in random.cpp
 extern boost::random::mt19937 rng;

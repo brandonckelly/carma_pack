@@ -10,6 +10,15 @@
 		556E3D3A17668A3700C3A045 /* cpp_tests in Sources */ = {isa = PBXBuildFile; fileRef = 556E3D3917668A3700C3A045 /* cpp_tests */; };
 		556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF0764C17349F5A006CB328 /* Accelerate.framework */; };
 		DF4DAD13177CF6900007879A /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
+		DF583E73195C7AEC003E6B25 /* random.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73418414DBC00E74CA1 /* random.cpp */; };
+		DF583E74195C7B08003E6B25 /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84D1778CD3E00762288 /* carpack.cpp */; };
+		DF583E75195C7B29003E6B25 /* proposals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73318414DBC00E74CA1 /* proposals.cpp */; };
+		DF583E76195C7B29003E6B25 /* samplers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73518414DBC00E74CA1 /* samplers.cpp */; };
+		DF583E77195C7B29003E6B25 /* steps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73618414DBC00E74CA1 /* steps.cpp */; };
+		DF583E78195C7CAE003E6B25 /* libarmadillo.4.30.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFAA05C3195BA5A000F82A33 /* libarmadillo.4.30.2.dylib */; };
+		DF583E79195C7D5B003E6B25 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */; };
+		DF583E7A195C7D9A003E6B25 /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */; };
+		DF583E7B195C87F8003E6B25 /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */; };
 		DFAA05BC195BA54900F82A33 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFAA05BB195BA54900F82A33 /* main.cpp */; };
 		DFAA05BE195BA54900F82A33 /* speed_comparison.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DFAA05BD195BA54900F82A33 /* speed_comparison.1 */; };
 		DFAA05C2195BA57C00F82A33 /* kfilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF4DAD10177CF6900007879A /* kfilter.cpp */; };
@@ -18,9 +27,6 @@
 		DFAA05C6195BA5C800F82A33 /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */; };
 		DFBDE8631778CD6300762288 /* carmcmc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84C1778CD3E00762288 /* carmcmc.cpp */; };
 		DFBDE8641778CD6700762288 /* carpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFBDE84D1778CD3E00762288 /* carpack.cpp */; };
-		DFF1EDAF17BD8FAB00B3A2AC /* libboost_filesystem.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAC17BD8FAB00B3A2AC /* libboost_filesystem.dylib */; };
-		DFF1EDB017BD8FAB00B3A2AC /* libboost_system.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDAD17BD8FAB00B3A2AC /* libboost_system.dylib */; };
-		DFF1EDB317BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDB217BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib */; };
 		DFF1EDB517BD90EF00B3A2AC /* libyamcmcpp.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF1EDB417BD90EF00B3A2AC /* libyamcmcpp.dylib */; };
 		DFF5F73718414DBC00E74CA1 /* proposals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73318414DBC00E74CA1 /* proposals.cpp */; };
 		DFF5F73818414DBC00E74CA1 /* random.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DFF5F73418414DBC00E74CA1 /* random.cpp */; };
@@ -105,10 +111,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DF583E7A195C7D9A003E6B25 /* libboost_filesystem.dylib in Frameworks */,
+				DF583E79195C7D5B003E6B25 /* libboost_system.dylib in Frameworks */,
+				DF583E78195C7CAE003E6B25 /* libarmadillo.4.30.2.dylib in Frameworks */,
 				DFF1EDB517BD90EF00B3A2AC /* libyamcmcpp.dylib in Frameworks */,
-				DFF1EDB317BD8FEC00B3A2AC /* libarmadillo.3.91.0.dylib in Frameworks */,
-				DFF1EDAF17BD8FAB00B3A2AC /* libboost_filesystem.dylib in Frameworks */,
-				DFF1EDB017BD8FAB00B3A2AC /* libboost_system.dylib in Frameworks */,
 				556E3D3D1766A33900C3A045 /* Accelerate.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -117,6 +123,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DF583E7B195C87F8003E6B25 /* libboost_filesystem.dylib in Frameworks */,
 				DFAA05C6195BA5C800F82A33 /* libboost_system.dylib in Frameworks */,
 				DFAA05C5195BA5B500F82A33 /* Accelerate.framework in Frameworks */,
 				DFAA05C4195BA5A000F82A33 /* libarmadillo.4.30.2.dylib in Frameworks */,
@@ -376,6 +383,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DF583E75195C7B29003E6B25 /* proposals.cpp in Sources */,
+				DF583E76195C7B29003E6B25 /* samplers.cpp in Sources */,
+				DF583E77195C7B29003E6B25 /* steps.cpp in Sources */,
+				DF583E74195C7B08003E6B25 /* carpack.cpp in Sources */,
+				DF583E73195C7AEC003E6B25 /* random.cpp in Sources */,
 				DFAA05C2195BA57C00F82A33 /* kfilter.cpp in Sources */,
 				DFAA05BC195BA54900F82A33 /* main.cpp in Sources */,
 			);
@@ -388,8 +400,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../../lib\"",
+					/Users/brandonkelly/lib,
+					/usr/local/lib,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -399,8 +411,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../../lib\"",
+					/Users/brandonkelly/lib,
+					/usr/local/lib,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -552,6 +564,7 @@
 				DFAA05C0195BA54900F82A33 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		DFD8B80A172B290C006D6BAB /* Build configuration list for PBXProject "carma_pack" */ = {
 			isa = XCConfigurationList;
