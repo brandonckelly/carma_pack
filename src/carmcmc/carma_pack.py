@@ -1024,16 +1024,19 @@ def get_ar_roots(qpo_width, qpo_centroid):
 
     :rtype : The roots of the autoregressive polynomial, a numpy array.
     :param qpo_width: The widths of the lorentzian functions defining the PSD.
-    :param qpo_centroid: The centroids of the lorentzian functions defining the PSD.
+    :param qpo_centroid: The centroids of the lorentzian functions defining the PSD. For all values of qpo_centroid
+         that are greater than zero, the complex conjugate of the root will also be added.
     """
-    p = qpo_centroid.size + qpo_width.size
-    ar_roots = np.empty(p, dtype=complex)
-    for i in xrange(p / 2):
-        ar_roots[2 * i] = qpo_width[i] + 1j * qpo_centroid[i]
-        ar_roots[2 * i + 1] = np.conjugate(ar_roots[2 * i])
-    if p % 2 == 1:
-        # p is odd, so add in low-frequency component
-        ar_roots[-1] = qpo_width[-1]
+    ar_roots = []
+    for i in xrange(len(qpo_centroid)):
+        ar_roots.append(qpo_width[i] + 1j * qpo_centroid[i])
+        if qpo_centroid[i] > 1e-10:
+            # lorentzian is centered at a frequency > 0, so add complex conjugate of this root
+            ar_roots.append(np.conjugate(ar_roots[-1]))
+    if len(qpo_width) - len(qpo_centroid) == 1:
+        # odd number of lorentzian functions, so add in low-frequency component
+        ar_roots.append(qpo_width[-1] + 1j * 0.0)
+    ar_roots = np.array(ar_roots)
 
     return -2.0 * np.pi * ar_roots
 
