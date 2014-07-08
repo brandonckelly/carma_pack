@@ -1124,8 +1124,9 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
     if len(ma_coefs) < p:
         # add extra zeros to end of ma_coefs
+        q = len(ma_coefs)
         ma_coefs = np.resize(np.array(ma_coefs), len(ar_roots))
-        ma_coefs[1:] = 0.0
+        ma_coefs[q:] = 0.0
 
     time.sort()
     # make sure process is stationary
