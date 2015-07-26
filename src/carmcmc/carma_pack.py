@@ -1105,6 +1105,28 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
     return sigsqr * sigma1_variance.real
 
 
+def car1_process(time, sigsqr, tau):
+    """
+    Generate a CAR(1) process.
+
+    :param time: The time values at which to generate the CAR(1) process at.
+    :param sigsqr: The variance in the driving white noise term.
+    :param tau: The e-folding (mean-reversion) time scale of the CAR(1) process. Note that tau = -1.0 / ar_root.
+    :rtype : A numpy array containing the simulated CAR(1) process values at time.
+    """
+
+    marginal_var = sigsqr * tau / 2.0
+    y = np.zeros(len(time))
+    y[0] = np.sqrt(marginal_var) * np.random.standard_normal()
+
+    for i in range(1, len(time)):
+        dt = time[i] - time[i-1]
+        rho = np.exp(-dt / tau)
+        conditional_var = marginal_var * (1.0 - rho ** 2)
+        y[i] = rho * y[i-1] + np.sqrt(conditional_var) * np.random.standard_normal()
+
+    return y
+
 def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     """
     Generate a CARMA(p,q) process.
@@ -1121,6 +1143,10 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
         "Size of ma_coefs must be less or equal to size of ar_roots."
 
     p = len(ar_roots)
+
+    if p == 1:
+        # generate a CAR(1) process
+        return car1_process(time, sigsqr, -1.0 / np.asscalar(ar_roots))
 
     if len(ma_coefs) < p:
         # add extra zeros to end of ma_coefs
