@@ -589,7 +589,7 @@ class CarmaSample(samplers.MCMCSample):
 
         # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
         # maximum time scales probed by the time series.
-        freq_max = 1.0 / dt_min
+        freq_max = 0.5 / dt_min
         freq_min = 1.0 / dt_max
 
         frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
@@ -947,7 +947,8 @@ class Car1Sample(CarmaSample):
                                            np.exp(log_omega))
         return kfilter, mu
 
-    def plot_power_spectrum(self, percentile=68.0, plot_log=True, color="b", sp=None, doShow=True):
+    def plot_power_spectrum(self, percentile=68.0, nsamples=None, plot_log=True, color="b", alpha=0.5, sp=None,
+                            doShow=True):
         """
         Plot the posterior median and the credibility interval corresponding to percentile of the CAR(1) PSD. This
         function returns a tuple containing the lower and upper PSD credibility intervals as a function of
@@ -967,6 +968,19 @@ class Car1Sample(CarmaSample):
         """
         sigmas = self._samples['sigma']
         log_omegas = self._samples['log_omega']
+        if nsamples is None:
+            # Use all of the MCMC samples
+            nsamples = sigmas.shape[0]
+        else:
+            try:
+                nsamples <= sigmas.shape[0]
+            except ValueError:
+                "nsamples must be less than the total number of MCMC samples."
+
+            nsamples0 = sigmas.shape[0]
+            index = np.arange(nsamples) * (nsamples0 / nsamples)
+            sigmas = sigmas[index]
+            log_omegas = log_omegas[index]
 
         nfreq = 1000
         dt_min = self.time[1:] - self.time[0:self.time.size - 1]
@@ -975,8 +989,8 @@ class Car1Sample(CarmaSample):
 
         # Only plot frequencies corresponding to time scales a factor of 2 shorter and longer than the minimum and
         # maximum time scales probed by the time series.
-        freq_max = 1.0 / (dt_min / 2.0)
-        freq_min = (1.0 / (2.0 * dt_max))
+        freq_max = 0.5 / dt_min
+        freq_min = 1.0 / dt_max
 
         frequencies = np.linspace(np.log(freq_min), np.log(freq_max), num=nfreq)
         frequencies = np.exp(frequencies)
@@ -985,9 +999,10 @@ class Car1Sample(CarmaSample):
         lower = (100.0 - percentile) / 2.0  # lower and upper intervals for credible region
         upper = 100.0 - lower
 
-        numer = 0.5 / np.pi * sigmas ** 2
+        numer = sigmas ** 2
+        omegasq = np.exp(log_omegas) ** 2
         for i in xrange(nfreq):
-            denom = 10 ** log_omegas ** 2 + frequencies[i] ** 2
+            denom = omegasq + (2. * np.pi * frequencies[i]) ** 2
             psd_samples = numer / denom
 
             # Now compute credibility interval for power spectrum
@@ -1006,15 +1021,18 @@ class Car1Sample(CarmaSample):
         else:
             sp.plot(frequencies, psd_credint[:, 1], color=color)
 
-        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=0.5)
+        sp.fill_between(frequencies, psd_credint[:, 2], psd_credint[:, 0], facecolor=color, alpha=alpha)
         sp.set_xlim(frequencies.min(), frequencies.max())
         sp.set_xlabel('Frequency')
         sp.set_ylabel('Power Spectrum')
+
         if doShow:
             plt.show()
-            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
+
+        if sp == None:
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies, fig)
         else:
-            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies), fig
+            return (psd_credint[:, 0], psd_credint[:, 2], psd_credint[:, 1], frequencies)
 
 
 def get_ar_roots(qpo_width, qpo_centroid):
