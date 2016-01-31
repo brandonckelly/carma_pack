@@ -72,7 +72,7 @@ class CarmaModel(object):
 
         if init is None:
             init = carmcmcLib.vecD()
-            
+
         if self.p == 1:
             # Treat the CAR(1) case separately
             cppSample = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig,
@@ -146,51 +146,55 @@ class CarmaModel(object):
             estimate. pqlist contains the values of (p,q) used in the search, and AICc contains the values of AICc for
             each (p,q) pair in pqlist.
         """
-        try:
-            pmax > 0
-        except ValueError:
-            "Order of AR polynomial must be at least 1."
+        if pmax < 0:
+            raise ValueError("Order of AR polynomial must be at least 1.")
 
         if qmax is None:
             qmax = pmax - 1
 
-        try:
-            pmax > qmax
-        except ValueError:
-            " Order of AR polynomial, p, must be larger than order of MA polynimial, q."
+        if pmax <= qmax:
+            raise ValueError(" Order of AR polynomial, p, must be larger than order of MA polynimial, q.")
+
+        if njobs == -1:
+            njobs = multiprocessing.cpu_count()
 
         if pqlist is None:
-            pqlist = []
-            for p in xrange(1, pmax+1):
-                for q in xrange(p):
-                    pqlist.append((p, q))
+            pqlist = [(p,q) for p in range(1, pmax+1) for q in range(p)]
 
-        MLEs = []
-        for pq in pqlist:
-            MLE = self.get_mle(pq[0], pq[1], ntrials=ntrials, njobs=njobs)
-            MLEs.append(MLE)
+        pool = multiprocessing.Pool(njobs)
+        processes = [pool.apply_async(_get_aic, args=(pq[0], pq[1], self.time, self.y, self.ysig, ntrials)) for pq in pqlist]
+        AICc = [out.get() for out in processes]
 
         best_AICc = 1e300
-        AICc = []
-        best_MLE = MLEs[0]
         print 'p, q, AICc:'
-        for MLE, pq in zip(MLEs, pqlist):
-            nparams = 2 + pq[0] + pq[1]
-            deviance = 2.0 * MLE.fun
-            this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (self.time.size - nparams - 1.0)
+        for this_AICc, pq in zip(AICc, pqlist):
             print pq[0], pq[1], this_AICc
-            AICc.append(this_AICc)
             if this_AICc < best_AICc:
                 # new optimum found, save values
-                best_MLE = MLE
                 best_AICc = this_AICc
                 self.p = pq[0]
                 self.q = pq[1]
 
         print 'Model with best AICc has p =', self.p, ' and q = ', self.q
 
-        return best_MLE, pqlist, AICc
+        return pqlist, AICc
 
+def _get_aic(p, q, t, y, ysig, ntrials=100,):
+
+    args = [(p, q, t, y, ysig)] * ntrials
+
+    MLEs = map(_get_mle_single, args)
+
+    best_MLE = MLEs[0]
+    for MLE in MLEs:
+        if MLE.fun < best_MLE.fun:  # note that MLE.fun is -loglik since we use scipy.optimize.minimize
+            # new MLE found, save this value
+            best_MLE = MLE
+    nparams = 2 + p + q
+    deviance = 2.0 * best_MLE.fun
+    this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (t.size - nparams - 1.0)
+
+    return this_AICc
 
 def _get_mle_single(args):
 
@@ -551,7 +555,7 @@ class CarmaSample(samplers.MCMCSample):
         Plot the posterior median and the credibility interval corresponding to percentile of the CARMA(p,q) PSD. This
         function returns a tuple containing the lower and upper PSD credibility intervals as a function of frequency,
         the median PSD as a function of frequency, and the frequencies.
-        
+
         :rtype : A tuple of numpy arrays, (lower PSD, upper PSD, median PSD, frequencies). If no subplot axes object
             is supplied (i.e., if sp = None), then the subplot axes object used will also be returned as the last
             element of the tuple.
@@ -679,7 +683,7 @@ class CarmaSample(samplers.MCMCSample):
         kfilter = carmcmcLib.KalmanFilterp(arrayToVec(self.time),
                                            arrayToVec(self.y - mu),
                                            arrayToVec(self.ysig),
-                                           sigsqr, 
+                                           sigsqr,
                                            arrayToVec(ar_roots, carmcmcLib.vecC),
                                            arrayToVec(ma_coefs))
         return kfilter, mu
@@ -837,7 +841,7 @@ class CarmaSample(samplers.MCMCSample):
         return ysim
 
     def DIC(self):
-        """ 
+        """
         Calculate the Deviance Information Criterion for the model.
 
         The deviance is -2 * log-likelihood, and the DIC is:
@@ -943,7 +947,7 @@ class Car1Sample(CarmaSample):
         kfilter = carmcmcLib.KalmanFilter1(arrayToVec(self.time),
                                            arrayToVec(self.y - mu),
                                            arrayToVec(self.ysig),
-                                           sigsqr, 
+                                           sigsqr,
                                            np.exp(log_omega))
         return kfilter, mu
 
