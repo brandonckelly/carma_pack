@@ -906,7 +906,7 @@ class Car1Sample(CarmaSample):
     def generate_from_trace(self, trace):
         names = ['sigma', 'measerr_scale', 'mu', 'log_omega']
         if names != self._samples.keys():
-            self._samples['var'] = trace[:, 0]
+            self._samples['var'] = trace[:, 0] ** 2
             self._samples['measerr_scale'] = trace[:, 1]
             self._samples['mu'] = trace[:, 2]
             self._samples['log_omega'] = trace[:, 3]
