@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Carma pack : MCMC Sampler for Performing Bayesian Inference on Continuous Time Autoregressive Models.">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Carma pack</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/brandonckelly/carma_pack">View on GitHub</a>
+
+          <h1 id="project_title">Carma pack</h1>
+          <h2 id="project_tagline">MCMC Sampler for Performing Bayesian Inference on Continuous Time Autoregressive Models.</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/brandonckelly/carma_pack/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/brandonckelly/carma_pack/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="carma_pack" class="anchor" href="#carma_pack" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>carma_pack</h1>
+
+<p>carma_pack is an MCMC sampler for performing Bayesian inference on
+continuous time autoregressive moving average models. These models may
+be used to model time series with irregular sampling. The MCMC sampler
+utilizes an adaptive Metropolis algorithm combined with parallel
+tempering. Further details are given in <a href="http://arxiv.org/abs/1402.5978">this paper</a>.</p>
+
+<p>For a guided tour of <code>carma_pack</code> click <a href="http://nbviewer.ipython.org/github/brandonckelly/carma_pack/blob/master/examples/.ipynb_checkpoints/carma_pack_guide-checkpoint.ipynb">here</a>
+ or see the <code>ipython</code> notebook available under the <code>examples/</code> folder.</p>
+
+<hr>
+
+<h2>
+<a id="quick-start" class="anchor" href="#quick-start" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Quick Start</h2>
+
+<p>To illustrate the important functionality of carma_pack, start by
+defining the power spectrum parameters for a CARMA(5,3) process:</p>
+
+<pre><code>&gt;&gt;&gt; import carmcmc as cm
+&gt;&gt;&gt; import numpy as np
+&gt;&gt;&gt;
+&gt;&gt;&gt; sigmay = 2.3  # dispersion in the time series
+&gt;&gt;&gt; p = 5  # order of the AR polynomial
+&gt;&gt;&gt; mu = 17.0  # mean of the time series
+&gt;&gt;&gt; qpo_width = np.array([1.0/100.0, 1.0/300.0, 1.0/200.0])  # widths of of Lorentzian components
+&gt;&gt;&gt; qpo_cent = np.array([1.0/5.0, 1.0/25.0])  # centroids of Lorentzian components
+&gt;&gt;&gt; ar_roots = cm.get_ar_roots(qpo_width, qpo_cent)
+&gt;&gt;&gt; ma_coefs = np.zeros(p)
+&gt;&gt;&gt; ma_coefs[0] = 1.0
+&gt;&gt;&gt; ma_coefs[1] = 4.5
+&gt;&gt;&gt; ma_coefs[2] = 1.25
+&gt;&gt;&gt; # calculate amplitude of driving white noise
+&gt;&gt;&gt; sigsqr = sigmay ** 2 / cm.carma_variance(1.0, ar_roots, ma_coefs=ma_coefs)
+</code></pre>
+
+<p>Generate the time series:</p>
+
+<pre><code>&gt;&gt;&gt; ny = 270
+&gt;&gt;&gt; time = np.empty(ny)
+&gt;&gt;&gt; dt = np.random.uniform(1.0, 3.0, ny)
+&gt;&gt;&gt; time[:90] = np.cumsum(dt[:90])
+&gt;&gt;&gt; time[90:2*90] = 180 + time[90-1] + np.cumsum(dt[90:2*90])
+&gt;&gt;&gt; time[2*90:] = 180 + time[2*90-1] + np.cumsum(dt[2*90:])
+&gt;&gt;&gt; y0 = mu + cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
+&gt;&gt;&gt; ysig = np.ones(ny) * y.std() / 5.0  # standard deviation in measurement noise
+&gt;&gt;&gt; y = y0 + ysig * np.random.standard_norma(ny)  # add measurement noise
+</code></pre>
+
+<p>Now lets choose the order of the CARMA model to use. carma_pack does
+this by finding the maximum-likelihood estimate of the carma models on
+a grid of (p,q), and then choosing (p,q) to minimize the AICc. Because
+the likelihood space is multimodal, carma_pack launches 100 optimizers
+with random starts, and picks the best one. Optimization is done using
+scipy.optimize, but appears to be unstable as it is not uncommon to
+get NaN at the MLE.</p>
+
+<pre><code>&gt;&gt;&gt; carma_model = cm.CarmaModel(time, y, ysig)  # create new CARMA process model
+&gt;&gt;&gt; pmax = 7  # only search over p &lt; 7, q &lt; p
+&gt;&gt;&gt; # njobs = -1 will use all the processes through the multiprocessing module
+&gt;&gt;&gt; MLE, pqlist, AICc_list = carma_model.choose_order(pmax, njobs=-1)
+</code></pre>
+
+<p>The chosen p and q values are saved as data members of the carma_model
+object. Finally, lets sample the CARMA process parameters using MCMC
+and the values of (p,q) chosen by the choose_order method.</p>
+
+<pre><code>&gt;&gt;&gt; carma_sample = carma_model.run_mcmc(50000)
+</code></pre>
+
+<p>This will run the MCMC sampler for 75000 iterations, with the first
+25000 of those discarded as burn-in. You can specify the number of
+parallel chains to use in the parallel tempering algorithm, as well as
+the number of iterations used by burn-in. In this example we just use
+the default.</p>
+
+<p>Now let's examine the results. We can see which parameters we have
+sampled as</p>
+
+<pre><code>&gt;&gt;&gt; print carma_sample.parameters
+</code></pre>
+
+<p>We can grab the samples for a parameter doing</p>
+
+<pre><code>&gt;&gt;&gt; trace_qpo_cent = carma_sample.get_samples('psd_centroid')  # get samples for the Lorentzians centroids
+</code></pre>
+
+<p>We can plot a useful summary of the MCMC samples for each
+parameter:</p>
+
+<pre><code>&gt;&gt;&gt; carma_sample.plot_parameter('var')  # plots for the CARMA model variance
+</code></pre>
+
+<p>We can also plot 1-d and 2-d posteriors:</p>
+
+<pre><code>&gt;&gt;&gt; carma_sample.plot_1dpdf('ma_coefs')  # histograms of MA coefficients
+&gt;&gt;&gt; # plot distribution of centroid of 1st Lorentzian vs width of 2nd Lorentzian
+&gt;&gt;&gt; carma_sample.plot_2dkde('psd_centroid', 'psd_width', 0, 1)
+</code></pre>
+
+<p>The pointwise 95% credibility region for the power spectrum under the
+CARMA model is</p>
+
+<pre><code>&gt;&gt;&gt; psd_lo, psd_hi, psd_mid, freq = carma_sample.plot_power_spectrum(percentile=95.0, nsamples=5000)  # only use 5000 MCMC samples for speed
+</code></pre>
+
+<p>Finally, we can assess the quality of the fit through</p>
+
+<pre><code>&gt;&gt;&gt; carma_sample.assess_fit()
+</code></pre>
+
+<hr>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h2>
+
+<p><code>carma_pack</code> depends on the following python modules:</p>
+
+<ul>
+<li>
+<code>numpy</code>     (for core functionality)</li>
+<li>
+<code>scipy</code>     (for core functionality)</li>
+<li>
+<code>matplotlib</code>    (for generating plots)</li>
+<li>
+<code>acor</code>    (for calculating the autocorrelation time scale of MCMC samples)</li>
+</ul>
+
+<p>In addition, it is necessary to have the <a href="http://www.boost.org">Boost C++ libraries</a> (for
+linking python and C++) and the <a href="http://arma.sourceforge.net">Armadillo C++ linear algebra
+library</a> installed. If you have multiple python
+versions installed on your system, make sure that the BoostPython
+links to the correct python library. Otherwise, python will crash
+when you import carmcmc.</p>
+
+<p>Full install directions are given in the Linux_install.txt and
+MacOSX_install.txt files. Be forewarned that on Mac OS X getting
+BoostPython to build against any python other than the system
+python can be a real headache. You may have to replace some of the
+python libraries in /usr/lib with symbolic links to the actual python
+libraries used.</p>
+
+<hr>
+
+<h2>
+<a id="examples" class="anchor" href="#examples" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Examples</h2>
+
+<p>We have supplied an <code>ipython</code> notebook under the <code>examples/</code> folder that gives a guided tour of <code>carma_pack</code>. Also, the script carma_pack/src/paper/carma_paper.py generates the plots
+from the paper and provides additional examples of carma_pack's functionality.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Carma pack maintained by <a href="https://github.com/brandonckelly">brandonckelly</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
