@@ -42,8 +42,8 @@ Generate the time series:
     >>> time[90:2*90] = 180 + time[90-1] + np.cumsum(dt[90:2*90])
     >>> time[2*90:] = 180 + time[2*90-1] + np.cumsum(dt[2*90:])
     >>> y0 = mu + cm.carma_process(time, sigsqr, ar_roots, ma_coefs=ma_coefs)
-    >>> ysig = np.ones(ny) * y.std() / 5.0  # standard deviation in measurement noise
-    >>> y = y0 + ysig * np.random.standard_norma(ny)  # add measurement noise
+    >>> ysig = np.ones(ny) * y0.std() / 5.0  # standard deviation in measurement noise
+    >>> y = y0 + ysig * np.random.standard_normal(ny)  # add measurement noise
 
 Now lets choose the order of the CARMA model to use. carma_pack does
 this by finding the maximum-likelihood estimate of the carma models on
