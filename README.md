@@ -115,7 +115,7 @@ linking python and C++) and the [Armadillo C++ linear algebra
 library](http://arma.sourceforge.net) installed. If you have multiple python
 versions installed on your system, make sure that the BoostPython
 links to the correct python library. Otherwise, python will crash
-when you import carmcmc.
+when you import carmcmc. Note that carma_pack only works with Boost version 1.59 and earlier; it does not work with Boost version 1.60 and onwards.
 
 Full install directions are given in the Linux_install.txt and
 MacOSX_install.txt files. Be forewarned that on Mac OS X getting
