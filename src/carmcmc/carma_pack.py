@@ -669,7 +669,7 @@ class CarmaSample(samplers.MCMCSample):
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
         else:
             # use a random draw from the posterior
-            random_index = np.random.random_integers(0, self._samples.values()[0].shape[0])
+            random_index = np.random.random_integers(0, self._samples.values()[0].shape[0] - 1)
             sigsqr = (self._samples['sigma'][random_index] ** 2)[0]
             mu = self._samples['mu'][random_index][0]
             ar_roots = self._samples['ar_roots'][random_index]
