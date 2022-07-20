@@ -77,7 +77,7 @@ class TestCarpackOrder(unittest.TestCase):
                                            self.xdata, self.ydata, self.dydata,
                                            pModel, qModel, self.nWalkers, False, self.nThin)
         guess     = cppSample.getSamples()[0]
-        print "Should be using:", np.array(guess)
+        print("Should be using:", np.array(guess))
         cppSample = carmcmc.run_mcmc_carma(self.nSample, self.nBurnin, 
                                            self.xdata, self.ydata, self.dydata,
                                            pModel, qModel, self.nWalkers, False, self.nThin, guess)

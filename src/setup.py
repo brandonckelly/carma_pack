@@ -8,6 +8,7 @@ desc = open("README.rst").read()
 extension_version = "0.1.0"
 extension_url = "https://github.com/bckelly80/carma_pack"
 BOOST_DIR = os.environ["BOOST_DIR"]
+BOOST_PYTHON_SUFFIX = os.environ["BOOST_PYTHON_SUFFIX"]
 ARMADILLO_DIR = os.environ["ARMADILLO_DIR"]
 NUMPY_DIR = os.environ["NUMPY_DIR"]
 include_dirs = [NUMPY_DIR + "/include", BOOST_DIR + "/include", ARMADILLO_DIR + "/include",
@@ -21,7 +22,7 @@ if system_name != 'Darwin':
     # /usr/lib64 does not exist under Mac OS X
     library_dirs.append("/usr/lib64")
 
-compiler_args = ["-O3"]
+compiler_args = ["-O3", '-fpermissive']
 if system_name == 'Darwin':
     compiler_args.append("-std=c++11")
     # need to build against libc++ for Mac OS X
@@ -48,7 +49,7 @@ def configuration(parent_package='', top_path=None):
                  "steps.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python%s"%boost_suffix, "boost_filesystem%s"%boost_suffix, "boost_system%s"%boost_suffix, 
+        libraries=["boost_python{}{}".format(BOOST_PYTHON_SUFFIX, boost_suffix), "boost_filesystem%s"%boost_suffix, "boost_system%s"%boost_suffix, 
                    "armadillo"],
         extra_compiler_args=compiler_args
     )
@@ -57,7 +58,7 @@ def configuration(parent_package='', top_path=None):
         sources=["boost_python_wrapper.cpp", "carmcmc.cpp"],
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        libraries=["boost_python%s"%boost_suffix, "boost_filesystem%s"%boost_suffix, "boost_system%s"%boost_suffix, 
+        libraries=["boost_python{}{}".format(BOOST_PYTHON_SUFFIX, boost_suffix), "boost_filesystem%s"%boost_suffix, "boost_system%s"%boost_suffix, 
                    "armadillo", "carmcmc"],
         extra_compile_args=compiler_args
     )

@@ -4,9 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from scipy.optimize import minimize
-import samplers
+from . import samplers
 import multiprocessing
-import _carmcmc as carmcmcLib
+from . import _carmcmc as carmcmcLib
 
 
 class CarmaModel(object):
@@ -75,12 +75,12 @@ class CarmaModel(object):
             
         if self.p == 1:
             # Treat the CAR(1) case separately
-            cppSample = carmcmcLib.run_mcmc_car1(nsamples, nburnin, self._time, self._y, self._ysig,
+            cppSample = carmcmcLib.run_mcmc_car1(nsamples, int(nburnin), self._time, self._y, self._ysig,
                                                  nthin, init)
             # run_mcmc_car1 returns a wrapper around the C++ CAR1 class, convert to python object
             sample = Car1Sample(self.time, self.y, self.ysig, cppSample)
         else:
-            cppSample = carmcmcLib.run_mcmc_carma(nsamples, nburnin, self._time, self._y, self._ysig,
+            cppSample = carmcmcLib.run_mcmc_carma(nsamples, int(nburnin), self._time, self._y, self._ysig,
                                                   self.p, self.q, ntemperatures, False, nthin, init)
             # run_mcmc_car returns a wrapper around the C++ CARMA class, convert to a python object
             sample = CarmaSample(self.time, self.y, self.ysig, cppSample, q=self.q)
@@ -124,7 +124,7 @@ class CarmaModel(object):
                 # new MLE found, save this value
                 best_MLE = MLE
 
-        print best_MLE.message
+        print(best_MLE.message)
 
         return best_MLE
 
@@ -161,8 +161,8 @@ class CarmaModel(object):
 
         if pqlist is None:
             pqlist = []
-            for p in xrange(1, pmax+1):
-                for q in xrange(p):
+            for p in range(1, pmax+1):
+                for q in range(p):
                     pqlist.append((p, q))
 
         MLEs = []
@@ -173,12 +173,12 @@ class CarmaModel(object):
         best_AICc = 1e300
         AICc = []
         best_MLE = MLEs[0]
-        print 'p, q, AICc:'
+        print('p, q, AICc:')
         for MLE, pq in zip(MLEs, pqlist):
             nparams = 2 + pq[0] + pq[1]
             deviance = 2.0 * MLE.fun
             this_AICc = 2.0 * nparams + deviance + 2.0 * nparams * (nparams + 1.0) / (self.time.size - nparams - 1.0)
-            print pq[0], pq[1], this_AICc
+            print(pq[0], pq[1], this_AICc)
             AICc.append(this_AICc)
             if this_AICc < best_AICc:
                 # new optimum found, save values
@@ -187,7 +187,7 @@ class CarmaModel(object):
                 self.p = pq[0]
                 self.q = pq[1]
 
-        print 'Model with best AICc has p =', self.p, ' and q = ', self.q
+        print('Model with best AICc has p =', self.p, ' and q = ', self.q)
 
         return best_MLE, pqlist, AICc
 
@@ -242,7 +242,7 @@ def _get_mle_single(args):
         CarmaProcess.SetMLE(True)  # ignore the prior bounds when calculating CarmaProcess.getLogDensity in C++ code
 
     # make sure initial guess of theta does not violate bounds
-    for j in xrange(len(initial_theta)):
+    for j in range(len(initial_theta)):
         if theta_bnds[j][0] is not None:
             if (initial_theta[j] < theta_bnds[j][0]) or (initial_theta[j] > theta_bnds[j][1]):
                 initial_theta[j] = np.random.uniform(theta_bnds[j][0], theta_bnds[j][1])
@@ -290,23 +290,23 @@ class CarmaSample(samplers.MCMCSample):
 
         # now calculate the AR(p) characteristic polynomial roots, coefficients, MA coefficients, and amplitude of
         # driving noise and add them to the MCMC samples
-        print "Calculating PSD Lorentzian parameters..."
+        print("Calculating PSD Lorentzian parameters...")
         self._ar_roots()
-        print "Calculating coefficients of AR polynomial..."
+        print("Calculating coefficients of AR polynomial...")
         self._ar_coefs()
         if self.q > 0:
-            print "Calculating coefficients of MA polynomial..."
+            print("Calculating coefficients of MA polynomial...")
 
         self._ma_coefs(trace)
 
-        print "Calculating sigma..."
+        print("Calculating sigma...")
         self._sigma_noise()
 
         # add the log-likelihoods
-        print "Calculating log-likelihoods..."
+        print("Calculating log-likelihoods...")
         loglik = np.empty(logpost.size)
         sampler.SetMLE(True)
-        for i in xrange(logpost.size):
+        for i in range(logpost.size):
             std_theta = carmcmcLib.vecD()
             std_theta.extend(trace[i, :])
             # loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
@@ -339,7 +339,7 @@ class CarmaSample(samplers.MCMCSample):
         psd_width = np.zeros(self.p)
         psd_cent = np.zeros(self.p)
 
-        for i in xrange(self.p / 2):
+        for i in range(self.p / 2):
             quad1 = quad_coefs[2 * i]
             quad2 = quad_coefs[2 * i + 1]
 
@@ -373,7 +373,7 @@ class CarmaSample(samplers.MCMCSample):
         else:
             quad_coefs = np.exp(MLE.x[3 + self.p:])
             ma_roots = np.empty(quad_coefs.size, dtype=complex)
-            for i in xrange(self.q / 2):
+            for i in range(self.q / 2):
                 quad1 = quad_coefs[2 * i]
                 quad2 = quad_coefs[2 * i + 1]
 
@@ -446,7 +446,7 @@ class CarmaSample(samplers.MCMCSample):
         self._samples['psd_centroid'] = np.empty((var.size, self.p))
         self._samples['psd_width'] = np.empty((var.size, self.p))
 
-        for i in xrange(self.p / 2):
+        for i in range(int(self.p / 2)):
             quad1 = quad_coefs[:, 2 * i]
             quad2 = quad_coefs[:, 2 * i + 1]
 
@@ -477,7 +477,7 @@ class CarmaSample(samplers.MCMCSample):
         else:
             quad_coefs = np.exp(trace[:, 3 + self.p:])
             roots = np.empty(quad_coefs.shape, dtype=complex)
-            for i in xrange(self.q / 2):
+            for i in range(int(self.q / 2)):
                 quad1 = quad_coefs[:, 2 * i]
                 quad2 = quad_coefs[:, 2 * i + 1]
 
@@ -491,7 +491,7 @@ class CarmaSample(samplers.MCMCSample):
                 roots[:, -1] = -quad_coefs[:, -1]
 
             coefs = np.empty((nsamples, self.q + 1), dtype=complex)
-            for i in xrange(nsamples):
+            for i in range(nsamples):
                 coefs_i = np.poly(roots[i, :])
                 # normalize so constant in polynomial is unity, and reverse order to be consistent with MA
                 # representation
@@ -505,7 +505,7 @@ class CarmaSample(samplers.MCMCSample):
         """
         roots = self._samples['ar_roots']
         coefs = np.empty((roots.shape[0], self.p + 1), dtype=complex)
-        for i in xrange(roots.shape[0]):
+        for i in range(roots.shape[0]):
             coefs[i, :] = np.poly(roots[i, :])
 
         self._samples['ar_coefs'] = coefs.real
@@ -526,15 +526,15 @@ class CarmaSample(samplers.MCMCSample):
 
         # calculate the variance of a CAR(p) process, assuming sigma = 1.0
         sigma1_variance = np.zeros_like(var) + 0j
-        for k in xrange(self.p):
+        for k in range(self.p):
             denom = -2.0 * ar_roots[:, k].real + 0j
-            for l in xrange(self.p):
+            for l in range(self.p):
                 if l != k:
                     denom *= (ar_roots[:, l] - ar_roots[:, k]) * (np.conjugate(ar_roots[:, l]) + ar_roots[:, k])
 
             ma_sum1 = np.zeros_like(ar_roots[:, 0])
             ma_sum2 = ma_sum1.copy()
-            for l in xrange(ma_coefs.shape[1]):
+            for l in range(ma_coefs.shape[1]):
                 ma_sum1 += ma_coefs[:, l] * ar_roots[:, k] ** l
                 ma_sum2 += ma_coefs[:, l] * (-1.0 * ar_roots[:, k]) ** l
             numer = ma_sum1 * ma_sum2
@@ -603,14 +603,14 @@ class CarmaSample(samplers.MCMCSample):
         omega = 2.0 * np.pi * 1j * frequencies
         ar_poly = np.zeros((nfreq, nsamples), dtype=complex)
         ma_poly = np.zeros_like(ar_poly)
-        for k in xrange(self.p):
+        for k in range(self.p):
             # Here we compute:
             #   alpha(omega) = ar_coefs[0] * omega^p + ar_coefs[1] * omega^(p-1) + ... + ar_coefs[p]
             # Note that ar_coefs[0] = 1.0.
             argrid, omgrid = np.meshgrid(ar_coefs[:, k], omega)
             ar_poly += argrid * (omgrid ** (self.p - k))
         ar_poly += ar_coefs[:, self.p]
-        for k in xrange(ma_coefs.shape[1]):
+        for k in range(ma_coefs.shape[1]):
             # Here we compute:
             #   delta(omega) = ma_coefs[0] + ma_coefs[1] * omega + ... + ma_coefs[q] * omega^q
             magrid, omgrid = np.meshgrid(ma_coefs[:, k], omega)
@@ -797,7 +797,7 @@ class CarmaSample(samplers.MCMCSample):
         else:
             yhat = np.empty(time.size)
             yhat_var = np.empty(time.size)
-            for i in xrange(time.size):
+            for i in range(time.size):
                 pred = kfilter.Predict(time[i])
                 yhat[i] = pred.first
                 yhat_var[i] = pred.second
@@ -887,13 +887,13 @@ class Car1Sample(CarmaSample):
 
         super(CarmaSample, self).__init__(filename=filename, logpost=logpost, trace=trace)
 
-        print "Calculating sigma..."
+        print("Calculating sigma...")
         self._sigma_noise()
 
         # add the log-likelihoods
-        print "Calculating log-likelihoods..."
+        print("Calculating log-likelihoods...")
         loglik = np.empty(logpost.size)
-        for i in xrange(logpost.size):
+        for i in range(logpost.size):
             std_theta = carmcmcLib.vecD()
             std_theta.extend(trace[i, :])
             loglik[i] = logpost[i] - sampler.getLogPrior(std_theta)
@@ -912,11 +912,11 @@ class Car1Sample(CarmaSample):
             self._samples['log_omega'] = trace[:, 3]
 
     def _ar_roots(self):
-        print "_ar_roots not supported for CAR1"
+        print("_ar_roots not supported for CAR1")
         return
 
     def _ar_coefs(self):
-        print "_ar_coefs not supported for CAR1"
+        print("_ar_coefs not supported for CAR1")
         return
 
     def _sigma_noise(self):
@@ -1001,7 +1001,7 @@ class Car1Sample(CarmaSample):
 
         numer = sigmas ** 2
         omegasq = np.exp(log_omegas) ** 2
-        for i in xrange(nfreq):
+        for i in range(nfreq):
             denom = omegasq + (2. * np.pi * frequencies[i]) ** 2
             psd_samples = numer / denom
 
@@ -1046,7 +1046,7 @@ def get_ar_roots(qpo_width, qpo_centroid):
          that are greater than zero, the complex conjugate of the root will also be added.
     """
     ar_roots = []
-    for i in xrange(len(qpo_centroid)):
+    for i in range(len(qpo_centroid)):
         ar_roots.append(qpo_width[i] + 1j * qpo_centroid[i])
         if qpo_centroid[i] > 1e-10:
             # lorentzian is centered at a frequency > 0, so add complex conjugate of this root
@@ -1102,9 +1102,9 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
 
     sigma1_variance = 0.0 + 0j
     p = ar_roots.size
-    for k in xrange(p):
+    for k in range(p):
         denom_product = 1.0 + 0j
-        for l in xrange(p):
+        for l in range(p):
             if l != k:
                 denom_product *= (ar_roots[l] - ar_roots[k]) * (np.conjugate(ar_roots[l]) + ar_roots[k])
 
@@ -1112,7 +1112,7 @@ def carma_variance(sigsqr, ar_roots, ma_coefs=[1.0], lag=0.0):
 
         ma_sum1 = 0.0 + 0j
         ma_sum2 = 0.0 + 0j
-        for l in xrange(p):
+        for l in range(p):
             ma_sum1 += ma_coefs[l] * ar_roots[k] ** l
             ma_sum2 += ma_coefs[l] * (-1.0 * ar_roots[k]) ** l
 
@@ -1194,7 +1194,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     # quantities into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
     EigenMat = np.ones((p, p), dtype=complex)
     EigenMat[1, :] = ar_roots
-    for k in xrange(2, p):
+    for k in range(2, p):
         EigenMat[k, :] = ar_roots ** k
 
     # Input vector under the original state space representation
@@ -1209,7 +1209,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
     # Calculate the stationary covariance matrix of the state vector
     StateVar = np.empty((p, p), dtype=complex)
-    for j in xrange(p):
+    for j in range(p):
         StateVar[:, j] = -sigsqr * Jvector * np.conjugate(Jvector[j]) / (ar_roots + np.conjugate(ar_roots[j]))
 
     # Initialize variance in one-step prediction error and the state vector
@@ -1235,7 +1235,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
     # Initialize the innovations, i.e., the KF residuals
     innovation = y[0]
 
-    for i in xrange(1, time.size):
+    for i in range(1, time.size):
         # First compute the Kalman gain
         KalmanGain = PredictionVar * rotated_MA_coefs.H / kalman_var
         # update the state vector
@@ -1294,7 +1294,7 @@ class KalmanFilterDeprecated(object):
         # quantities into the rotated state basis, which makes the computations for the Kalman filter easier and faster.
         EigenMat = np.ones((self.p, self.p), dtype=complex)
         EigenMat[1, :] = self.ar_roots
-        for k in xrange(2, self.p):
+        for k in range(2, self.p):
             EigenMat[k, :] = self.ar_roots ** k
 
         # Input vector under the original state space representation
@@ -1309,7 +1309,7 @@ class KalmanFilterDeprecated(object):
 
         # Calculate the stationary covariance matrix of the state vector
         StateVar = np.empty((self.p, self.p), dtype=complex)
-        for j in xrange(self.p):
+        for j in range(self.p):
             StateVar[:, j] = -self.sigsqr * Jvector * np.conjugate(Jvector[j]) / \
                              (self.ar_roots + np.conjugate(self.ar_roots[j]))
 
@@ -1369,7 +1369,7 @@ class KalmanFilterDeprecated(object):
         completion, and are stored in the instantiated KalmanFilter object.
         """
         self.reset()
-        for i in xrange(self.time.size - 1):
+        for i in range(self.time.size - 1):
             self.update()
 
         return self.kalman_mean, self.kalman_var
@@ -1390,7 +1390,7 @@ class KalmanFilterDeprecated(object):
         self.reset()
         # find the index where time[ipredict-1] < time_predict < time[ipredict]
         ipredict = np.max(np.where(self.time < time_predict)) + 1
-        for i in xrange(ipredict - 1):
+        for i in range(ipredict - 1):
             # run the kalman filter for time < time_predict
             self.update()
 
@@ -1453,7 +1453,7 @@ class KalmanFilterDeprecated(object):
         self.slope[ipredict] = slope
 
         # now repeat for time > time_predict
-        for i in xrange(ipredict + 1, self.time.size):
+        for i in range(ipredict + 1, self.time.size):
             self._KalmanGain = self._PredictionVar * self._rotated_MA_coefs.H / self.kalman_var[i - 1]
             # update the state prediction coefficients: coefs(i|i-1) --> coefs(i|i)
             const_state += self._KalmanGain * (self.y[i - 1] - const)
@@ -1509,7 +1509,7 @@ class KalmanFilterDeprecated(object):
             yvar0 = self.yvar
             ysimulated = np.empty(time_simulate.size)
             time_simulate.sort()
-            for i in xrange(time_simulate.size):
+            for i in range(time_simulate.size):
                 cmean, cvar = self.predict(time_simulate[i])
                 ysimulated[i] = np.random.normal(cmean, np.sqrt(cvar))  # simulate the time series value
                 # find the index where time[isimulate-1] < time_simulate < time[isimulate]
