@@ -89,11 +89,11 @@ class MCMCSample(object):
 
         :param name: The name of the parameter to compute the effective number of independent samples for.
         """
-        if not self._samples.has_key(name):
-            print "WARNING: sampler does not have", name
+        if name not in self._samples:
+            print("WARNING: sampler does not have", name)
             return
         else:
-            print "Calculating effective number of samples"
+            print("Calculating effective number of samples")
 
         traces = self._samples[name]  # Get the sampled parameter values
         npts = traces.shape[0]
@@ -110,11 +110,11 @@ class MCMCSample(object):
         :param name: The parameter name.
         :param doShow: If true, then show the plot.
         """
-        if not self._samples.has_key(name):
-            print "WARNING: sampler does not have", name
+        if name not in self._samples:
+            print("WARNING: sampler does not have", name)
             return
         else:
-            print "Plotting Trace"
+            print("Plotting Trace")
             fig = plt.figure()
 
         traces = self._samples[name]  # Get the sampled parameter values
@@ -140,11 +140,11 @@ class MCMCSample(object):
         :param name: The parameter name.
         :param doShow: If true, then show the plot.
         """
-        if not self._samples.has_key(name):
-            print "WARNING: sampler does not have", name
+        if name not in self._samples:
+            print("WARNING: sampler does not have", name)
             return
         else:
-            print "Plotting 1d PDF"
+            print("Plotting 1d PDF")
             fig = plt.figure()
 
         traces = self._samples[name]  # Get the sampled parameter values
@@ -169,18 +169,18 @@ class MCMCSample(object):
         :param pindex2: Which element of the array to plot
         :param doShow: Call plt.show()
         """
-        if (not self._samples.has_key(name1)) or (not self._samples.has_key(name2)) :
-            print "WARNING: sampler does not have", name1, name2
+        if ((name1 not in self._samples) or (name2 not in self._samples)):
+            print("WARNING: sampler does not have", name1, name2)
             return
 
         if pindex1 >= self._samples[name1].shape[1]:
-            print "WARNING: not enough data in", name1
+            print("WARNING: not enough data in", name1)
             return
         if pindex2 >= self._samples[name2].shape[1]:
-            print "WARNING: not enough data in", name2
+            print("WARNING: not enough data in", name2)
             return
 
-        print "Plotting 2d PDF"
+        print("Plotting 2d PDF")
         fig    = plt.figure()
         trace1 = self._samples[name1][:,pindex1]
         trace2 = self._samples[name2][:,pindex2]
@@ -214,18 +214,18 @@ class MCMCSample(object):
         :param nbins: Number of bins along each axis for KDE
         :param doPlotStragglers: Plot individual data points outside KDE contours.  Works poorly for small samples.
         """
-        if (not self._samples.has_key(name1)) or (not self._samples.has_key(name2)) :
-            print "WARNING: sampler does not have", name1, name2
+        if ((name1 not in self._samples) or (name2 not in self._samples)):
+            print("WARNING: sampler does not have", name1, name2)
             return
 
         if pindex1 >= self._samples[name1].shape[1]:
-            print "WARNING: not enough data in", name1
+            print("WARNING: not enough data in", name1)
             return
         if pindex2 >= self._samples[name2].shape[1]:
-            print "WARNING: not enough data in", name2
+            print("WARNING: not enough data in", name2)
             return
 
-        print "Plotting 2d PDF w KDE"
+        print("Plotting 2d PDF w KDE")
         fig    = plt.figure()
         trace1 = self._samples[name1][:,pindex1].real # JIC we get something imaginary?
         trace2 = self._samples[name2][:,pindex2].real
@@ -284,11 +284,11 @@ class MCMCSample(object):
             samples. The default is 10 autocorrelation time scales.
         :param doShow:
         """
-        if not self._samples.has_key(name):
-            print "WARNING: sampler does not have", name
+        if name not in self._samples:
+            print("WARNING: sampler does not have", name)
             return
         else:
-            print "Plotting autocorrelation function (this make take a while)"
+            print("Plotting autocorrelation function (this make take a while)")
             fig = plt.figure()
 
         traces = self._samples[name]  # Get the sampled parameter values
@@ -299,7 +299,7 @@ class MCMCSample(object):
         for i in range(ntrace):
             sp = plt.subplot(ntrace, 1, i+1)
             lags, acf, not_needed1, not_needed2 = plt.acorr(traces[:, i] - mtrace[i], maxlags=traces.shape[0]-1, lw=2)
-            sp.set_xlim(-0.5, acorrFac * acorr[i])
+            #sp.set_xlim(-0.5, acorrFac * acorr[i])
             sp.set_ylim(-0.01, 1.01)
             sp.axhline(y=0.5, c='k', linestyle='--')
             sp.axvline(x=acorr[i], c='r', linestyle='--')
@@ -321,11 +321,11 @@ class MCMCSample(object):
                        for.
         :param doShow: Call plt.show().
         """
-        if not self._samples.has_key(name):
-            print "WARNING: sampler does not have", name
+        if name not in self._samples:
+            print("WARNING: sampler does not have", name)
             return
         else:
-            print "Plotting parameter summary"
+            print("Plotting parameter summary")
             fig = plt.figure()
 
         traces = self._samples[name]
@@ -377,30 +377,30 @@ class MCMCSample(object):
         effective_nsamples = self.effective_samples(name)  # Get the effective number of independent samples
         if traces.ndim == 1:
             # Parameter is scalar valued, so this is easy
-            print "Posterior summary for parameter", name
-            print "----------------------------------------------"
-            print "Effective number of independent samples:", effective_nsamples
-            print "Median:", np.median(traces)
-            print "Standard deviation:", np.std(traces)
-            print "68% credibility interval:", np.percentile(traces, (16.0, 84.0))
-            print "95% credibility interval:", np.percentile(traces, (2.5, 97.5))
-            print "99% credibility interval:", np.percentile(traces, (0.5, 99.5))
+            print("Posterior summary for parameter", name)
+            print("----------------------------------------------")
+            print("Effective number of independent samples:", effective_nsamples)
+            print("Median:", np.median(traces))
+            print("Standard deviation:", np.std(traces))
+            print("68% credibility interval:", np.percentile(traces, (16.0, 84.0)))
+            print("95% credibility interval:", np.percentile(traces, (2.5, 97.5)))
+            print("99% credibility interval:", np.percentile(traces, (0.5, 99.5)))
         else:
             if traces.ndim > 2:
                 # Parameter values are at least matrix-valued, reshape to a vector.
                 traces = traces.reshape(traces.shape[0], np.prod(traces.shape[1:]))
 
-            for i in xrange(traces.shape[1]):
+            for i in range(traces.shape[1]):
                 # give summary for each element of this parameter separately
                 # Parameter is scalar valued, so this is easy
-                print "Posterior summary for parameter", name, " element", i
-                print "----------------------------------------------"
-                print "Effective number of independent samples:", effective_nsamples[i]
-                print "Median:", np.median(traces[:, i])
-                print "Standard deviation:", np.std(traces[:, i])
-                print "68% credibility interval:", np.percentile(traces[:, i], (16.0, 84.0))
-                print "95% credibility interval:", np.percentile(traces[:, i], (2.5, 97.5))
-                print "99% credibility interval:", np.percentile(traces[:, i], (0.5, 99.5))
+                print("Posterior summary for parameter", name, " element", i)
+                print("----------------------------------------------")
+                print("Effective number of independent samples:", effective_nsamples[i])
+                print("Median:", np.median(traces[:, i]))
+                print("Standard deviation:", np.std(traces[:, i]))
+                print("68% credibility interval:", np.percentile(traces[:, i], (16.0, 84.0)))
+                print("95% credibility interval:", np.percentile(traces[:, i], (2.5, 97.5)))
+                print("99% credibility interval:", np.percentile(traces[:, i], (0.5, 99.5)))
 
     def newaxis(self):
         for key in self._samples.keys():

@@ -276,7 +276,7 @@ arma::vec CARp::StartingAR() {
     lorentz_cent = arma::exp(lorentz_cent);
     
     // Force system frequencies to be in descending order to make the model identifiable
-    lorentz_cent = arma::sort(lorentz_cent, 1);
+    lorentz_cent = arma::sort(lorentz_cent, "descend");
     
     arma::vec lorentz_width((p_+1)/2);
     lorentz_width.randu();

@@ -9,7 +9,7 @@
 #include <boost/python/object/function_object.hpp>
 #include <boost/python/object/py_function.hpp>
 #include <boost/python/call_method.hpp>
-#include <boost/python/numeric.hpp>
+//#include <boost/python/numeric.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
@@ -27,7 +27,7 @@ BOOST_PYTHON_FUNCTION_OVERLOADS(carmaOverloads, RunCarmaSampler, 8, 11);
 
 BOOST_PYTHON_MODULE(_carmcmc){
     import_array();
-    numeric::array::set_module_and_type("numpy", "ndarray");
+    //numeric::array::set_module_and_type("numpy", "ndarray");
 
     class_<std::vector<double> >("vecD")
         .def(vector_indexing_suite<std::vector<double> >());
