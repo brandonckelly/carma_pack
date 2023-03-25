@@ -36,9 +36,9 @@ void Sampler::AddStep(Step* step) {
 // Run sampler for a specific number of iterations.
 void Sampler::Iterate(int number_of_iterations, bool progress) {
 	if(progress) {
-		boost::progress_display show_progress(number_of_iterations);
+		boost::timer::progress_display show_progress(number_of_iterations);
 		for(int iter = 0; iter < number_of_iterations; ++iter) {
-			for(int i = 0; i < steps_.size(); ++i) {
+			for(std::uint64_t i = 0; i < steps_.size(); ++i) {
 				steps_[i].DoStep();
 			}
 			++show_progress;
@@ -46,7 +46,7 @@ void Sampler::Iterate(int number_of_iterations, bool progress) {
 	}
 	else {
 		for(int iter = 0; iter < number_of_iterations; ++iter) {
-			for(int i = 0; i < steps_.size(); ++i) {
+			for(std::uint64_t i = 0; i < steps_.size(); ++i) {
 				steps_[i].DoStep();
 			}
 		}
@@ -56,7 +56,7 @@ void Sampler::Iterate(int number_of_iterations, bool progress) {
 //Run the MCMC sampling procedure, including burning in, sampling, thinning, displaying progress, and saving results.
 void Sampler::Run(arma::vec init) {
 	// Timer
-	boost::timer timer;
+	boost::timer::cpu_timer timer;
 	current_iter_ = 0;
     
     // Allocate memory for MCMC samples
@@ -72,7 +72,7 @@ void Sampler::Run(arma::vec init) {
 			
 	// Setting starting value:
 	std::cout << "Setting starting values..." << std::endl;
-	int npar = static_cast<Parameter<arma::vec> *>(steps_[0].GetParPointer())->Value().n_elem;
+	std::uint64_t npar = static_cast<Parameter<arma::vec> *>(steps_[0].GetParPointer())->Value().n_elem;
 	bool useInit = (init.n_elem == npar);
 	if (useInit) 
 	   std::cout << " Using user-provided values" << std::endl;
@@ -97,7 +97,7 @@ void Sampler::Run(arma::vec init) {
 	Iterate(burnin_, true);
 	
 	std::cout << std::endl << "Sampling..." << std::endl;
-	boost::progress_display show_progress(sample_size_);
+	boost::timer::progress_display show_progress(sample_size_);
 	for (int i = 0; i < sample_size_; ++i) {
 		Iterate(thin_);
 		// Save data

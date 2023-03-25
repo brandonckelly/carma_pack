@@ -78,7 +78,7 @@ public:
         std::stringstream ss;
         
         ss << log_posterior_;
-        for (int i=0; i<value_.n_elem; i++) {
+        for (std::uint64_t i=0; i<value_.n_elem; i++) {
             ss << " " << value_(i);
         }
                 
@@ -99,7 +99,7 @@ public:
         //
         log_posterior_ = 0.0;
         double mu = new_value(2);
-        for (int i=0; i<time_.n_elem; i++) {
+        for (std::uint64_t i=0; i<time_.n_elem; i++) {
             double ycent = y_(i) - pKFilter_->mean(i) - mu;
             log_posterior_ += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }
@@ -165,7 +165,7 @@ public:
         
         // calculate the log-likelihood
         double logpost = 0.0;
-        for (int i=0; i<time_.n_elem; i++) {
+        for (std::uint64_t i=0; i<time_.n_elem; i++) {
             double ycent = y_(i) - pKFilter_->mean(i) - mu;
             logpost += -0.5 * log(pKFilter_->var(i)) - 0.5 * ycent * ycent / pKFilter_->var(i);
         }

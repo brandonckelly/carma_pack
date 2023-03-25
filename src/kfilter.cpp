@@ -85,7 +85,7 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
         
     // Run the Kalman filter up to the point time_[ipredict-1]
     Reset();
-    for (int i=1; i<ipredict; i++) {
+    for (std::uint64_t i=1; i<ipredict; i++) {
         Update();
     }
         
@@ -121,7 +121,7 @@ std::pair<double, double> KalmanFilter1::Predict(double time) {
     yprecision += yslope_ * yslope_ / var(ipredict);
     ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var(ipredict);
     
-    for (int i=ipredict+1; i<time_.n_elem; i++) {
+    for (std::uint64_t i=ipredict+1; i<time_.n_elem; i++) {
         UpdateCoefs();
         yprecision += yslope_ * yslope_ / var(i);
         ypredict_mean += yslope_ * (y_(i) - yconst_) / var(i);
@@ -144,7 +144,7 @@ void KalmanFilterp::Reset() {
     arma::cx_mat EigenMat(p_,p_);
 	EigenMat.row(0) = arma::ones<arma::cx_rowvec>(p_);
 	EigenMat.row(1) = omega_.st();
-	for (int i=2; i<p_; i++) {
+	for (std::uint64_t i=2; i<p_; i++) {
 		EigenMat.row(i) = strans(arma::pow(omega_, i));
 	}
     
@@ -162,8 +162,8 @@ void KalmanFilterp::Reset() {
     rotated_ma_coefs_ = ma_coefs_ * EigenMat;
 	
 	// Calculate the stationary covariance matrix of the state vector.
-	for (int i=0; i<p_; i++) {
-		for (int j=i; j<p_; j++) {
+	for (std::uint64_t i=0; i<p_; i++) {
+		for (std::uint64_t j=i; j<p_; j++) {
 			// Only fill in upper triangle of StateVar because of symmetry
 			StateVar_(i,j) = -sigsqr_ * Jvector(i) * std::conj(Jvector(j)) /
             (omega_(i) + std::conj(omega_(j)));
@@ -229,7 +229,7 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
     
     // Run the Kalman filter up to the point time_[ipredict-1]
     Reset();
-    for (int i=1; i<ipredict; i++) {
+    for (std::uint64_t i=1; i<ipredict; i++) {
         Update();
     }
     
@@ -272,7 +272,7 @@ std::pair<double, double> KalmanFilterp::Predict(double time) {
     yprecision += yslope_ * yslope_ / var(ipredict);
     ypredict_mean += yslope_ * (y_(ipredict) - yconst_) / var(ipredict);
     
-    for (int i=ipredict+1; i<time_.n_elem; i++) {
+    for (std::uint64_t i=ipredict+1; i<time_.n_elem; i++) {
         UpdateCoefs();
         yprecision += yslope_ * yslope_ / var(i);
         ypredict_mean += yslope_ * (y_(i) - yconst_) / var(i);

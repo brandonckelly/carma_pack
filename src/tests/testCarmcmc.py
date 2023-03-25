@@ -1,8 +1,12 @@
-import os
-import unittest
+import argparse
 import numpy as np
+import os
+import sys
+import unittest
 import carmcmc 
 np.random.seed(1)
+
+doShow=True
 
 class TestCarpackOrder(unittest.TestCase):
 
@@ -213,16 +217,19 @@ class TestCarpackOrder(unittest.TestCase):
         
         # cpp_tests of carma_pack carma_pack.py
         
-        post1.plot_power_spectrum(percentile=95.0, doShow=False)
-        postp.plot_power_spectrum(percentile=95.0, doShow=False)
-        postpqo.plot_power_spectrum(percentile=95.0, doShow=False)
-        postpqe.plot_power_spectrum(percentile=95.0, doShow=False)
+        post1.plot_power_spectrum(percentile=95.0, doShow=doShow)
+        postp.plot_power_spectrum(percentile=95.0, doShow=doShow)
+        postpqo.plot_power_spectrum(percentile=95.0, doShow=doShow)
+        postpqe.plot_power_spectrum(percentile=95.0, doShow=doShow)
         
         for bestfit in ["map", "median", "mean"]:
-            post1.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
-            postp.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
-            postpqo.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
-            postpqe.assess_fit(nplot=1000, bestfit=bestfit, doShow=False)
+            post1.assess_fit(nplot=1000, bestfit=bestfit, doShow=doShow)
+            postp.assess_fit(nplot=1000, bestfit=bestfit, doShow=doShow)
+            postpqo.assess_fit(nplot=1000, bestfit=bestfit, doShow=doShow)
+            postpqe.assess_fit(nplot=1000, bestfit=bestfit, doShow=doShow)
+
+def main():
+    unittest.main()
         
 if __name__ == "__main__":
-    unittest.main()
+    main()

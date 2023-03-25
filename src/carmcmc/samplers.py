@@ -151,7 +151,7 @@ class MCMCSample(object):
         ntrace = traces.shape[1]
         for i in range(ntrace):
             sp = plt.subplot(ntrace, 1, i+1)
-            sp.hist(traces[:,i], bins=50, normed=True)
+            sp.hist(traces[:,i], bins=50, density=True)
             sp.set_ylabel("par %d" % (i))
             if i == ntrace-1:
                 sp.set_xlabel("val")
