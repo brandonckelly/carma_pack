@@ -27,8 +27,8 @@
 // Boost includes
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/ptr_container/ptr_map.hpp>
-#include <boost/progress.hpp>
-#include <boost/timer.hpp>
+#include <boost/timer/progress_display.hpp>
+#include <boost/timer/timer.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
 // Local includes

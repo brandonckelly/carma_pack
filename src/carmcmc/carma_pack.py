@@ -577,7 +577,7 @@ class CarmaSample(samplers.MCMCSample):
                 "nsamples must be less than the total number of MCMC samples."
 
             nsamples0 = sigmas.shape[0]
-            index = np.arange(nsamples) * (nsamples0 / nsamples)
+            index = (np.arange(nsamples) * (nsamples0 / nsamples)).astype(int)
             sigmas = sigmas[index]
             ar_coefs = ar_coefs[index]
             ma_coefs = ma_coefs[index]
@@ -669,7 +669,7 @@ class CarmaSample(samplers.MCMCSample):
             ma_coefs = np.mean(self._samples['ma_coefs'], axis=0)
         else:
             # use a random draw from the posterior
-            random_index = np.random.random_integers(0, self._samples.values()[0].shape[0] - 1)
+            random_index = np.random.random_integers(0, list(self._samples.values())[0].shape[0] - 1)
             sigsqr = (self._samples['sigma'][random_index] ** 2)[0]
             mu = self._samples['mu'][random_index][0]
             ar_roots = self._samples['ar_roots'][random_index]
@@ -1164,7 +1164,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
     if p == 1:
         # generate a CAR(1) process
-        return car1_process(time, sigsqr, -1.0 / np.asscalar(ar_roots))
+        return car1_process(time, sigsqr, -1.0 / ar_roots.item())
 
     if len(ma_coefs) < p:
         # add extra zeros to end of ma_coefs
@@ -1226,7 +1226,7 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
 
     # Initialize the Kalman mean and variance. These are the forecasted values and their variances.
     kalman_mean = 0.0
-    kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
+    kalman_var = np.real((rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H).item())
 
     # simulate the first time series value
     y = np.empty_like(time)
@@ -1249,8 +1249,8 @@ def carma_process(time, sigsqr, ar_roots, ma_coefs=[1.0]):
         # update the predicted state covariance matrix
         PredictionVar = np.multiply(StateTransition * StateTransition.H, PredictionVar - StateVar) + StateVar
         # now predict the observation and its variance
-        kalman_mean = np.real(np.asscalar(rotated_MA_coefs * StateVector))
-        kalman_var = np.real(np.asscalar(rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H))
+        kalman_mean = np.real((rotated_MA_coefs * StateVector).item())
+        kalman_var = np.real((rotated_MA_coefs * PredictionVar * rotated_MA_coefs.H).item())
         # simulate the next time series value
         y[i] = np.random.normal(kalman_mean, np.sqrt(kalman_var))
         # finally, update the innovation
@@ -1355,9 +1355,9 @@ class KalmanFilterDeprecated(object):
         self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
                                           self._PredictionVar - self._StateVar) + self._StateVar
         # now predict the observation and its variance
-        self.kalman_mean[self._current_index] = np.real(np.asscalar(self._rotated_MA_coefs * self._StateVector))
+        self.kalman_mean[self._current_index] = np.real((self._rotated_MA_coefs * self._StateVector).item())
         self.kalman_var[self._current_index] = \
-            np.real(np.asscalar(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H))
+            np.real((self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H).item())
         self.kalman_var[self._current_index] += self.yvar[self._current_index]
         # finally, update the innovation
         self._innovation = self.y[self._current_index] - self.kalman_mean[self._current_index]
@@ -1404,8 +1404,8 @@ class KalmanFilterDeprecated(object):
         self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
                                           self._PredictionVar - self._StateVar) + self._StateVar
 
-        ypredict_mean = np.asscalar(np.real(self._rotated_MA_coefs * self._StateVector))
-        ypredict_var = np.asscalar(np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H))
+        ypredict_mean = (np.real(self._rotated_MA_coefs * self._StateVector)).item()
+        ypredict_var = (np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H)).item()
 
         # start the running statistics for the conditional mean and precision of the predicted time series value, given
         # the measured time series
@@ -1437,8 +1437,8 @@ class KalmanFilterDeprecated(object):
                                           self._PredictionVar - self._StateVar) + self._StateVar
         # compute the coefficients for the linear filter at time[ipredict], and compute the variance in the predicted
         # y[ipredict]
-        const = np.asscalar(np.real(self._rotated_MA_coefs * const_state))
-        slope = np.asscalar(np.real(self._rotated_MA_coefs * slope_state))
+        const = (np.real(self._rotated_MA_coefs * const_state)).item()
+        slope = (np.real(self._rotated_MA_coefs * slope_state)).item()
         self.kalman_var[ipredict] = \
             np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H) + \
             self.yvar[ipredict]
@@ -1469,8 +1469,8 @@ class KalmanFilterDeprecated(object):
             self._PredictionVar = np.multiply(self._StateTransition * self._StateTransition.H,
                                               self._PredictionVar - self._StateVar) + self._StateVar
             # compute the coefficients for predicting y[i]|y[j],j<i as a function of ypredict
-            const = np.asscalar(np.real(self._rotated_MA_coefs * const_state))
-            slope = np.asscalar(np.real(self._rotated_MA_coefs * slope_state))
+            const = (np.real(self._rotated_MA_coefs * const_state)).item()
+            slope = (np.real(self._rotated_MA_coefs * slope_state)).item()
             # compute the variance in predicting y[i]|y[j],j<i
             self.kalman_var[i] = \
                 np.real(self._rotated_MA_coefs * self._PredictionVar * self._rotated_MA_coefs.H) + \
